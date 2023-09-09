@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.5.33502.453
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Oasis.DynamicFilter", "Oasis.DynamicFilter\Oasis.DynamicFilter.csproj", "{240E699C-127B-4877-806D-DF5D6EDE64EF}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Oasis.DynamicFilter.Test", "Oasis.DynamicFilter.Test\Oasis.DynamicFilter.Test.csproj", "{C981317D-E81D-4539-BC3F-764EF0A75903}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{240E699C-127B-4877-806D-DF5D6EDE64EF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{240E699C-127B-4877-806D-DF5D6EDE64EF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{240E699C-127B-4877-806D-DF5D6EDE64EF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{240E699C-127B-4877-806D-DF5D6EDE64EF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C981317D-E81D-4539-BC3F-764EF0A75903}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C981317D-E81D-4539-BC3F-764EF0A75903}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C981317D-E81D-4539-BC3F-764EF0A75903}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C981317D-E81D-4539-BC3F-764EF0A75903}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {DECD632C-19A0-407F-95DA-08D83E60F2FE}
+	EndGlobalSection
+EndGlobal
