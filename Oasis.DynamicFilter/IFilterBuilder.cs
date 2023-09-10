@@ -1,14 +1,14 @@
 ﻿namespace Oasis.DynamicFilter;
 
-using System;
 using System.Linq.Expressions;
+using System;
 
 public enum FilteringType
 {
     /// <summary>
-    /// Entity value equals filter.
+    /// Entity value equals filter value for scalar, in filter values for collection.
     /// </summary>
-    Equal = 0,
+    Default = 0,
 
     /// <summary>
     /// Entity value is greater than filter.
@@ -31,14 +31,9 @@ public enum FilteringType
     LessOrEqual = 4,
 
     /// <summary>
-    /// Entity value in filter range
-    /// </summary>
-    In = 5,
-
-    /// <summary>
     /// Entity value not in filter range
     /// </summary>
-    NotIn,
+    NotIn = 5,
 }
 
 public enum ExcludingOption
@@ -52,25 +47,21 @@ public enum ExcludingOption
     /// Never ignoring the property for filtering
     /// </summary>
     Never,
+
+    /// <summary>
+    /// Alaways ingoring the property for filtering
+    /// </summary>
+    Always,
 }
 
-public interface IFilterConfiguration<TFilter, TEntity>
+public interface IFilterConfiguration<TFilter, TEntity> : IPropertyExcluder<IFilterConfiguration<TFilter, TEntity>>, IConfigurator<IFilterBuilder>
     where TFilter : class
     where TEntity : class
 {
-    IFilterConfiguration<TFilter, TEntity> Map(string filterPropertyName, string entityPropertyName);
-
-    IFilterConfiguration<TFilter, TEntity> ExcludeEntityProperty<TProperty>(Expression<Func<TEntity, TProperty>> propertyExpression);
-
-    IFilterConfiguration<TFilter, TEntity> ExcludeFilterProperty<TProperty>(Expression<Func<TFilter, TProperty>> propertyExpression, Func<TProperty, bool>? condition);
-
-    IFilterConfiguration<TFilter, TEntity> ExcludingFilterProperty<TProperty>(Expression<Func<TFilter, TProperty>> propertyExpression, ExcludingOption option);
-
-    IFilterConfiguration<TFilter, TEntity> Configure(string filterPropertyName, string entityPropertyName, FilteringType filteringType);
-
-    IFilterConfiguration<TFilter, TEntity> Configure(string propertyName, FilteringType filteringType);
-
-    IFilterBuilder Finish();
+    IFilterConfiguration<TFilter, TEntity> Configure<TFilterProperty, TEntityProperty>(
+        Expression<Func<TFilter, TFilterProperty>> filterPropertyExpression,
+        Expression<Func<TEntity, TEntityProperty>> entityPropertyExpression,
+        FilteringType filteringType = FilteringType.Default);
 }
 
 public interface IFilterBuilder

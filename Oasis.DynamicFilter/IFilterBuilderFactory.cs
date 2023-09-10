@@ -1,14 +1,32 @@
 ﻿namespace Oasis.DynamicFilter;
 
 using System;
+using System.Linq.Expressions;
 
-public interface IFilterBuilderConfiguration
+public interface IConfigurator<TConfigurator>
+    where TConfigurator : class
 {
-    IFilterBuilderConfiguration ExcludeTargetProperty(string entityPropertyName);
+    TConfigurator Finish();
+}
 
-    IFilterBuilderConfiguration ExcludeTargetProperty(Func<string, bool> condition);
+public interface IPropertyExcluder<TConfiguration>
+    where TConfiguration : class
+{
+    TConfiguration ExcludeEntityProperty<TEntity, TProperty>(Expression<Func<TEntity, TProperty>> propertyExpression)
+        where TEntity : class;
 
-    IFilterBuilderFactory Finish();
+    TConfiguration ExcludeFilterProperty<TFilter, TProperty>(Expression<Func<TFilter, TProperty>> propertyExpression, Func<TProperty, bool> condition)
+        where TFilter : class;
+
+    TConfiguration ExcludeFilterProperty<TFilter, TProperty>(Expression<Func<TFilter, TProperty>> propertyExpression, ExcludingOption option)
+        where TFilter : class;
+}
+
+public interface IFilterBuilderConfiguration : IPropertyExcluder<IFilterBuilderConfiguration>, IConfigurator<IFilterBuilderFactory>
+{
+    IFilterBuilderConfiguration ExcludeEntityProperties(params string[] entityPropertyNames);
+
+    IFilterBuilderConfiguration ExcludeEntityProperties(params Func<string, bool>[] conditions);
 }
 
 public interface IFilterBuilderFactory
