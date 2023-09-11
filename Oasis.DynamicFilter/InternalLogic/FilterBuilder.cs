@@ -5,22 +5,27 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
-using System.Net.WebSockets;
 using System.Reflection;
 using System.Reflection.Emit;
 using System.Security.Cryptography;
 
-internal sealed class FilterConfiguration<TFilter, TEntity> : PropertyExcluder<IFilterConfiguration<TFilter, TEntity>>, IFilterConfiguration<TFilter, TEntity>, IPropertyExcluder<IFilterConfiguration<TFilter, TEntity>>
+internal interface IFilterConfiguration : IExcludedProperties
+{
+    public Dictionary<string, Dictionary<string, FilteringType>> FilterDictionary { get; }
+}
+
+internal sealed class FilterConfiguration<TFilter, TEntity> : PropertyExcluder<IFilterConfiguration<TFilter, TEntity>>, IFilterConfiguration<TFilter, TEntity>, IFilterConfiguration
     where TFilter : class
     where TEntity : class
 {
-    private readonly IFilterBuilder _builder;
-    private readonly Dictionary<string, Dictionary<string, FilteringType>> _filterDictionary = new ();
+    private readonly FilterBuilder _builder;
 
-    public FilterConfiguration(IFilterBuilder builder)
+    public FilterConfiguration(FilterBuilder builder)
     {
         _builder = builder;
     }
+
+    public Dictionary<string, Dictionary<string, FilteringType>> FilterDictionary { get; } = new ();
 
     public IFilterConfiguration<TFilter, TEntity> Configure<TFilterProperty, TEntityProperty>(
         Expression<Func<TFilter, TFilterProperty>> filterPropertyExpression,
@@ -34,7 +39,7 @@ internal sealed class FilterConfiguration<TFilter, TEntity> : PropertyExcluder<I
             throw new PropertyMatchingException(filterProperty.PropertyType, filterProperty.Name, entityProperty.PropertyType, entityProperty.Name);
         }
 
-        if (!_filterDictionary.AddIfNotExists(filterProperty.Name, entityProperty.Name, filteringType))
+        if (!FilterDictionary.AddIfNotExists(filterProperty.Name, entityProperty.Name, filteringType))
         {
             throw new RedundantMatchingException(filterProperty.PropertyType, filterProperty.Name, entityProperty.PropertyType, entityProperty.Name);
         }
@@ -44,6 +49,7 @@ internal sealed class FilterConfiguration<TFilter, TEntity> : PropertyExcluder<I
 
     public IFilterBuilder Finish()
     {
+        _builder.Register<TFilter, TEntity>(this);
         return _builder;
     }
 }
@@ -51,10 +57,10 @@ internal sealed class FilterConfiguration<TFilter, TEntity> : PropertyExcluder<I
 internal sealed class FilterBuilder : IFilterBuilder
 {
     private readonly DynamicMethodBuilder _dynamicMethodBuilder;
-    private readonly IFilterGlobalConfiguration _filterGlobalConfiguration;
+    private readonly IFilterGlobalConfiguration? _filterGlobalConfiguration;
     private readonly Dictionary<Type, Dictionary<Type, MethodMetaData>> _expressionBuilderCache = new ();
 
-    public FilterBuilder(IFilterGlobalConfiguration filterGlobalConfiguration)
+    public FilterBuilder(IFilterGlobalConfiguration? filterGlobalConfiguration)
     {
         var name = new AssemblyName($"{GenerateRandomTypeName(16)}.Oasis.DynamicFilter.Generated");
         var assemblyBuilder = AssemblyBuilder.DefineDynamicAssembly(name, AssemblyBuilderAccess.Run);
@@ -78,19 +84,37 @@ internal sealed class FilterBuilder : IFilterBuilder
             throw new RedundantRegisterException(typeof(TFilter), typeof(TEntity));
         }
 
-        throw new NotImplementedException();
+        return new FilterConfiguration<TFilter, TEntity>(this);
     }
 
     public void Register<TFilter, TEntity>()
         where TFilter : class
         where TEntity : class
     {
-        if (_expressionBuilderCache.Contains(typeof(TFilter), typeof(TEntity)))
+        var filterType = typeof(TFilter);
+        var entityType = typeof(TEntity);
+        if (!_expressionBuilderCache.AddIfNotExists(
+            filterType,
+            entityType,
+            () => _dynamicMethodBuilder.BuildUpFilterMethod(filterType, entityType, _filterGlobalConfiguration)))
         {
-            throw new RedundantRegisterException(typeof(TFilter), typeof(TEntity));
+            throw new RedundantRegisterException(filterType, entityType);
         }
+    }
 
-        throw new NotImplementedException();
+    internal void Register<TFilter, TEntity>(IFilterConfiguration configuration)
+        where TFilter : class
+        where TEntity : class
+    {
+        var filterType = typeof(TFilter);
+        var entityType = typeof(TEntity);
+        if (!_expressionBuilderCache.AddIfNotExists(
+            filterType,
+            entityType,
+            () => _dynamicMethodBuilder.BuildUpFilterMethod(filterType, entityType, _filterGlobalConfiguration, configuration)))
+        {
+            throw new RedundantRegisterException(filterType, entityType);
+        }
     }
 
     private static string GenerateRandomTypeName(int length)

@@ -4,16 +4,11 @@ using Oasis.DynamicFilter.InternalLogic;
 
 public sealed class FilterBuilderFactory : IFilterBuilderFactory
 {
-    private readonly FilterBuilderConfiguration _configuration;
-
-    public FilterBuilderFactory()
-    {
-        _configuration = new FilterBuilderConfiguration(this);
-    }
+    private FilterBuilderConfiguration? _configuration;
 
     public IFilterBuilderConfiguration Configure()
     {
-        return _configuration;
+        return _configuration ??= new FilterBuilderConfiguration(this);
     }
 
     public IFilterBuilder Make()

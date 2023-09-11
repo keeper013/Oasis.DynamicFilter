@@ -22,7 +22,7 @@ internal sealed class DynamicMethodBuilder
         return _typeBuilder.CreateType()!;
     }
 
-    public MethodMetaData? BuildUpFilterMethod(Type filterType, Type entityType)
+    public MethodMetaData BuildUpFilterMethod(Type filterType, Type entityType, IFilterGlobalConfiguration? globalConfiguration, IFilterConfiguration? configuration = null)
     {
         var filterProperties = filterType.GetProperties(Utilities.PublicInstance).ToList();
         var entityProperties = entityType.GetProperties(Utilities.PublicInstance).ToList();

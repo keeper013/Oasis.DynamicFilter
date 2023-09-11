@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System;
 using System.Linq.Expressions;
 using System.Reflection;
-using Oasis.DynamicFilter.Exceptions;
 
 internal static class Utilities
 {
@@ -70,6 +69,14 @@ internal static class Utilities
     internal static bool Contains<TKey1, TKey2, TValue>(this Dictionary<TKey1, Dictionary<TKey2, TValue>> dict, TKey1 key1, TKey2 key2)
     {
         return dict.TryGetValue(key1, out var innerDict) && innerDict.ContainsKey(key2);
+    }
+
+    internal static TValue? Find<TKey1, TKey2, TValue>(this IReadOnlyDictionary<TKey1, IReadOnlyDictionary<TKey2, TValue>> dict, TKey1 key1, TKey2 key2)
+        where TKey1 : notnull
+        where TKey2 : notnull
+    {
+        return dict.TryGetValue(key1, out var innerDict) && innerDict.TryGetValue(key2, out var item)
+            ? item : default;
     }
 
     internal static PropertyInfo GetProperty<TEntity, TProperty>(Expression<Func<TEntity, TProperty>> expression)
