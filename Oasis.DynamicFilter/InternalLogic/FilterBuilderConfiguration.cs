@@ -4,9 +4,23 @@ using System.Collections.Generic;
 using System;
 using System.Linq.Expressions;
 using Oasis.DynamicFilter.Exceptions;
+using System.Linq;
 
-internal interface IExcludedProperties
+internal interface IGlobalPropertyExcluder
 {
+    bool IsPropertyExcluded(string propertyName);
+
+    bool IsEntityPropertyExcluded(Type type, string propertyName);
+
+    bool IsFilterPropertyAlwaysExcluded(Type type, string propertyName);
+}
+
+internal interface IFilterBuilderConfiguration : IGlobalPropertyExcluder
+{
+    ISet<string> ExcludedProperties { get; }
+
+    IList<Func<string, bool>> ExcludedPropertyConditions { get; }
+
     Dictionary<Type, HashSet<string>> ExcludedEntityProperties { get; }
 
     Dictionary<Type, Dictionary<string, Delegate>> ExcludedFilterPropertiesByCondition { get; }
@@ -14,25 +28,41 @@ internal interface IExcludedProperties
     Dictionary<Type, Dictionary<string, ExcludingOption>> ExcludedFilterPropertiesByOption { get; }
 }
 
-internal interface IFilterGlobalConfiguration : IExcludedProperties
+internal sealed class FilterBuilderConfiguration : IFilterBuilderConfigurationBuilder, IFilterBuilderConfiguration
 {
-    ISet<string> ExcludedProperties { get; }
+    private readonly IFilterBuilderFactory _factory;
 
-    IList<Func<string, bool>> ExcludedPropertyConditions { get; }
-}
+    public FilterBuilderConfiguration(IFilterBuilderFactory factory)
+    {
+        _factory = factory;
+    }
 
-internal abstract class PropertyExcluder<TConfiguration> : IPropertyExcluder<TConfiguration>, IExcludedProperties
-    where TConfiguration : class
-{
+    public ISet<string> ExcludedProperties { get; } = new HashSet<string>();
+
+    public IList<Func<string, bool>> ExcludedPropertyConditions { get; } = new List<Func<string, bool>>();
+
     public Dictionary<Type, HashSet<string>> ExcludedEntityProperties { get; } = new ();
 
     public Dictionary<Type, Dictionary<string, Delegate>> ExcludedFilterPropertiesByCondition { get; } = new ();
 
     public Dictionary<Type, Dictionary<string, ExcludingOption>> ExcludedFilterPropertiesByOption { get; } = new ();
 
-    protected TConfiguration Configuration { private get; set; } = null!;
+    public bool IsPropertyExcluded(string propertyName)
+    {
+        return ExcludedProperties.Contains(propertyName) || ExcludedPropertyConditions.Any(f => f(propertyName));
+    }
 
-    public TConfiguration ExcludeEntityProperty<TEntity, TProperty>(Expression<Func<TEntity, TProperty>> propertyExpression)
+    public bool IsEntityPropertyExcluded(Type type, string propertyName)
+    {
+        return IsPropertyExcluded(propertyName) || (ExcludedEntityProperties.TryGetValue(type, out var ts) && ts.Contains(propertyName));
+    }
+
+    public bool IsFilterPropertyAlwaysExcluded(Type type, string propertyName)
+    {
+        return ExcludedFilterPropertiesByOption.TryGetValue(type, out var inner) && inner.TryGetValue(propertyName, out var option) && option == ExcludingOption.Always;
+    }
+
+    public IFilterBuilderConfigurationBuilder ExcludeEntityProperty<TEntity, TProperty>(Expression<Func<TEntity, TProperty>> propertyExpression)
         where TEntity : class
     {
         var property = Utilities.GetProperty(propertyExpression);
@@ -43,10 +73,10 @@ internal abstract class PropertyExcluder<TConfiguration> : IPropertyExcluder<TCo
             throw new RedundantExcludingException(type, propertyName);
         }
 
-        return Configuration;
+        return this;
     }
 
-    public TConfiguration ExcludeFilterProperty<TFilter, TProperty>(Expression<Func<TFilter, TProperty>> propertyExpression, Func<TProperty, bool> condition)
+    public IFilterBuilderConfigurationBuilder ExcludeFilterProperty<TFilter, TProperty>(Expression<Func<TFilter, TProperty>> propertyExpression, Func<TProperty, bool> condition)
         where TFilter : class
     {
         var property = Utilities.GetProperty(propertyExpression);
@@ -62,10 +92,10 @@ internal abstract class PropertyExcluder<TConfiguration> : IPropertyExcluder<TCo
             throw new RedundantExcludingException(type, propertyName);
         }
 
-        return Configuration;
+        return this;
     }
 
-    public TConfiguration ExcludeFilterProperty<TFilter, TProperty>(Expression<Func<TFilter, TProperty>> propertyExpression, ExcludingOption option)
+    public IFilterBuilderConfigurationBuilder ExcludeFilterProperty<TFilter, TProperty>(Expression<Func<TFilter, TProperty>> propertyExpression, ExcludingOption option)
         where TFilter : class
     {
         var property = Utilities.GetProperty(propertyExpression);
@@ -81,25 +111,10 @@ internal abstract class PropertyExcluder<TConfiguration> : IPropertyExcluder<TCo
             throw new RedundantExcludingException(type, propertyName);
         }
 
-        return Configuration;
-    }
-}
-
-internal sealed class FilterBuilderConfiguration : PropertyExcluder<IFilterBuilderConfiguration>, IFilterBuilderConfiguration, IFilterGlobalConfiguration
-{
-    private readonly IFilterBuilderFactory _factory;
-
-    public FilterBuilderConfiguration(IFilterBuilderFactory factory)
-    {
-        _factory = factory;
-        Configuration = this;
+        return this;
     }
 
-    public ISet<string> ExcludedProperties { get; } = new HashSet<string>();
-
-    public IList<Func<string, bool>> ExcludedPropertyConditions { get; } = new List<Func<string, bool>>();
-
-    public IFilterBuilderConfiguration ExcludeEntityProperties(params string[] entityPropertyNames)
+    public IFilterBuilderConfigurationBuilder ExcludeEntityProperties(params string[] entityPropertyNames)
     {
         ExcludedProperties.Clear();
         foreach (var entityProperty in entityPropertyNames)
@@ -110,7 +125,7 @@ internal sealed class FilterBuilderConfiguration : PropertyExcluder<IFilterBuild
         return this;
     }
 
-    public IFilterBuilderConfiguration ExcludeEntityProperties(params Func<string, bool>[] conditions)
+    public IFilterBuilderConfigurationBuilder ExcludeEntityProperties(params Func<string, bool>[] conditions)
     {
         ExcludedPropertyConditions.Clear();
         foreach (var condition in conditions)

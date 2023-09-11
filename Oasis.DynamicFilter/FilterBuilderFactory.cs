@@ -6,7 +6,7 @@ public sealed class FilterBuilderFactory : IFilterBuilderFactory
 {
     private FilterBuilderConfiguration? _configuration;
 
-    public IFilterBuilderConfiguration Configure()
+    public IFilterBuilderConfigurationBuilder Configure()
     {
         return _configuration ??= new FilterBuilderConfiguration(this);
     }

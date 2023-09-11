@@ -54,11 +54,17 @@ public enum ExcludingOption
     Always,
 }
 
-public interface IFilterConfiguration<TFilter, TEntity> : IPropertyExcluder<IFilterConfiguration<TFilter, TEntity>>, IConfigurator<IFilterBuilder>
+public interface IFilterConfigurationBuilder<TFilter, TEntity> : IConfigurator<IFilterBuilder>
     where TFilter : class
     where TEntity : class
 {
-    IFilterConfiguration<TFilter, TEntity> Configure<TFilterProperty, TEntityProperty>(
+    IFilterConfigurationBuilder<TFilter, TEntity> ExcludeEntityProperty<TProperty>(Expression<Func<TEntity, TProperty>> propertyExpression);
+
+    IFilterConfigurationBuilder<TFilter, TEntity> ExcludeFilterProperty<TProperty>(Expression<Func<TFilter, TProperty>> propertyExpression, Func<TProperty, bool> condition);
+
+    IFilterConfigurationBuilder<TFilter, TEntity> ExcludeFilterProperty<TProperty>(Expression<Func<TFilter, TProperty>> propertyExpression, ExcludingOption option);
+
+    IFilterConfigurationBuilder<TFilter, TEntity> Configure<TFilterProperty, TEntityProperty>(
         Expression<Func<TFilter, TFilterProperty>> filterPropertyExpression,
         Expression<Func<TEntity, TEntityProperty>> entityPropertyExpression,
         FilteringType filteringType = FilteringType.Default);
@@ -70,7 +76,7 @@ public interface IFilterBuilder
         where TFilter : class
         where TEntity : class;
 
-    IFilterConfiguration<TFilter, TEntity> Configure<TFilter, TEntity>()
+    IFilterConfigurationBuilder<TFilter, TEntity> Configure<TFilter, TEntity>()
         where TFilter : class
         where TEntity : class;
 

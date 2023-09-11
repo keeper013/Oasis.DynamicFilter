@@ -41,3 +41,11 @@ public sealed class RedundantRegisterException : DynamicFilterException
     {
     }
 }
+
+public sealed class FilteringPropertyExcludedException : DynamicFilterException
+{
+    public FilteringPropertyExcludedException(Type entityType, string propertyName)
+        : base($"Specified property \"{propertyName}\" of type {entityType.Name} is configured to be excluded.")
+    {
+    }
+}
