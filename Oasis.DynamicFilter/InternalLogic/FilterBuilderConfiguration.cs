@@ -60,11 +60,11 @@ internal interface IFilterBuilderConfiguration : IGlobalExcludedPropertyManager
 
 internal sealed class FilterBuilderConfiguration : IFilterBuilderConfigurationBuilder, IFilterBuilderConfiguration
 {
-    private readonly FilterBuilderFactory _factory;
+    private readonly FilterBuilderBuilder _factory;
     private readonly IEqualityMethodBuilder _equalityMethodBuilder;
     private IGlobalFilterPropertyExcludeByValueManager? _globalFilterPropertyExcludeByValueManager;
 
-    public FilterBuilderConfiguration(FilterBuilderFactory factory, IEqualityMethodBuilder equalityMethodBuilder)
+    public FilterBuilderConfiguration(FilterBuilderBuilder factory, IEqualityMethodBuilder equalityMethodBuilder)
     {
         _factory = factory;
         _equalityMethodBuilder = equalityMethodBuilder;
