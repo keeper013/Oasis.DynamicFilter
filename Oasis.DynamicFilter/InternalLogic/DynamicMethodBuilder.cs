@@ -39,6 +39,11 @@ internal sealed class GlobalFilterPropertyManager : IFilterPropertyManager
 
 internal sealed class DynamicMethodBuilder : IEqualityMethodBuilder
 {
+    private const string EqualOperatorMethodName = "op_Equality";
+    private const string GetValueOrDefaultMethodName = "GetValueOrDefault";
+    private const string HasValuePropertyName = "HasValue";
+    private static readonly Type BoolType = typeof(bool);
+    private static readonly MethodInfo ObjectEqualsMethod = typeof(object).GetMethod(nameof(object.Equals), Utilities.PublicStatic)!;
     private readonly TypeBuilder _typeBuilder;
     private readonly GlobalFilterPropertyManager _globalExcludedPropertyManager;
 
@@ -69,7 +74,7 @@ internal sealed class DynamicMethodBuilder : IEqualityMethodBuilder
             throw new BadFilterException(filterType, entityType);
         }
 
-        var methodName = BuildMethodName(filterType, entityType);
+        var methodName = BuildFilterMethodName(filterType, entityType);
         var method = BuildMethod(methodName, new[] { filterType, typeof(IFilterPropertyExcludeByValueManager) }, typeof(Expression<>).MakeGenericType(typeof(Func<,>).MakeGenericType(entityType, typeof(bool))));
         var generator = method.GetILGenerator();
         GenerateKeyPropertiesMappingCode(generator, sourceIdentityProperty, targetIdentityProperty, sourceConcurrencyTokenProperty, targetConcurrencyTokenProperty);
@@ -79,12 +84,78 @@ internal sealed class DynamicMethodBuilder : IEqualityMethodBuilder
 
     public MethodMetaData BuildEqualityMethod(Type type)
     {
-        throw new NotImplementedException();
+        var methodName = BuildEqualMethodName(type);
+        var method = BuildMethod(methodName, new[] { type, type }, BoolType);
+        var generator = method.GetILGenerator();
+
+        if ((type.IsValueType && (type.IsPrimitive || type.IsEnum)) || type.IsClass)
+        {
+            generator.Emit(OpCodes.Ldarg_0);
+            generator.Emit(OpCodes.Ldarg_1);
+            generator.Emit(OpCodes.Ceq);
+        }
+        else if (type.IsNullablePrimitiveOrEnum())
+        {
+            var getValueOrDefaultMethod = type.GetMethod(GetValueOrDefaultMethodName, Utilities.PublicInstance);
+            var hasValueGetter = type.GetProperty(HasValuePropertyName, Utilities.PublicInstance).GetGetMethod();
+            var arg0 = generator.DeclareLocal(type);
+            var arg1 = generator.DeclareLocal(type);
+            generator.Emit(OpCodes.Ldarg_0);
+            generator.Emit(OpCodes.Starg, arg0);
+            generator.Emit(OpCodes.Ldarg_1);
+            generator.Emit(OpCodes.Starg, arg1);
+            generator.Emit(OpCodes.Ldloca_S, arg0);
+            generator.Emit(OpCodes.Call, getValueOrDefaultMethod);
+            generator.Emit(OpCodes.Ldloca_S, arg1);
+            generator.Emit(OpCodes.Call, getValueOrDefaultMethod);
+            generator.Emit(OpCodes.Ceq);
+            generator.Emit(OpCodes.Ldloca_S, arg0);
+            generator.Emit(OpCodes.Call, hasValueGetter);
+            generator.Emit(OpCodes.Ldloca_S, arg1);
+            generator.Emit(OpCodes.Call, hasValueGetter);
+            generator.Emit(OpCodes.Ceq);
+            generator.Emit(OpCodes.And);
+        }
+        else
+        {
+            var equalOperator = type.GetMethod(EqualOperatorMethodName, Utilities.PublicStatic);
+            if (equalOperator != null && equalOperator.IsHideBySig && equalOperator.IsSpecialName)
+            {
+                generator.Emit(OpCodes.Ldarg_0);
+                generator.Emit(OpCodes.Ldarg_1);
+                generator.Emit(OpCodes.Call, equalOperator);
+            }
+            else
+            {
+                var isValueType = type.IsValueType;
+                generator.Emit(OpCodes.Ldarg_0);
+                if (isValueType)
+                {
+                    generator.Emit(OpCodes.Box, type);
+                }
+
+                generator.Emit(OpCodes.Ldarg_1);
+                if (isValueType)
+                {
+                    generator.Emit(OpCodes.Box, type);
+                }
+
+                generator.Emit(OpCodes.Call, ObjectEqualsMethod);
+            }
+        }
+
+        generator.Emit(OpCodes.Ret);
+        return new MethodMetaData(typeof(Func<,,>).MakeGenericType(type, type, BoolType), methodName);
     }
 
-    private static string BuildMethodName(Type sourceType, Type targetType)
+    private static string BuildFilterMethodName(Type sourceType, Type targetType)
     {
-        return $"_Filter__{GetTypeName(sourceType)}__Entity__{GetTypeName(targetType)}";
+        return $"_Filter_{GetTypeName(sourceType)}__Entity__{GetTypeName(targetType)}";
+    }
+
+    private static string BuildEqualMethodName(Type propertyType)
+    {
+        return $"_Equal_{GetTypeName(propertyType)}_";
     }
 
     private static string GetTypeName(Type type)

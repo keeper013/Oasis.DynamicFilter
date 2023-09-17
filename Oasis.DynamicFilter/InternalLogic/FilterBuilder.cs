@@ -229,7 +229,8 @@ internal sealed class FilterBuilder : IFilterBuilder
     public IFilter Build()
     {
         var type = _dynamicMethodBuilder.Build();
-        return new Filter(_expressionBuilderCache, _propertyEqualityCache, type);
+        EqualityManager.Initialize(_propertyEqualityCache, type);
+        return new Filter(_expressionBuilderCache, type);
     }
 
     public IFilterConfigurationBuilder<TFilter, TEntity> Configure<TFilter, TEntity>()

@@ -8,6 +8,7 @@ using System.Reflection;
 internal static class Utilities
 {
     public const BindingFlags PublicInstance = BindingFlags.Public | BindingFlags.Instance;
+    public const BindingFlags PublicStatic = BindingFlags.Public | BindingFlags.Static;
 
     public delegate Expression<Func<TEntity, bool>> GetExpression<TFilter, TEntity>(TFilter filter, IFilterPropertyExcludeByValueManager? manager)
         where TFilter : class

@@ -9,14 +9,10 @@ using System.Reflection;
 internal sealed class Filter : IFilter
 {
     private readonly IReadOnlyDictionary<Type, IReadOnlyDictionary<Type, SpecificFilter>> _expressionBuilderCache;
-    private readonly IReadOnlyDictionary<Type, Delegate> _propertyEqualityCache;
 
-    public Filter(
-        Dictionary<Type, Dictionary<Type, (MethodMetaData, IFilterPropertyExcludeByValueManager?)>> expressionBuilderCache,
-        Dictionary<Type, MethodMetaData> propertyEqualityCache,
-        Type type)
+    public Filter(Dictionary<Type, Dictionary<Type, (MethodMetaData, IFilterPropertyExcludeByValueManager?)>> expressionBuilderCache, Type type)
     {
-        var dict1 = new Dictionary<Type, IReadOnlyDictionary<Type, SpecificFilter>>();
+        var dict = new Dictionary<Type, IReadOnlyDictionary<Type, SpecificFilter>>();
         foreach (var kvp1 in expressionBuilderCache)
         {
             var innerDict = new Dictionary<Type, SpecificFilter>();
@@ -25,18 +21,10 @@ internal sealed class Filter : IFilter
                 innerDict.Add(kvp2.Key, new (Delegate.CreateDelegate(kvp2.Value.Item1.type, type.GetMethod(kvp2.Value.Item1.name, BindingFlags.Public | BindingFlags.Static)), kvp2.Value.Item2));
             }
 
-            dict1.Add(kvp1.Key, innerDict);
+            dict.Add(kvp1.Key, innerDict);
         }
 
-        _expressionBuilderCache = dict1;
-
-        var dict2 = new Dictionary<Type, Delegate>();
-        foreach (var kvp2 in propertyEqualityCache)
-        {
-            dict2.Add(kvp2.Key, Delegate.CreateDelegate(kvp2.Value.type, type.GetMethod(kvp2.Value.name, BindingFlags.Public | BindingFlags.Static)));
-        }
-
-        _propertyEqualityCache = dict2;
+        _expressionBuilderCache = dict;
     }
 
     public Expression<Func<TEntity, bool>> GetExpression<TFilter, TEntity>(TFilter filter)

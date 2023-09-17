@@ -31,6 +31,8 @@ internal sealed class EqualityManager : IEqualityManager
 
     public bool Equals<T>(T? value1, T? value2)
     {
-        return _dict.TryGetValue(typeof(T), out var del) ? (del as Func<T?, T?, bool>)!(value1, value2) : object.Equals(value1, value2);
+        return _dict.TryGetValue(typeof(T), out var del)
+            ? (del as Func<T?, T?, bool>)!(value1, value2)
+            : throw new InvalidOperationException($"Equal method for {typeof(T).Name} isn't registered.");
     }
 }

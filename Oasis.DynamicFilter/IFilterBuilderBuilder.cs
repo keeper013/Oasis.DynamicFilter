@@ -9,7 +9,7 @@ public interface IConfigurator<TConfigurator>
     TConfigurator Finish();
 }
 
-public interface IFilterBuilderConfigurationBuilder : IConfigurator<IFilterBuilderFactory>
+public interface IFilterBuilderConfigurationBuilder : IConfigurator<IFilterBuilderBuilder>
 {
     IFilterBuilderConfigurationBuilder ExcludeEntityProperty<TEntity, TProperty>(Expression<Func<TEntity, TProperty>> propertyExpression)
         where TEntity : class;
@@ -25,7 +25,7 @@ public interface IFilterBuilderConfigurationBuilder : IConfigurator<IFilterBuild
     IFilterBuilderConfigurationBuilder ExcludeEntityProperties(params Func<string, bool>[] conditions);
 }
 
-public interface IFilterBuilderFactory
+public interface IFilterBuilderBuilder
 {
     IFilterBuilder Make();
 }

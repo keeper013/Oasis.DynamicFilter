@@ -6,12 +6,12 @@ using System.Reflection;
 using System.Linq;
 using System.Security.Cryptography;
 
-public sealed class FilterBuilderFactory : IFilterBuilderFactory
+public sealed class FilterBuilderBuilder : IFilterBuilderBuilder
 {
     private readonly DynamicMethodBuilder _dynamicMethodBuilder;
     private FilterBuilderConfiguration? _configuration;
 
-    public FilterBuilderFactory()
+    public FilterBuilderBuilder()
     {
         var name = new AssemblyName($"{GenerateRandomTypeName(16)}.Oasis.DynamicFilter.Generated");
         var assemblyBuilder = AssemblyBuilder.DefineDynamicAssembly(name, AssemblyBuilderAccess.Run);

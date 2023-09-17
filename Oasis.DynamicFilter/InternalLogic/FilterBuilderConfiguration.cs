@@ -179,7 +179,7 @@ internal sealed class FilterBuilderConfiguration : IFilterBuilderConfigurationBu
         return this;
     }
 
-    public IFilterBuilderFactory Finish()
+    public IFilterBuilderBuilder Finish()
     {
         Dictionary<Type, IReadOnlyDictionary<string, Delegate>>? byCondition = null;
         if (ExcludedFilterPropertiesByCondition.Any())
