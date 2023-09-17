@@ -8,23 +8,35 @@ using System.Reflection;
 
 internal sealed class Filter : IFilter
 {
-    private readonly IReadOnlyDictionary<Type, IReadOnlyDictionary<Type, Delegate>> _expressionBuilderCache;
+    private readonly IReadOnlyDictionary<Type, IReadOnlyDictionary<Type, SpecificFilter>> _expressionBuilderCache;
+    private readonly IReadOnlyDictionary<Type, Delegate> _propertyEqualityCache;
 
-    public Filter(Dictionary<Type, Dictionary<Type, MethodMetaData>> expressionBuilderCache, Type type)
+    public Filter(
+        Dictionary<Type, Dictionary<Type, (MethodMetaData, IFilterPropertyExcludeByValueManager?)>> expressionBuilderCache,
+        Dictionary<Type, MethodMetaData> propertyEqualityCache,
+        Type type)
     {
-        var dict = new Dictionary<Type, IReadOnlyDictionary<Type, Delegate>>();
-        foreach (var kvp in expressionBuilderCache)
+        var dict1 = new Dictionary<Type, IReadOnlyDictionary<Type, SpecificFilter>>();
+        foreach (var kvp1 in expressionBuilderCache)
         {
-            var innerDict = new Dictionary<Type, Delegate>();
-            foreach (var kvp2 in kvp.Value)
+            var innerDict = new Dictionary<Type, SpecificFilter>();
+            foreach (var kvp2 in kvp1.Value)
             {
-                innerDict.Add(kvp2.Key, Delegate.CreateDelegate(kvp2.Value.type, type.GetMethod(kvp2.Value.name, BindingFlags.Public | BindingFlags.Static)));
+                innerDict.Add(kvp2.Key, new (Delegate.CreateDelegate(kvp2.Value.Item1.type, type.GetMethod(kvp2.Value.Item1.name, BindingFlags.Public | BindingFlags.Static)), kvp2.Value.Item2));
             }
 
-            dict.Add(kvp.Key, innerDict);
+            dict1.Add(kvp1.Key, innerDict);
         }
 
-        _expressionBuilderCache = dict;
+        _expressionBuilderCache = dict1;
+
+        var dict2 = new Dictionary<Type, Delegate>();
+        foreach (var kvp2 in propertyEqualityCache)
+        {
+            dict2.Add(kvp2.Key, Delegate.CreateDelegate(kvp2.Value.type, type.GetMethod(kvp2.Value.name, BindingFlags.Public | BindingFlags.Static)));
+        }
+
+        _propertyEqualityCache = dict2;
     }
 
     public Expression<Func<TEntity, bool>> GetExpression<TFilter, TEntity>(TFilter filter)
@@ -47,11 +59,24 @@ internal sealed class Filter : IFilter
     {
         var entityType = typeof(TEntity);
         var filterType = typeof(TFilter);
-        var dgt = _expressionBuilderCache.Find(entityType, filterType);
-        return dgt == null
+        var sf = _expressionBuilderCache.Find(entityType, filterType);
+        return sf == null
             ? throw new FilterNotRegisteredException(entityType, filterType)
-            : dgt is not Utilities.GetExpression<TFilter, TEntity> func
+            : sf.Delegate is not Utilities.GetExpression<TFilter, TEntity> func
             ? throw new InvalidOperationException($"Invalid delegate for {filterType.Name} to {entityType.Name}.")
-            : func(filter);
+            : func(filter, sf.Manager);
+    }
+
+    private sealed class SpecificFilter
+    {
+        public SpecificFilter(Delegate del, IFilterPropertyExcludeByValueManager? manager)
+        {
+            Delegate = del;
+            Manager = manager;
+        }
+
+        public Delegate Delegate { get; }
+
+        public IFilterPropertyExcludeByValueManager? Manager { get; }
     }
 }

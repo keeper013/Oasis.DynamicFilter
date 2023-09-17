@@ -27,7 +27,5 @@ public interface IFilterBuilderConfigurationBuilder : IConfigurator<IFilterBuild
 
 public interface IFilterBuilderFactory
 {
-    IFilterBuilderConfigurationBuilder Configure();
-
     IFilterBuilder Make();
 }

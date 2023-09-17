@@ -9,7 +9,57 @@ using System.Reflection;
 using System.Reflection.Emit;
 using System.Security.Cryptography;
 
-internal interface IFilterConfiguration
+public interface IFilterPropertyExcludeByValueManager
+{
+    bool IsFilterPropertyExcluded<TProperty>(string propertyName, TProperty value);
+}
+
+internal sealed class FilterPropertyExcludeByValueManager<TFilter> : IFilterPropertyExcludeByValueManager
+    where TFilter : class
+{
+    private readonly IEqualityManager _equalityManager;
+    private readonly IGlobalFilterPropertyExcludeByValueManager? _globalFilterPropertyExcludeByValueManager;
+    private readonly IReadOnlyDictionary<string, Delegate>? _byCondition;
+    private readonly IReadOnlyDictionary<string, ExcludingOption>? _byOption;
+
+    public FilterPropertyExcludeByValueManager(IEqualityManager equalityManager, IGlobalFilterPropertyExcludeByValueManager globalFilterPropertyExcludeByValueManager)
+    {
+        _equalityManager = equalityManager;
+        _globalFilterPropertyExcludeByValueManager = globalFilterPropertyExcludeByValueManager;
+        _byCondition = null;
+        _byOption = null;
+    }
+
+    public FilterPropertyExcludeByValueManager(
+        IEqualityManager equalityManager,
+        IGlobalFilterPropertyExcludeByValueManager? globalFilterPropertyExcludeByValueManager,
+        IReadOnlyDictionary<string, Delegate>? byCondition,
+        IReadOnlyDictionary<string, ExcludingOption>? byOption)
+    {
+        _equalityManager = equalityManager;
+        _globalFilterPropertyExcludeByValueManager = globalFilterPropertyExcludeByValueManager;
+        _byCondition = byCondition;
+        _byOption = byOption;
+    }
+
+    public bool IsFilterPropertyExcluded<TProperty>(string propertyName, TProperty value)
+    {
+        return (_globalFilterPropertyExcludeByValueManager != null && _globalFilterPropertyExcludeByValueManager.IsFilterPropertyExcluded(typeof(TFilter), propertyName, value))
+            || (_byOption != null && _byOption.TryGetValue(propertyName, out var o) && (o == ExcludingOption.Always || (o == ExcludingOption.DefaultValue && _equalityManager.Equals(value, default))))
+            || (_byCondition != null && _byCondition.TryGetValue(propertyName, out var c) && (c as Func<TProperty, bool>)!(value));
+    }
+}
+
+internal interface IFilterPropertyManager
+{
+    bool IsEntityPropertyExcluded(string propertyName);
+
+    bool IsFilterPropertyExcluded(string propertyName);
+
+    (string, FilteringType) GetFilteringType(string propertyName);
+}
+
+internal interface IFilterConfiguration : IFilterPropertyManager
 {
     HashSet<string> ExcludedEntityProperties { get; }
 
@@ -19,9 +69,7 @@ internal interface IFilterConfiguration
 
     public Dictionary<string, (string, FilteringType)> FilterDictionary { get; }
 
-    bool IsEntityPropertyExcluded(string propertyName);
-
-    bool IsFilterPropertyAlwaysExcluded(string propertyName);
+    IFilterPropertyExcludeByValueManager? GetFilterPropertyExcludeByValueManager();
 }
 
 internal sealed class FilterConfiguration<TFilter, TEntity> : IFilterConfigurationBuilder<TFilter, TEntity>, IFilterConfiguration
@@ -29,12 +77,16 @@ internal sealed class FilterConfiguration<TFilter, TEntity> : IFilterConfigurati
     where TEntity : class
 {
     private readonly FilterBuilder _builder;
-    private readonly IGlobalPropertyExcluder? _globalExcluder;
+    private readonly IGlobalExcludedPropertyManager? _globalExcluder;
+    private readonly Dictionary<Type, MethodMetaData> _propertyEqualityCache;
+    private readonly IEqualityMethodBuilder _equalityMethodBuilder;
 
-    public FilterConfiguration(FilterBuilder builder, IGlobalPropertyExcluder? globalExcluder)
+    public FilterConfiguration(FilterBuilder builder, IEqualityMethodBuilder equalityMethodBuilder, IGlobalExcludedPropertyManager? globalExcluder, Dictionary<Type, MethodMetaData> propertyEqualityCache)
     {
         _builder = builder;
         _globalExcluder = globalExcluder;
+        _propertyEqualityCache = propertyEqualityCache;
+        _equalityMethodBuilder = equalityMethodBuilder;
     }
 
     public Dictionary<string, (string, FilteringType)> FilterDictionary { get; } = new ();
@@ -48,9 +100,22 @@ internal sealed class FilterConfiguration<TFilter, TEntity> : IFilterConfigurati
     public bool IsEntityPropertyExcluded(string propertyName) =>
         (_globalExcluder != null && _globalExcluder.IsEntityPropertyExcluded(typeof(TEntity), propertyName)) || ExcludedEntityProperties.Contains(propertyName);
 
-    public bool IsFilterPropertyAlwaysExcluded(string propertyName) =>
-        (_globalExcluder != null && _globalExcluder.IsFilterPropertyAlwaysExcluded(typeof(TFilter), propertyName)) ||
+    public (string, FilteringType) GetFilteringType(string propertyName)
+    {
+        return FilterDictionary.TryGetValue(propertyName, out var tp) ? tp : (propertyName, FilteringType.Default);
+    }
+
+    public bool IsFilterPropertyExcluded(string propertyName) =>
+        (_globalExcluder != null && _globalExcluder.IsFilterPropertyExcluded(typeof(TFilter), propertyName)) ||
         (ExcludedFilterPropertiesByOption.TryGetValue(propertyName, out var option) && option == ExcludingOption.Always);
+
+    public IFilterPropertyExcludeByValueManager? GetFilterPropertyExcludeByValueManager()
+    {
+        var globalFilterPropertyExcludeByValueManager = _globalExcluder?.FilterPropertyExcludeByValueManager;
+        return globalFilterPropertyExcludeByValueManager != null || ExcludedFilterPropertiesByCondition != null || ExcludedFilterPropertiesByOption != null
+            ? new FilterPropertyExcludeByValueManager<TFilter>(_builder.EqualityManager, globalFilterPropertyExcludeByValueManager, ExcludedFilterPropertiesByCondition, ExcludedFilterPropertiesByOption)
+            : null;
+    }
 
     public IFilterConfigurationBuilder<TFilter, TEntity> Configure<TFilterProperty, TEntityProperty>(
         Expression<Func<TFilter, TFilterProperty>> filterPropertyExpression,
@@ -115,6 +180,12 @@ internal sealed class FilterConfiguration<TFilter, TEntity> : IFilterConfigurati
             throw new RedundantExcludingException(type, propertyName);
         }
 
+        var properType = typeof(TProperty);
+        if (option == ExcludingOption.DefaultValue && !_propertyEqualityCache.ContainsKey(properType))
+        {
+            _propertyEqualityCache.Add(properType, _equalityMethodBuilder.BuildEqualityMethod(properType));
+        }
+
         return this;
     }
 
@@ -122,7 +193,7 @@ internal sealed class FilterConfiguration<TFilter, TEntity> : IFilterConfigurati
     {
         foreach (var kvp in FilterDictionary)
         {
-            if (IsFilterPropertyAlwaysExcluded(kvp.Key))
+            if (IsFilterPropertyExcluded(kvp.Key))
             {
                 throw new FilteringPropertyExcludedException(typeof(TFilter), kvp.Key);
             }
@@ -140,23 +211,25 @@ internal sealed class FilterConfiguration<TFilter, TEntity> : IFilterConfigurati
 
 internal sealed class FilterBuilder : IFilterBuilder
 {
-    private readonly DynamicMethodBuilder _dynamicMethodBuilder;
     private readonly IFilterBuilderConfiguration? _filterGlobalConfiguration;
-    private readonly Dictionary<Type, Dictionary<Type, MethodMetaData>> _expressionBuilderCache = new ();
+    private readonly Dictionary<Type, Dictionary<Type, (MethodMetaData, IFilterPropertyExcludeByValueManager?)>> _expressionBuilderCache = new ();
+    private readonly Dictionary<Type, MethodMetaData> _propertyEqualityCache;
+    private readonly DynamicMethodBuilder _dynamicMethodBuilder;
 
-    public FilterBuilder(IFilterBuilderConfiguration? filterGlobalConfiguration)
+    public FilterBuilder(DynamicMethodBuilder dynamicMethodBuilder, FilterBuilderConfiguration? filterGlobalConfiguration, EqualityManager equalityManager)
     {
-        var name = new AssemblyName($"{GenerateRandomTypeName(16)}.Oasis.DynamicFilter.Generated");
-        var assemblyBuilder = AssemblyBuilder.DefineDynamicAssembly(name, AssemblyBuilderAccess.Run);
-        var module = assemblyBuilder.DefineDynamicModule($"{name.Name}.dll");
-        _dynamicMethodBuilder = new (module.DefineType("Mapper", TypeAttributes.Public));
+        EqualityManager = equalityManager;
+        _dynamicMethodBuilder = dynamicMethodBuilder;
         _filterGlobalConfiguration = filterGlobalConfiguration;
+        _propertyEqualityCache = filterGlobalConfiguration?.PropertyTypeEqualityDict ?? new ();
     }
+
+    internal EqualityManager EqualityManager { get; }
 
     public IFilter Build()
     {
         var type = _dynamicMethodBuilder.Build();
-        return new Filter(_expressionBuilderCache, type);
+        return new Filter(_expressionBuilderCache, _propertyEqualityCache, type);
     }
 
     public IFilterConfigurationBuilder<TFilter, TEntity> Configure<TFilter, TEntity>()
@@ -168,7 +241,7 @@ internal sealed class FilterBuilder : IFilterBuilder
             throw new RedundantRegisterException(typeof(TFilter), typeof(TEntity));
         }
 
-        return new FilterConfiguration<TFilter, TEntity>(this, _filterGlobalConfiguration);
+        return new FilterConfiguration<TFilter, TEntity>(this, _dynamicMethodBuilder, _filterGlobalConfiguration, _propertyEqualityCache);
     }
 
     public void Register<TFilter, TEntity>()
@@ -177,10 +250,13 @@ internal sealed class FilterBuilder : IFilterBuilder
     {
         var filterType = typeof(TFilter);
         var entityType = typeof(TEntity);
+        var manager = _filterGlobalConfiguration?.FilterPropertyExcludeByValueManager;
         if (!_expressionBuilderCache.AddIfNotExists(
             filterType,
             entityType,
-            () => _dynamicMethodBuilder.BuildUpFilterMethod(filterType, entityType, _filterGlobalConfiguration)))
+            () => (
+                _dynamicMethodBuilder.BuildUpFilterMethod(filterType, entityType, _filterGlobalConfiguration),
+                manager == null ? null : new FilterPropertyExcludeByValueManager<TFilter>(EqualityManager, manager))))
         {
             throw new RedundantRegisterException(filterType, entityType);
         }
@@ -195,19 +271,11 @@ internal sealed class FilterBuilder : IFilterBuilder
         if (!_expressionBuilderCache.AddIfNotExists(
             filterType,
             entityType,
-            () => _dynamicMethodBuilder.BuildUpFilterMethod(filterType, entityType, _filterGlobalConfiguration, configuration)))
+            () => (
+                _dynamicMethodBuilder.BuildUpFilterMethod(filterType, entityType, configuration),
+                configuration.GetFilterPropertyExcludeByValueManager())))
         {
             throw new RedundantRegisterException(filterType, entityType);
         }
-    }
-
-    private static string GenerateRandomTypeName(int length)
-    {
-        const string AvailableChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
-        const int AvailableCharsCount = 52;
-        var bytes = new byte[length];
-        RandomNumberGenerator.Create().GetBytes(bytes);
-        var str = bytes.Select(b => AvailableChars[b % AvailableCharsCount]);
-        return string.Concat(str);
     }
 }

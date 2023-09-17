@@ -6,16 +6,46 @@ using System.Linq.Expressions;
 using Oasis.DynamicFilter.Exceptions;
 using System.Linq;
 
-internal interface IGlobalPropertyExcluder
+internal interface IGlobalFilterPropertyExcludeByValueManager
 {
-    bool IsPropertyExcluded(string propertyName);
-
-    bool IsEntityPropertyExcluded(Type type, string propertyName);
-
-    bool IsFilterPropertyAlwaysExcluded(Type type, string propertyName);
+    bool IsFilterPropertyExcluded<TProperty>(Type filterType, string propertyName, TProperty value);
 }
 
-internal interface IFilterBuilderConfiguration : IGlobalPropertyExcluder
+internal sealed class GlobalFilterPropertyExcludeByValueManager : IGlobalFilterPropertyExcludeByValueManager
+{
+    private readonly IEqualityManager _equalityManager;
+    private readonly IReadOnlyDictionary<Type, IReadOnlyDictionary<string, Delegate>>? _byCondition;
+    private readonly IReadOnlyDictionary<Type, IReadOnlyDictionary<string, ExcludingOption>>? _byOption;
+
+    public GlobalFilterPropertyExcludeByValueManager(
+        IEqualityManager equalityManager,
+        IReadOnlyDictionary<Type, IReadOnlyDictionary<string, Delegate>>? byCondition,
+        IReadOnlyDictionary<Type, IReadOnlyDictionary<string, ExcludingOption>>? byOption)
+    {
+        _equalityManager = equalityManager;
+        _byCondition = byCondition;
+        _byOption = byOption;
+    }
+
+    public bool IsFilterPropertyExcluded<TProperty>(Type filterType, string propertyName, TProperty value)
+    {
+        return (_byOption != null && _byOption.TryGetValue(filterType, out var po) && po.TryGetValue(propertyName, out var o) && (o == ExcludingOption.Always || (o == ExcludingOption.DefaultValue && _equalityManager.Equals(value, default))))
+            || (_byCondition != null && _byCondition.TryGetValue(filterType, out var pc) && pc.TryGetValue(propertyName, out var c) && (c as Func<TProperty, bool>)!(value));
+    }
+}
+
+internal interface IGlobalExcludedPropertyManager
+{
+    IGlobalFilterPropertyExcludeByValueManager? FilterPropertyExcludeByValueManager { get; }
+
+    bool IsPropertyExcluded(string propertyName);
+
+    bool IsEntityPropertyExcluded(Type entityType, string propertyName);
+
+    bool IsFilterPropertyExcluded(Type filterType, string propertyName);
+}
+
+internal interface IFilterBuilderConfiguration : IGlobalExcludedPropertyManager
 {
     ISet<string> ExcludedProperties { get; }
 
@@ -30,11 +60,14 @@ internal interface IFilterBuilderConfiguration : IGlobalPropertyExcluder
 
 internal sealed class FilterBuilderConfiguration : IFilterBuilderConfigurationBuilder, IFilterBuilderConfiguration
 {
-    private readonly IFilterBuilderFactory _factory;
+    private readonly FilterBuilderFactory _factory;
+    private readonly IEqualityMethodBuilder _equalityMethodBuilder;
+    private IGlobalFilterPropertyExcludeByValueManager? _globalFilterPropertyExcludeByValueManager;
 
-    public FilterBuilderConfiguration(IFilterBuilderFactory factory)
+    public FilterBuilderConfiguration(FilterBuilderFactory factory, IEqualityMethodBuilder equalityMethodBuilder)
     {
         _factory = factory;
+        _equalityMethodBuilder = equalityMethodBuilder;
     }
 
     public ISet<string> ExcludedProperties { get; } = new HashSet<string>();
@@ -47,19 +80,23 @@ internal sealed class FilterBuilderConfiguration : IFilterBuilderConfigurationBu
 
     public Dictionary<Type, Dictionary<string, ExcludingOption>> ExcludedFilterPropertiesByOption { get; } = new ();
 
+    public IGlobalFilterPropertyExcludeByValueManager? FilterPropertyExcludeByValueManager => _globalFilterPropertyExcludeByValueManager;
+
+    internal Dictionary<Type, MethodMetaData> PropertyTypeEqualityDict { get; } = new ();
+
     public bool IsPropertyExcluded(string propertyName)
     {
         return ExcludedProperties.Contains(propertyName) || ExcludedPropertyConditions.Any(f => f(propertyName));
     }
 
-    public bool IsEntityPropertyExcluded(Type type, string propertyName)
+    public bool IsEntityPropertyExcluded(Type entityType, string propertyName)
     {
-        return IsPropertyExcluded(propertyName) || (ExcludedEntityProperties.TryGetValue(type, out var ts) && ts.Contains(propertyName));
+        return IsPropertyExcluded(propertyName) || (ExcludedEntityProperties.TryGetValue(entityType, out var ts) && ts.Contains(propertyName));
     }
 
-    public bool IsFilterPropertyAlwaysExcluded(Type type, string propertyName)
+    public bool IsFilterPropertyExcluded(Type filterType, string propertyName)
     {
-        return ExcludedFilterPropertiesByOption.TryGetValue(type, out var inner) && inner.TryGetValue(propertyName, out var option) && option == ExcludingOption.Always;
+        return ExcludedFilterPropertiesByOption.TryGetValue(filterType, out var inner) && inner.TryGetValue(propertyName, out var option) && option == ExcludingOption.Always;
     }
 
     public IFilterBuilderConfigurationBuilder ExcludeEntityProperty<TEntity, TProperty>(Expression<Func<TEntity, TProperty>> propertyExpression)
@@ -111,6 +148,12 @@ internal sealed class FilterBuilderConfiguration : IFilterBuilderConfigurationBu
             throw new RedundantExcludingException(type, propertyName);
         }
 
+        var propertyType = typeof(TProperty);
+        if (option == ExcludingOption.DefaultValue && !PropertyTypeEqualityDict.ContainsKey(propertyType))
+        {
+            PropertyTypeEqualityDict.Add(propertyType, _equalityMethodBuilder.BuildEqualityMethod(propertyType));
+        }
+
         return this;
     }
 
@@ -138,6 +181,31 @@ internal sealed class FilterBuilderConfiguration : IFilterBuilderConfigurationBu
 
     public IFilterBuilderFactory Finish()
     {
+        Dictionary<Type, IReadOnlyDictionary<string, Delegate>>? byCondition = null;
+        if (ExcludedFilterPropertiesByCondition.Any())
+        {
+            byCondition = new Dictionary<Type, IReadOnlyDictionary<string, Delegate>>();
+            foreach (var kvp1 in ExcludedFilterPropertiesByCondition)
+            {
+                byCondition[kvp1.Key] = kvp1.Value;
+            }
+        }
+
+        Dictionary<Type, IReadOnlyDictionary<string, ExcludingOption>>? byOption = null;
+        if (ExcludedFilterPropertiesByOption.Any())
+        {
+            byOption = new Dictionary<Type, IReadOnlyDictionary<string, ExcludingOption>>();
+            foreach (var kvp2 in ExcludedFilterPropertiesByOption)
+            {
+                byOption[kvp2.Key] = kvp2.Value;
+            }
+        }
+
+        if (byCondition != null || byOption != null)
+        {
+            _globalFilterPropertyExcludeByValueManager = new GlobalFilterPropertyExcludeByValueManager(_factory.EqualityManager, byCondition, byOption);
+        }
+
         return _factory;
     }
 }

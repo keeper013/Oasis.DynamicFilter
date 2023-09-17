@@ -9,7 +9,7 @@ internal static class Utilities
 {
     public const BindingFlags PublicInstance = BindingFlags.Public | BindingFlags.Instance;
 
-    public delegate Expression<Func<TEntity, bool>> GetExpression<TFilter, TEntity>(TFilter filter)
+    public delegate Expression<Func<TEntity, bool>> GetExpression<TFilter, TEntity>(TFilter filter, IFilterPropertyExcludeByValueManager? manager)
         where TFilter : class
         where TEntity : class;
 
