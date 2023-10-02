@@ -11,29 +11,44 @@ public enum FilteringType
     Default = 0,
 
     /// <summary>
+    /// Entity value equals filter value
+    /// </summary>
+    Equal = 1,
+
+    /// <summary>
+    /// Entity value not equals filter value
+    /// </summary>
+    NotEqual = 2,
+
+    /// <summary>
     /// Entity value is greater than filter.
     /// </summary>
-    Greater = 1,
+    Greater = 3,
 
     /// <summary>
     /// Entity value is greater than or equals filter.
     /// </summary>
-    GreaterOrEqual = 2,
+    GreaterOrEqual = 4,
 
     /// <summary>
     /// Entity value is less than filter.
     /// </summary>
-    Less = 3,
+    Less = 5,
 
     /// <summary>
     /// Entity value is less than or equals filter.
     /// </summary>
-    LessOrEqual = 4,
+    LessOrEqual = 6,
 
     /// <summary>
-    /// Entity value not in filter range
+    /// Entity value is contained by filter collection.
     /// </summary>
-    NotIn = 5,
+    Contains = 7,
+
+    /// <summary>
+    /// Entity value not contained filter collection
+    /// </summary>
+    NotContains = 8,
 }
 
 public enum ExcludingOption

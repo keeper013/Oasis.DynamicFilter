@@ -5,6 +5,8 @@ using System.Reflection.Emit;
 using System.Reflection;
 using System.Linq;
 using System.Security.Cryptography;
+using System.Collections.Generic;
+using System;
 
 public sealed class FilterBuilderBuilder : IFilterBuilderBuilder
 {
@@ -19,7 +21,7 @@ public sealed class FilterBuilderBuilder : IFilterBuilderBuilder
         _dynamicMethodBuilder = new (module.DefineType("Mapper", TypeAttributes.Public));
     }
 
-    internal EqualityManager EqualityManager { get; } = new ();
+    internal Dictionary<Type, Delegate> EqualityManager { get; private set; } = new Dictionary<Type, Delegate>();
 
     public IFilterBuilderConfigurationBuilder Configure()
     {
@@ -28,7 +30,9 @@ public sealed class FilterBuilderBuilder : IFilterBuilderBuilder
 
     public IFilterBuilder Make()
     {
-        return new FilterBuilder(_dynamicMethodBuilder, _configuration, EqualityManager);
+        var builder = new FilterBuilder(_dynamicMethodBuilder, _configuration, EqualityManager);
+        EqualityManager = new Dictionary<Type, Delegate>();
+        return builder;
     }
 
     private static string GenerateRandomTypeName(int length)

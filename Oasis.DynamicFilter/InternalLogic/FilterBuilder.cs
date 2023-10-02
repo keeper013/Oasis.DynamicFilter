@@ -3,11 +3,8 @@
 using Oasis.DynamicFilter.Exceptions;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
-using System.Reflection.Emit;
-using System.Security.Cryptography;
 
 public interface IFilterPropertyExcludeByValueManager
 {
@@ -17,12 +14,12 @@ public interface IFilterPropertyExcludeByValueManager
 internal sealed class FilterPropertyExcludeByValueManager<TFilter> : IFilterPropertyExcludeByValueManager
     where TFilter : class
 {
-    private readonly IEqualityManager _equalityManager;
+    private readonly IReadOnlyDictionary<Type, Delegate> _equalityManager;
     private readonly IGlobalFilterPropertyExcludeByValueManager? _globalFilterPropertyExcludeByValueManager;
     private readonly IReadOnlyDictionary<string, Delegate>? _byCondition;
     private readonly IReadOnlyDictionary<string, ExcludingOption>? _byOption;
 
-    public FilterPropertyExcludeByValueManager(IEqualityManager equalityManager, IGlobalFilterPropertyExcludeByValueManager globalFilterPropertyExcludeByValueManager)
+    public FilterPropertyExcludeByValueManager(IReadOnlyDictionary<Type, Delegate> equalityManager, IGlobalFilterPropertyExcludeByValueManager globalFilterPropertyExcludeByValueManager)
     {
         _equalityManager = equalityManager;
         _globalFilterPropertyExcludeByValueManager = globalFilterPropertyExcludeByValueManager;
@@ -31,7 +28,7 @@ internal sealed class FilterPropertyExcludeByValueManager<TFilter> : IFilterProp
     }
 
     public FilterPropertyExcludeByValueManager(
-        IEqualityManager equalityManager,
+        IReadOnlyDictionary<Type, Delegate> equalityManager,
         IGlobalFilterPropertyExcludeByValueManager? globalFilterPropertyExcludeByValueManager,
         IReadOnlyDictionary<string, Delegate>? byCondition,
         IReadOnlyDictionary<string, ExcludingOption>? byOption)
@@ -45,7 +42,7 @@ internal sealed class FilterPropertyExcludeByValueManager<TFilter> : IFilterProp
     public bool IsFilterPropertyExcluded<TProperty>(string propertyName, TProperty value)
     {
         return (_globalFilterPropertyExcludeByValueManager != null && _globalFilterPropertyExcludeByValueManager.IsFilterPropertyExcluded(typeof(TFilter), propertyName, value))
-            || (_byOption != null && _byOption.TryGetValue(propertyName, out var o) && (o == ExcludingOption.Always || (o == ExcludingOption.DefaultValue && _equalityManager.Equals(value, default))))
+            || (_byOption != null && _byOption.TryGetValue(propertyName, out var o) && (o == ExcludingOption.Always || (o == ExcludingOption.DefaultValue && (_equalityManager[typeof(TProperty)] as Func<TProperty?, TProperty?, bool>)!(value, default))))
             || (_byCondition != null && _byCondition.TryGetValue(propertyName, out var c) && (c as Func<TProperty, bool>)!(value));
     }
 }
@@ -216,7 +213,7 @@ internal sealed class FilterBuilder : IFilterBuilder
     private readonly Dictionary<Type, MethodMetaData> _propertyEqualityCache;
     private readonly DynamicMethodBuilder _dynamicMethodBuilder;
 
-    public FilterBuilder(DynamicMethodBuilder dynamicMethodBuilder, FilterBuilderConfiguration? filterGlobalConfiguration, EqualityManager equalityManager)
+    public FilterBuilder(DynamicMethodBuilder dynamicMethodBuilder, FilterBuilderConfiguration? filterGlobalConfiguration, Dictionary<Type, Delegate> equalityManager)
     {
         EqualityManager = equalityManager;
         _dynamicMethodBuilder = dynamicMethodBuilder;
@@ -224,12 +221,16 @@ internal sealed class FilterBuilder : IFilterBuilder
         _propertyEqualityCache = filterGlobalConfiguration?.PropertyTypeEqualityDict ?? new ();
     }
 
-    internal EqualityManager EqualityManager { get; }
+    internal Dictionary<Type, Delegate> EqualityManager { get; }
 
     public IFilter Build()
     {
         var type = _dynamicMethodBuilder.Build();
-        EqualityManager.Initialize(_propertyEqualityCache, type);
+        foreach (var kvp in _propertyEqualityCache)
+        {
+            EqualityManager.Add(kvp.Key, Delegate.CreateDelegate(kvp.Value.type, type.GetMethod(kvp.Value.name, BindingFlags.Public | BindingFlags.Static)));
+        }
+
         return new Filter(_expressionBuilderCache, type);
     }
 

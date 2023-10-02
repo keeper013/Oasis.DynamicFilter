@@ -4,15 +4,94 @@ using System.Collections.Generic;
 using System;
 using System.Linq.Expressions;
 using System.Reflection;
+using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 
 internal static class Utilities
 {
     public const BindingFlags PublicInstance = BindingFlags.Public | BindingFlags.Instance;
     public const BindingFlags PublicStatic = BindingFlags.Public | BindingFlags.Static;
+    internal const string EqualOperatorMethodName = "op_Equality";
+    internal const string GreaterThanOperatorMethodName = "op_GreaterThan";
+    private const string NullableTypeName = "System.Nullable`1[[";
+    private static readonly Type CollectionType = typeof(ICollection<>);
+    private static readonly Type[] NonPrimitiveScalarTypes = new[]
+    {
+        typeof(string), typeof(decimal), typeof(decimal?), typeof(DateTime), typeof(DateTime?),
+    };
 
     public delegate Expression<Func<TEntity, bool>> GetExpression<TFilter, TEntity>(TFilter filter, IFilterPropertyExcludeByValueManager? manager)
         where TFilter : class
         where TEntity : class;
+
+    public static bool IsFilterableType(this Type type)
+        => type.IsPrimitive || type.IsEnum || type.GetMethod(EqualOperatorMethodName, PublicStatic) != default
+            || (type.IsNullable(out var argumentType) && (argumentType.IsPrimitive || argumentType.IsEnum || argumentType.GetMethod(EqualOperatorMethodName, PublicStatic) != default))
+            || NonPrimitiveScalarTypes.Contains(type);
+
+    public static bool IsNullable(this Type type, [NotNullWhen(true)] out Type? argumentType)
+    {
+        if (type.FullName!.StartsWith(NullableTypeName) && type.GenericTypeArguments.Length == 1)
+        {
+            argumentType = type.GenericTypeArguments[0];
+            return true;
+        }
+
+        argumentType = null;
+        return false;
+    }
+
+    public static bool IsStruct(this Type type)
+    {
+        return type.IsValueType && !type.IsPrimitive && !type.IsEnum;
+    }
+
+    public static bool Matches(this Type type1, Type type2)
+    {
+        if (type1 == type2)
+        {
+            return true;
+        }
+
+        if (type1.FullName!.StartsWith(NullableTypeName) && type1.GenericTypeArguments.Length == 1)
+        {
+            type1 = type1.GenericTypeArguments[0];
+        }
+
+        if (type2.FullName!.StartsWith(NullableTypeName) && type2.GenericTypeArguments.Length == 1)
+        {
+            type2 = type2.GenericTypeArguments[0];
+        }
+
+        return type1 == type2;
+    }
+
+    public static Type? GetListItemType(this Type type)
+    {
+        var listType = type.GetListType();
+        if (listType != default)
+        {
+            return listType.GenericTypeArguments[0];
+        }
+
+        return default;
+    }
+
+    public static Type? GetListType(this Type type)
+    {
+        if (type.IsArray)
+        {
+            return default;
+        }
+
+        if (IsOfGenericTypeDefinition(type, CollectionType))
+        {
+            return type;
+        }
+
+        var types = type.GetInterfaces().Where(i => IsOfGenericTypeDefinition(i, CollectionType)).ToList();
+        return types.Count == 1 ? types[0] : default;
+    }
 
     internal static bool AddIfNotExists<TKey, TValue>(this Dictionary<TKey, HashSet<TValue>> dict, TKey key, TValue value)
     {
@@ -104,6 +183,8 @@ internal static class Utilities
             ? throw new InvalidOperationException(string.Format("Member with Name '{0}' is not a property.", member.Name))
             : property;
     }
+
+    private static bool IsOfGenericTypeDefinition(Type source, Type target) => source.IsGenericType && source.GetGenericTypeDefinition() == target;
 }
 
 internal record struct MethodMetaData(Type type, string name);

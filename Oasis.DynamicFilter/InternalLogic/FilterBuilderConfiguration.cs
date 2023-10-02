@@ -13,12 +13,12 @@ internal interface IGlobalFilterPropertyExcludeByValueManager
 
 internal sealed class GlobalFilterPropertyExcludeByValueManager : IGlobalFilterPropertyExcludeByValueManager
 {
-    private readonly IEqualityManager _equalityManager;
+    private readonly IReadOnlyDictionary<Type, Delegate> _equalityManager;
     private readonly IReadOnlyDictionary<Type, IReadOnlyDictionary<string, Delegate>>? _byCondition;
     private readonly IReadOnlyDictionary<Type, IReadOnlyDictionary<string, ExcludingOption>>? _byOption;
 
     public GlobalFilterPropertyExcludeByValueManager(
-        IEqualityManager equalityManager,
+        IReadOnlyDictionary<Type, Delegate> equalityManager,
         IReadOnlyDictionary<Type, IReadOnlyDictionary<string, Delegate>>? byCondition,
         IReadOnlyDictionary<Type, IReadOnlyDictionary<string, ExcludingOption>>? byOption)
     {
@@ -29,8 +29,8 @@ internal sealed class GlobalFilterPropertyExcludeByValueManager : IGlobalFilterP
 
     public bool IsFilterPropertyExcluded<TProperty>(Type filterType, string propertyName, TProperty value)
     {
-        return (_byOption != null && _byOption.TryGetValue(filterType, out var po) && po.TryGetValue(propertyName, out var o) && (o == ExcludingOption.Always || (o == ExcludingOption.DefaultValue && _equalityManager.Equals(value, default))))
-            || (_byCondition != null && _byCondition.TryGetValue(filterType, out var pc) && pc.TryGetValue(propertyName, out var c) && (c as Func<TProperty, bool>)!(value));
+        return (_byOption != null && _byOption.TryGetValue(filterType, out var po) && po.TryGetValue(propertyName, out var o) && (o == ExcludingOption.Always || (o == ExcludingOption.DefaultValue && (_equalityManager[typeof(TProperty)] as Func<TProperty?, TProperty?, bool>)!(value, default))))
+            || (_byCondition != null && (_byCondition.Find(filterType, propertyName) as Func<TProperty, bool>)!(value));
     }
 }
 
@@ -60,13 +60,13 @@ internal interface IFilterBuilderConfiguration : IGlobalExcludedPropertyManager
 
 internal sealed class FilterBuilderConfiguration : IFilterBuilderConfigurationBuilder, IFilterBuilderConfiguration
 {
-    private readonly FilterBuilderBuilder _factory;
+    private readonly FilterBuilderBuilder _builder;
     private readonly IEqualityMethodBuilder _equalityMethodBuilder;
     private IGlobalFilterPropertyExcludeByValueManager? _globalFilterPropertyExcludeByValueManager;
 
-    public FilterBuilderConfiguration(FilterBuilderBuilder factory, IEqualityMethodBuilder equalityMethodBuilder)
+    public FilterBuilderConfiguration(FilterBuilderBuilder builder, IEqualityMethodBuilder equalityMethodBuilder)
     {
-        _factory = factory;
+        _builder = builder;
         _equalityMethodBuilder = equalityMethodBuilder;
     }
 
@@ -203,9 +203,9 @@ internal sealed class FilterBuilderConfiguration : IFilterBuilderConfigurationBu
 
         if (byCondition != null || byOption != null)
         {
-            _globalFilterPropertyExcludeByValueManager = new GlobalFilterPropertyExcludeByValueManager(_factory.EqualityManager, byCondition, byOption);
+            _globalFilterPropertyExcludeByValueManager = new GlobalFilterPropertyExcludeByValueManager(_builder.EqualityManager, byCondition, byOption);
         }
 
-        return _factory;
+        return _builder;
     }
 }

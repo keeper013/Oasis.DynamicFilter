@@ -37,15 +37,49 @@ internal sealed class GlobalFilterPropertyManager : IFilterPropertyManager
     }
 }
 
+internal interface IEqualityMethodBuilder
+{
+    MethodMetaData BuildEqualityMethod(Type type);
+}
+
+internal enum TypeEqualCategory
+{
+    /// <summary>
+    /// Types overrides equal operator
+    /// </summary>
+    OpEquality,
+
+    /// <summary>
+    /// Types that are primitive or enum or class
+    /// </summary>
+    PrimitiveEnumClass,
+
+    /// <summary>
+    /// Nullable structs that overrides equal operator
+    /// </summary>
+    NullableOpEquality,
+
+    /// <summary>
+    /// Nullable primitive or enum
+    /// </summary>
+    NullablePrimitiveEnum,
+
+    /// <summary>
+    /// Equals as objects
+    /// </summary>
+    ObjectEquals,
+}
+
 internal sealed class DynamicMethodBuilder : IEqualityMethodBuilder
 {
-    private const string EqualOperatorMethodName = "op_Equality";
     private const string GetValueOrDefaultMethodName = "GetValueOrDefault";
     private const string HasValuePropertyName = "HasValue";
     private static readonly Type BoolType = typeof(bool);
     private static readonly MethodInfo ObjectEqualsMethod = typeof(object).GetMethod(nameof(object.Equals), Utilities.PublicStatic)!;
     private readonly TypeBuilder _typeBuilder;
     private readonly GlobalFilterPropertyManager _globalExcludedPropertyManager;
+    private readonly HashSet<Type> _convertableToScalarTypes;
+    private readonly Dictionary<Type, Dictionary<Type, Delegate>> _scalarConverterDictionary;
 
     public DynamicMethodBuilder(TypeBuilder typeBuilder)
     {
@@ -88,64 +122,113 @@ internal sealed class DynamicMethodBuilder : IEqualityMethodBuilder
         var method = BuildMethod(methodName, new[] { type, type }, BoolType);
         var generator = method.GetILGenerator();
 
-        if ((type.IsValueType && (type.IsPrimitive || type.IsEnum)) || type.IsClass)
+        var equalCategory = GetTypeEqualityCategory(type);
+        var typeIsNullable = equalCategory == TypeEqualCategory.NullableOpEquality || equalCategory == TypeEqualCategory.NullablePrimitiveEnum;
+        var needToBox = equalCategory == TypeEqualCategory.ObjectEquals && type.IsValueType;
+        LocalBuilder? sourceLocal = null;
+        LocalBuilder? targetLocal = null;
+        if (typeIsNullable)
         {
-            generator.Emit(OpCodes.Ldarg_0);
-            generator.Emit(OpCodes.Ldarg_1);
-            generator.Emit(OpCodes.Ceq);
+            sourceLocal = generator.DeclareLocal(type);
+            targetLocal = generator.DeclareLocal(type);
         }
-        else if (type.IsNullablePrimitiveOrEnum())
+
+        generator.Emit(OpCodes.Ldarg_0);
+        if (typeIsNullable)
         {
-            var getValueOrDefaultMethod = type.GetMethod(GetValueOrDefaultMethodName, Utilities.PublicInstance);
-            var hasValueGetter = type.GetProperty(HasValuePropertyName, Utilities.PublicInstance).GetGetMethod();
-            var arg0 = generator.DeclareLocal(type);
-            var arg1 = generator.DeclareLocal(type);
-            generator.Emit(OpCodes.Ldarg_0);
-            generator.Emit(OpCodes.Starg, arg0);
-            generator.Emit(OpCodes.Ldarg_1);
-            generator.Emit(OpCodes.Starg, arg1);
-            generator.Emit(OpCodes.Ldloca_S, arg0);
+            generator.Emit(OpCodes.Stloc_0);
+        }
+
+        if (needToBox)
+        {
+            generator.Emit(OpCodes.Box, type);
+        }
+
+        generator.Emit(OpCodes.Ldarg_1);
+        if (typeIsNullable)
+        {
+            generator.Emit(OpCodes.Stloc_1);
+        }
+
+        if (needToBox)
+        {
+            generator.Emit(OpCodes.Box, type);
+        }
+
+        GenerateEqualCode(generator, type, equalCategory, sourceLocal, targetLocal);
+        generator.Emit(OpCodes.Ret);
+        return new MethodMetaData(typeof(Func<,,>).MakeGenericType(type, type, BoolType), methodName);
+    }
+
+    private static void GenerateEqualCode(ILGenerator generator, Type type, TypeEqualCategory category, LocalBuilder? sourceLocal, LocalBuilder? targetLocal)
+    {
+        if (sourceLocal != default)
+        {
+            // nullable value type case
+            var getValueOrDefaultMethod = type.GetMethod(GetValueOrDefaultMethodName, Array.Empty<Type>())!;
+            var hasValueGetter = type.GetProperty(HasValuePropertyName, Utilities.PublicInstance)!.GetGetMethod()!;
+            generator.Emit(OpCodes.Ldloca_S, sourceLocal);
             generator.Emit(OpCodes.Call, getValueOrDefaultMethod);
-            generator.Emit(OpCodes.Ldloca_S, arg1);
+            generator.Emit(OpCodes.Ldloca_S, targetLocal!);
             generator.Emit(OpCodes.Call, getValueOrDefaultMethod);
-            generator.Emit(OpCodes.Ceq);
-            generator.Emit(OpCodes.Ldloca_S, arg0);
+            if (category == TypeEqualCategory.NullableOpEquality)
+            {
+                generator.Emit(OpCodes.Call, type.GenericTypeArguments[0].GetMethod(Utilities.EqualOperatorMethodName, Utilities.PublicStatic)!);
+            }
+            else
+            {
+                generator.Emit(OpCodes.Ceq);
+            }
+
+            generator.Emit(OpCodes.Ldloca_S, sourceLocal);
             generator.Emit(OpCodes.Call, hasValueGetter);
-            generator.Emit(OpCodes.Ldloca_S, arg1);
+            generator.Emit(OpCodes.Ldloca_S, targetLocal!);
             generator.Emit(OpCodes.Call, hasValueGetter);
             generator.Emit(OpCodes.Ceq);
             generator.Emit(OpCodes.And);
         }
+        else if (category == TypeEqualCategory.OpEquality)
+        {
+            generator.Emit(OpCodes.Call, type.GetMethod(Utilities.EqualOperatorMethodName, Utilities.PublicStatic)!);
+        }
+        else if (category == TypeEqualCategory.PrimitiveEnumClass)
+        {
+            generator.Emit(OpCodes.Ceq);
+        }
         else
         {
-            var equalOperator = type.GetMethod(EqualOperatorMethodName, Utilities.PublicStatic);
+            generator.Emit(OpCodes.Call, ObjectEqualsMethod);
+        }
+    }
+
+    private static TypeEqualCategory GetTypeEqualityCategory(Type type)
+    {
+        var equalOperator = type.GetMethod(Utilities.EqualOperatorMethodName, Utilities.PublicStatic);
+        if (equalOperator != null && equalOperator.IsHideBySig && equalOperator.IsSpecialName)
+        {
+            return TypeEqualCategory.OpEquality;
+        }
+
+        if (type.IsPrimitive || type.IsEnum || type.IsClass)
+        {
+            return TypeEqualCategory.PrimitiveEnumClass;
+        }
+
+        if (type.IsNullable(out var argumentType))
+        {
+            equalOperator = argumentType.GetMethod(Utilities.EqualOperatorMethodName, Utilities.PublicStatic);
             if (equalOperator != null && equalOperator.IsHideBySig && equalOperator.IsSpecialName)
             {
-                generator.Emit(OpCodes.Ldarg_0);
-                generator.Emit(OpCodes.Ldarg_1);
-                generator.Emit(OpCodes.Call, equalOperator);
+                return TypeEqualCategory.NullableOpEquality;
             }
-            else
+
+            if (type.IsPrimitive || type.IsEnum)
             {
-                var isValueType = type.IsValueType;
-                generator.Emit(OpCodes.Ldarg_0);
-                if (isValueType)
-                {
-                    generator.Emit(OpCodes.Box, type);
-                }
-
-                generator.Emit(OpCodes.Ldarg_1);
-                if (isValueType)
-                {
-                    generator.Emit(OpCodes.Box, type);
-                }
-
-                generator.Emit(OpCodes.Call, ObjectEqualsMethod);
+                return TypeEqualCategory.NullablePrimitiveEnum;
             }
         }
 
-        generator.Emit(OpCodes.Ret);
-        return new MethodMetaData(typeof(Func<,,>).MakeGenericType(type, type, BoolType), methodName);
+        return TypeEqualCategory.ObjectEquals;
     }
 
     private static string BuildFilterMethodName(Type sourceType, Type targetType)
@@ -163,6 +246,27 @@ internal sealed class DynamicMethodBuilder : IEqualityMethodBuilder
         return $"{type.Namespace}_{type.Name}".Replace(".", "_").Replace("`", "_");
     }
 
+    private IList<(PropertyInfo, PropertyInfo)> ExtractScalarProperties(IList<PropertyInfo> filterProperties, IList<PropertyInfo> entityProperties)
+    {
+        var filterScalarProperties = filterProperties.Where(p => (p.PropertyType.IsFilterableScalarType() || _convertableToScalarTypes.Contains(p.PropertyType)) && p.GetMethod != default);
+        var entityScalarProperties = entityProperties.Where(p => (p.PropertyType.IsFilterableScalarType() || _convertableToScalarTypes.Contains(p.PropertyType)) && p.GetMethod != default).ToDictionary(p => p.Name, p => p);
+
+        var matchedProperties = new List<(PropertyInfo, PropertyInfo)>(Math.Min(filterScalarProperties.Count(), entityScalarProperties.Count()));
+        foreach (var filterProperty in filterScalarProperties)
+        {
+            var filterPropertyType = filterProperty.PropertyType;
+            if (entityScalarProperties.TryGetValue(filterProperty.Name, out var entityProperty)
+                && (filterPropertyType == entityProperty.PropertyType
+                    || filterPropertyType.GetListItemType() == entityProperty.PropertyType
+                    || _scalarConverterDictionary.Contains(filterPropertyType, entityProperty.PropertyType)))
+            {
+                matchedProperties.Add((filterProperty, entityProperty));
+            }
+        }
+
+        return matchedProperties;
+    }
+
     private MethodBuilder BuildMethod(string methodName, Type[] parameterTypes, Type returnType)
     {
         var methodBuilder = _typeBuilder.DefineMethod(methodName, MethodAttributes.Public | MethodAttributes.Static);
@@ -170,29 +274,5 @@ internal sealed class DynamicMethodBuilder : IEqualityMethodBuilder
         methodBuilder.SetReturnType(returnType);
 
         return methodBuilder;
-    }
-
-    private IList<(PropertyInfo, PropertyInfo, FilteringType)> ExtractScalarProperties(IList<PropertyInfo> filterProperties, IList<PropertyInfo> entityProperties, IFilterPropertyManager filterPropertyManager)
-    {
-        var filterScalarProperties = filterProperties.Where(p => p.PropertyType.IsScalarType());
-        var entityScalarProperties = entityProperties.Where(p => p.PropertyType.IsScalarType()).ToDictionary(p => p.Name, p => p);
-
-        var matchedProperties = new List<(PropertyInfo, PropertyInfo, FilteringType)>(Math.Min(filterScalarProperties.Count(), entityScalarProperties.Count()));
-        foreach (var filterProperty in filterScalarProperties)
-        {
-            var filterTuple = filterPropertyManager.GetFilteringType(filterProperty.Name);
-            if (entityScalarProperties.TryGetValue(filterTuple.Item1, out var entityProperty) && filterProperty.PropertyType.Matches(entityProperty.PropertyType))
-            {
-                matchedProperties.Add((filterProperty, entityProperty, filterTuple.Item2));
-            }
-        }
-
-        foreach (var match in matchedProperties)
-        {
-            filterProperties.Remove(match.Item1);
-            entityProperties.Remove(match.Item2);
-        }
-
-        return matchedProperties;
     }
 }
