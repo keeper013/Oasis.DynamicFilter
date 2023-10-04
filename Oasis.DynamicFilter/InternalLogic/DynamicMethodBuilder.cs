@@ -1,5 +1,6 @@
 ﻿namespace Oasis.DynamicFilter.InternalLogic;
 
+using Oasis.DynamicFilter;
 using Oasis.DynamicFilter.Exceptions;
 using System;
 using System.Collections.Generic;
@@ -29,11 +30,6 @@ internal sealed class GlobalFilterPropertyManager : IFilterPropertyManager
     public bool IsFilterPropertyExcluded(string propertyName)
     {
         return _globalFilterPropertyManager != null && _globalFilterPropertyManager.IsFilterPropertyExcluded(_filterType, propertyName);
-    }
-
-    public (string, FilteringType) GetFilteringType(string propertyName)
-    {
-        return (propertyName, FilteringType.Default);
     }
 }
 
@@ -246,7 +242,7 @@ internal sealed class DynamicMethodBuilder : IEqualityMethodBuilder
         return $"{type.Namespace}_{type.Name}".Replace(".", "_").Replace("`", "_");
     }
 
-    private IList<(PropertyInfo, PropertyInfo)> ExtractScalarProperties(IList<PropertyInfo> filterProperties, IList<PropertyInfo> entityProperties)
+    private IList<(PropertyInfo, PropertyInfo)> ExtractScalarProperties(IList<PropertyInfo> filterProperties, IList<PropertyInfo> entityProperties, IFilterPropertyManager manager)
     {
         var filterScalarProperties = filterProperties.Where(p => (p.PropertyType.IsFilterableScalarType() || _convertableToScalarTypes.Contains(p.PropertyType)) && p.GetMethod != default);
         var entityScalarProperties = entityProperties.Where(p => (p.PropertyType.IsFilterableScalarType() || _convertableToScalarTypes.Contains(p.PropertyType)) && p.GetMethod != default).ToDictionary(p => p.Name, p => p);

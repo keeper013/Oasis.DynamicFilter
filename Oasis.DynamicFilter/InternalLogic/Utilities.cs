@@ -6,13 +6,18 @@ using System.Linq.Expressions;
 using System.Reflection;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using Oasis.DynamicFilter;
 
 internal static class Utilities
 {
     public const BindingFlags PublicInstance = BindingFlags.Public | BindingFlags.Instance;
     public const BindingFlags PublicStatic = BindingFlags.Public | BindingFlags.Static;
-    internal const string EqualOperatorMethodName = "op_Equality";
+    internal const string EqualityOperatorMethodName = "op_Equality";
+    internal const string InequalityOperatorMethodName = "op_Inequality";
     internal const string GreaterThanOperatorMethodName = "op_GreaterThan";
+    internal const string GreaterThanOrEqualOperatorMethodName = "op_GreaterThanOrEqual";
+    internal const string LessThanOperatorMethodName = "op_LessThan";
+    internal const string LessThanOrEqualOperatorMethodName = "op_LessThanOrEqual";
     private const string NullableTypeName = "System.Nullable`1[[";
     private static readonly Type CollectionType = typeof(ICollection<>);
     private static readonly Type[] NonPrimitiveScalarTypes = new[]
@@ -20,13 +25,9 @@ internal static class Utilities
         typeof(string), typeof(decimal), typeof(decimal?), typeof(DateTime), typeof(DateTime?),
     };
 
-    public delegate Expression<Func<TEntity, bool>> GetExpression<TFilter, TEntity>(TFilter filter, IFilterPropertyExcludeByValueManager? manager)
-        where TFilter : class
-        where TEntity : class;
-
     public static bool IsFilterableType(this Type type)
-        => type.IsPrimitive || type.IsEnum || type.GetMethod(EqualOperatorMethodName, PublicStatic) != default
-            || (type.IsNullable(out var argumentType) && (argumentType.IsPrimitive || argumentType.IsEnum || argumentType.GetMethod(EqualOperatorMethodName, PublicStatic) != default))
+        => type.IsPrimitive || type.IsEnum || type.GetMethod(EqualityOperatorMethodName, PublicStatic) != default
+            || (type.IsNullable(out var argumentType) && (argumentType.IsPrimitive || argumentType.IsEnum || argumentType.GetMethod(EqualityOperatorMethodName, PublicStatic) != default))
             || NonPrimitiveScalarTypes.Contains(type);
 
     public static bool IsNullable(this Type type, [NotNullWhen(true)] out Type? argumentType)
@@ -91,6 +92,34 @@ internal static class Utilities
 
         var types = type.GetInterfaces().Where(i => IsOfGenericTypeDefinition(i, CollectionType)).ToList();
         return types.Count == 1 ? types[0] : default;
+    }
+
+    internal static bool HasOperator(this Type type, FilterByPropertyType filterType)
+    {
+        string methodName = null!;
+        switch (filterType)
+        {
+            case FilterByPropertyType.Equality:
+                methodName = EqualityOperatorMethodName;
+                break;
+            case FilterByPropertyType.GreaterThan:
+                methodName = GreaterThanOperatorMethodName;
+                break;
+            case FilterByPropertyType.GreaterThanOrEqual:
+                methodName = GreaterThanOrEqualOperatorMethodName;
+                break;
+            case FilterByPropertyType.LessThan:
+                methodName = LessThanOperatorMethodName;
+                break;
+            case FilterByPropertyType.LessThanOrEqual:
+                methodName = LessThanOrEqualOperatorMethodName;
+                break;
+            default:
+                methodName = InequalityOperatorMethodName;
+                break;
+        }
+
+        return type.GetMethod(methodName, PublicStatic) != null;
     }
 
     internal static bool AddIfNotExists<TKey, TValue>(this Dictionary<TKey, HashSet<TValue>> dict, TKey key, TValue value)

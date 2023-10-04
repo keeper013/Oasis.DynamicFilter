@@ -1,5 +1,6 @@
 ﻿namespace Oasis.DynamicFilter.InternalLogic;
 
+using Oasis.DynamicFilter;
 using Oasis.DynamicFilter.Exceptions;
 using System;
 using System.Collections.Generic;

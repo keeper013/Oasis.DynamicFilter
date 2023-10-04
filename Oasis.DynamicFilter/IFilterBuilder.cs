@@ -3,86 +3,104 @@
 using System.Linq.Expressions;
 using System;
 
-public enum FilteringType
+public enum FilterByPropertyType
 {
-    /// <summary>
-    /// Entity value equals filter value for scalar, in filter values for collection.
-    /// </summary>
-    Default = 0,
-
     /// <summary>
     /// Entity value equals filter value
     /// </summary>
-    Equal = 1,
+    Equality = 0,
 
     /// <summary>
     /// Entity value not equals filter value
     /// </summary>
-    NotEqual = 2,
+    InEquality = 1,
 
     /// <summary>
     /// Entity value is greater than filter.
     /// </summary>
-    Greater = 3,
+    GreaterThan = 2,
 
     /// <summary>
     /// Entity value is greater than or equals filter.
     /// </summary>
-    GreaterOrEqual = 4,
+    GreaterThanOrEqual = 3,
 
     /// <summary>
     /// Entity value is less than filter.
     /// </summary>
-    Less = 5,
+    LessThan = 4,
 
     /// <summary>
     /// Entity value is less than or equals filter.
     /// </summary>
-    LessOrEqual = 6,
+    LessThanOrEqual = 5,
 
     /// <summary>
-    /// Entity value is contained by filter collection.
+    /// Filter collection contains entity value.
     /// </summary>
-    Contains = 7,
+    Contains = 6,
 
     /// <summary>
-    /// Entity value not contained filter collection
+    /// Filter collection not contains entity value.
     /// </summary>
-    NotContains = 8,
+    NotContains = 7,
+
+    /// <summary>
+    /// Filter value in entity collection.
+    /// </summary>
+    In = 8,
+
+    /// <summary>
+    /// Filter value not in entity collection
+    /// </summary>
+    NotIn = 9,
 }
 
-public enum ExcludingOption
+public enum FilterByRangeType
 {
     /// <summary>
-    /// Ignoreing the property if it's value is default value
+    /// Entity value is less than filter.
     /// </summary>
-    DefaultValue,
+    Less = 0,
 
     /// <summary>
-    /// Never ignoring the property for filtering
+    /// Entity value is less than or equals filter.
     /// </summary>
-    Never,
-
-    /// <summary>
-    /// Alaways ingoring the property for filtering
-    /// </summary>
-    Always,
+    LessOrEqual = 1,
 }
 
-public interface IFilterConfigurationBuilder<TFilter, TEntity> : IConfigurator<IFilterBuilder>
+public interface IFilterConfigurationBuilder<TFilter, TEntity>
     where TFilter : class
     where TEntity : class
 {
-    IFilterConfigurationBuilder<TFilter, TEntity> ExcludeEntityProperty<TProperty>(Expression<Func<TEntity, TProperty>> propertyExpression);
-
-    IFilterConfigurationBuilder<TFilter, TEntity> ExcludeFilterProperty<TProperty>(Expression<Func<TFilter, TProperty>> propertyExpression, Func<TProperty, bool> condition);
-
-    IFilterConfigurationBuilder<TFilter, TEntity> ExcludeFilterProperty<TProperty>(Expression<Func<TFilter, TProperty>> propertyExpression, ExcludingOption option);
-
-    IFilterConfigurationBuilder<TFilter, TEntity> Configure<TFilterProperty, TEntityProperty>(
-        Expression<Func<TFilter, TFilterProperty>> filterPropertyExpression,
+    IFilterConfigurationBuilder<TFilter, TEntity> FilterByProperty<TEntityProperty, TFilterProperty>(
         Expression<Func<TEntity, TEntityProperty>> entityPropertyExpression,
-        FilteringType filteringType = FilteringType.Default);
+        FilterByPropertyType type,
+        Expression<Func<TFilter, TFilterProperty>> filterPropertyExpression,
+        Func<TFilter, bool>? ignoreIf = null,
+        Func<TFilter, bool>? reverseIf = null);
+
+    IFilterConfigurationBuilder<TFilter, TEntity> FilterByRange<TEntityProperty, TFilterProperty>(
+        Expression<Func<TFilter, TFilterProperty>> filterPropertyMinExpression,
+        FilterByRangeType minFilteringType,
+        Expression<Func<TEntity, TEntityProperty>> entityPropertyExpression,
+        FilterByRangeType maxFilteringType,
+        Expression<Func<TFilter, TFilterProperty>> filterPropertyMaxExpression,
+        Func<TFilter, bool>? ignoreMinIf = null,
+        Func<TFilter, bool>? ignoreMaxIf = null,
+        Func<TFilter, bool>? reverseIf = null);
+
+    IFilterConfigurationBuilder<TFilter, TEntity> FilterByRange<TEntityProperty, TFilterProperty>(
+        Expression<Func<TEntity, TFilterProperty>> entityPropertyMinExpression,
+        FilterByRangeType minFilteringType,
+        Expression<Func<TFilter, TEntityProperty>> filterPropertyExpression,
+        FilterByRangeType maxFilteringType,
+        Expression<Func<TEntity, TFilterProperty>> entityPropertyMaxExpression,
+        Func<TFilter, bool>? ignoreMinIf = null,
+        Func<TFilter, bool>? ignoreMaxIf = null,
+        Func<TFilter, bool>? reverseIf = null);
+
+    IFilterBuilder Finish();
 }
 
 public interface IFilterBuilder
