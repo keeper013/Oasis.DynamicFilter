@@ -5,11 +5,11 @@ using System.Linq.Expressions;
 
 public interface IFilter
 {
-    Expression<Func<TEntity, bool>> GetExpression<TFilter, TEntity>(TFilter filter)
-        where TFilter : class
-        where TEntity : class;
+    Expression<Func<TEntity, bool>> GetExpression<TEntity, TFilter>(TFilter filter)
+        where TEntity : class
+        where TFilter : class;
 
     Func<TEntity, bool> GetFunc<TFilter, TEntity>(TFilter filter)
-        where TFilter : class
-        where TEntity : class;
+        where TEntity : class
+        where TFilter : class;
 }

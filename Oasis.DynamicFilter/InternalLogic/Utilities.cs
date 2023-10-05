@@ -67,9 +67,9 @@ internal static class Utilities
         return type1 == type2;
     }
 
-    public static Type? GetListItemType(this Type type)
+    public static Type? GetCollectionItemType(this Type type)
     {
-        var listType = type.GetListType();
+        var listType = type.GetCollectionType();
         if (listType != default)
         {
             return listType.GenericTypeArguments[0];
@@ -78,7 +78,7 @@ internal static class Utilities
         return default;
     }
 
-    public static Type? GetListType(this Type type)
+    public static Type? GetCollectionType(this Type type)
     {
         if (type.IsArray)
         {
@@ -153,6 +153,17 @@ internal static class Utilities
         }
 
         return false;
+    }
+
+    internal static void Add<TKey1, TKey2, TValue>(this Dictionary<TKey1, Dictionary<TKey2, TValue>> dict, TKey1 key1, TKey2 key2, TValue value)
+    {
+        if (!dict.TryGetValue(key1, out var innerDict))
+        {
+            innerDict = new Dictionary<TKey2, TValue>();
+            dict[key1] = innerDict;
+        }
+
+        innerDict.Add(key2, value);
     }
 
     internal static bool AddIfNotExists<TKey1, TKey2, TValue>(this Dictionary<TKey1, Dictionary<TKey2, TValue>> dict, TKey1 key1, TKey2 key2, Func<TValue> func, bool? extraCondition = null)

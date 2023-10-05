@@ -69,36 +69,35 @@ public enum FilterByRangeType
     LessOrEqual = 1,
 }
 
-public interface IFilterConfigurationBuilder<TFilter, TEntity>
-    where TFilter : class
+public interface IFilterConfigurationBuilder<TEntity, TFilter>
     where TEntity : class
+    where TFilter : class
 {
-    IFilterConfigurationBuilder<TFilter, TEntity> FilterByProperty<TEntityProperty, TFilterProperty>(
+    IFilterConfigurationBuilder<TEntity, TFilter> FilterByProperty<TEntityProperty, TFilterProperty>(
         Expression<Func<TEntity, TEntityProperty>> entityPropertyExpression,
         FilterByPropertyType type,
         Expression<Func<TFilter, TFilterProperty>> filterPropertyExpression,
-        Func<TFilter, bool>? ignoreIf = null,
-        Func<TFilter, bool>? reverseIf = null);
+        Func<TFilter, bool>? reverseIf = null,
+        Func<TFilter, bool>? ignoreIf = null);
 
-    IFilterConfigurationBuilder<TFilter, TEntity> FilterByRange<TEntityProperty, TFilterProperty>(
+    IFilterConfigurationBuilder<TEntity, TFilter> FilterByRange<TEntityProperty, TFilterProperty>(
         Expression<Func<TFilter, TFilterProperty>> filterPropertyMinExpression,
         FilterByRangeType minFilteringType,
         Expression<Func<TEntity, TEntityProperty>> entityPropertyExpression,
         FilterByRangeType maxFilteringType,
         Expression<Func<TFilter, TFilterProperty>> filterPropertyMaxExpression,
+        Func<TFilter, bool>? reverseIf = null,
         Func<TFilter, bool>? ignoreMinIf = null,
-        Func<TFilter, bool>? ignoreMaxIf = null,
-        Func<TFilter, bool>? reverseIf = null);
+        Func<TFilter, bool>? ignoreMaxIf = null);
 
-    IFilterConfigurationBuilder<TFilter, TEntity> FilterByRange<TEntityProperty, TFilterProperty>(
+    IFilterConfigurationBuilder<TEntity, TFilter> FilterByRange<TEntityProperty, TFilterProperty>(
         Expression<Func<TEntity, TFilterProperty>> entityPropertyMinExpression,
         FilterByRangeType minFilteringType,
         Expression<Func<TFilter, TEntityProperty>> filterPropertyExpression,
         FilterByRangeType maxFilteringType,
         Expression<Func<TEntity, TFilterProperty>> entityPropertyMaxExpression,
-        Func<TFilter, bool>? ignoreMinIf = null,
-        Func<TFilter, bool>? ignoreMaxIf = null,
-        Func<TFilter, bool>? reverseIf = null);
+        Func<TFilter, bool>? reverseIf = null,
+        Func<TFilter, bool>? ignoreIf = null);
 
     IFilterBuilder Finish();
 }
