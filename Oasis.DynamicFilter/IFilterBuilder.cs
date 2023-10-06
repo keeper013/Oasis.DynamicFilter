@@ -61,12 +61,12 @@ public enum FilterByRangeType
     /// <summary>
     /// Entity value is less than filter.
     /// </summary>
-    Less = 0,
+    LessThan = 0,
 
     /// <summary>
     /// Entity value is less than or equals filter.
     /// </summary>
-    LessOrEqual = 1,
+    LessThanOrEqual = 1,
 }
 
 public interface IFilterConfigurationBuilder<TEntity, TFilter>
@@ -104,13 +104,13 @@ public interface IFilterConfigurationBuilder<TEntity, TFilter>
 
 public interface IFilterBuilder
 {
-    void Register<TFilter, TEntity>()
-        where TFilter : class
-        where TEntity : class;
+    void Register<TEntity, TFilter>()
+        where TEntity : class
+        where TFilter : class;
 
-    IFilterConfigurationBuilder<TFilter, TEntity> Configure<TFilter, TEntity>()
-        where TFilter : class
-        where TEntity : class;
+    IFilterConfigurationBuilder<TEntity, TFilter> Configure<TEntity, TFilter>()
+        where TEntity : class
+        where TFilter : class;
 
     IFilter Build();
 }

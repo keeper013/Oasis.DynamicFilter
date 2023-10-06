@@ -9,7 +9,7 @@ public interface IFilter
         where TEntity : class
         where TFilter : class;
 
-    Func<TEntity, bool> GetFunc<TFilter, TEntity>(TFilter filter)
+    Func<TEntity, bool> GetFunc<TEntity, TFilter>(TFilter filter)
         where TEntity : class
         where TFilter : class;
 }

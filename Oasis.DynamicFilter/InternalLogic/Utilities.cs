@@ -166,6 +166,23 @@ internal static class Utilities
         innerDict.Add(key2, value);
     }
 
+    internal static void Add<TKey1, TKey2, TKey3, TValue>(this Dictionary<TKey1, Dictionary<TKey2, Dictionary<TKey3, TValue>>> dict, TKey1 key1, TKey2 key2, TKey3 key3, TValue value)
+    {
+        if (!dict.TryGetValue(key1, out var innerDict))
+        {
+            innerDict = new Dictionary<TKey2, Dictionary<TKey3, TValue>>();
+            dict[key1] = innerDict;
+        }
+
+        if (!innerDict.TryGetValue(key2, out var innerInnerDict))
+        {
+            innerInnerDict = new Dictionary<TKey3, TValue>();
+            innerDict.Add(key2, innerInnerDict);
+        }
+
+        innerInnerDict.Add(key3, value);
+    }
+
     internal static bool AddIfNotExists<TKey1, TKey2, TValue>(this Dictionary<TKey1, Dictionary<TKey2, TValue>> dict, TKey1 key1, TKey2 key2, Func<TValue> func, bool? extraCondition = null)
     {
         if (!extraCondition.HasValue || extraCondition.Value)
@@ -189,6 +206,11 @@ internal static class Utilities
     internal static bool Contains<TKey1, TKey2, TValue>(this Dictionary<TKey1, Dictionary<TKey2, TValue>> dict, TKey1 key1, TKey2 key2)
     {
         return dict.TryGetValue(key1, out var innerDict) && innerDict.ContainsKey(key2);
+    }
+
+    internal static bool Contains<TKey1, TKey2, TKey3, TValue>(this Dictionary<TKey1, Dictionary<TKey2, Dictionary<TKey3, TValue>>> dict, TKey1 key1, TKey2 key2, TKey3 key3)
+    {
+        return dict.TryGetValue(key1, out var innerDict) && innerDict.TryGetValue(key2, out var innerInnerDict) && innerInnerDict.ContainsKey(key3);
     }
 
     internal static TValue? Find<TKey1, TKey2, TValue>(this IReadOnlyDictionary<TKey1, IReadOnlyDictionary<TKey2, TValue>> dict, TKey1 key1, TKey2 key2)
