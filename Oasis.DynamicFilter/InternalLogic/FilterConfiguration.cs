@@ -316,6 +316,9 @@ internal sealed class FilterConfiguration<TEntity, TFilter> : IFilterConfigurati
 
     private Func<TFilter, Expression<Func<TEntity, bool>>> BuildTypeAndFunction()
     {
+        var entityType = typeof(TEntity);
+        var filterType = typeof(TFilter);
+
         throw new NotImplementedException();
     }
 }
