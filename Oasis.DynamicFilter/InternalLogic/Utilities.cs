@@ -2,7 +2,6 @@
 
 using System.Collections.Generic;
 using System;
-using System.Linq.Expressions;
 using System.Reflection;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
@@ -20,15 +19,21 @@ internal static class Utilities
     internal const string LessThanOrEqualOperatorMethodName = "op_LessThanOrEqual";
     private const string NullableTypeName = "System.Nullable`1[[";
     private static readonly Type CollectionType = typeof(ICollection<>);
-    private static readonly Type[] NonPrimitiveScalarTypes = new[]
-    {
-        typeof(string), typeof(decimal), typeof(decimal?), typeof(DateTime), typeof(DateTime?),
-    };
+
+    public static bool IsScalarType(this Type type) => type.IsNullable(out _) || type.IsValueType || type == typeof(string);
 
     public static bool IsFilterableType(this Type type)
-        => type.IsPrimitive || type.IsEnum || type.GetMethod(EqualityOperatorMethodName, PublicStatic) != default
-            || (type.IsNullable(out var argumentType) && (argumentType.IsPrimitive || argumentType.IsEnum || argumentType.GetMethod(EqualityOperatorMethodName, PublicStatic) != default))
-            || NonPrimitiveScalarTypes.Contains(type);
+    {
+        if (type.IsScalarType())
+        {
+            return true;
+        }
+        else
+        {
+            var elementType = type.GetContainerElementType();
+            return elementType != null && elementType.IsScalarType();
+        }
+    }
 
     public static bool IsNullable(this Type type, [NotNullWhen(true)] out Type? argumentType)
     {
@@ -42,47 +47,11 @@ internal static class Utilities
         return false;
     }
 
-    public static bool IsStruct(this Type type)
-    {
-        return type.IsValueType && !type.IsPrimitive && !type.IsEnum;
-    }
-
-    public static bool Matches(this Type type1, Type type2)
-    {
-        if (type1 == type2)
-        {
-            return true;
-        }
-
-        if (type1.FullName!.StartsWith(NullableTypeName) && type1.GenericTypeArguments.Length == 1)
-        {
-            type1 = type1.GenericTypeArguments[0];
-        }
-
-        if (type2.FullName!.StartsWith(NullableTypeName) && type2.GenericTypeArguments.Length == 1)
-        {
-            type2 = type2.GenericTypeArguments[0];
-        }
-
-        return type1 == type2;
-    }
-
-    public static Type? GetCollectionItemType(this Type type)
-    {
-        var listType = type.GetCollectionType();
-        if (listType != default)
-        {
-            return listType.GenericTypeArguments[0];
-        }
-
-        return default;
-    }
-
-    public static Type? GetCollectionType(this Type type)
+    public static Type? GetContainerElementType(this Type type)
     {
         if (type.IsArray)
         {
-            return default;
+            return type.GetElementType();
         }
 
         if (IsOfGenericTypeDefinition(type, CollectionType))
@@ -122,39 +91,6 @@ internal static class Utilities
         return type.GetMethod(methodName, PublicStatic) != null;
     }
 
-    internal static bool AddIfNotExists<TKey, TValue>(this Dictionary<TKey, HashSet<TValue>> dict, TKey key, TValue value)
-    {
-        if (dict.TryGetValue(key, out var st))
-        {
-            return st.Add(value);
-        }
-        else
-        {
-            dict.Add(key, new HashSet<TValue> { value });
-            return true;
-        }
-    }
-
-    internal static bool AddIfNotExists<TKey1, TKey2, TValue>(this Dictionary<TKey1, Dictionary<TKey2, TValue>> dict, TKey1 key1, TKey2 key2, TValue value, bool? extraCondition = null)
-    {
-        if (!extraCondition.HasValue || extraCondition.Value)
-        {
-            if (!dict.TryGetValue(key1, out var innerDict))
-            {
-                innerDict = new Dictionary<TKey2, TValue>();
-                dict[key1] = innerDict;
-            }
-
-            if (!innerDict.ContainsKey(key2))
-            {
-                innerDict.Add(key2, value);
-                return true;
-            }
-        }
-
-        return false;
-    }
-
     internal static void Add<TKey1, TKey2, TValue>(this Dictionary<TKey1, Dictionary<TKey2, TValue>> dict, TKey1 key1, TKey2 key2, TValue value)
     {
         if (!dict.TryGetValue(key1, out var innerDict))
@@ -183,30 +119,9 @@ internal static class Utilities
         innerInnerDict.Add(key3, value);
     }
 
-    internal static bool AddIfNotExists<TKey1, TKey2, TValue>(this Dictionary<TKey1, Dictionary<TKey2, TValue>> dict, TKey1 key1, TKey2 key2, Func<TValue> func, bool? extraCondition = null)
-    {
-        if (!extraCondition.HasValue || extraCondition.Value)
-        {
-            if (!dict.TryGetValue(key1, out var innerDict))
-            {
-                innerDict = new Dictionary<TKey2, TValue>();
-                dict[key1] = innerDict;
-            }
+    internal static bool Contains<TKey1, TKey2, TValue>(this Dictionary<TKey1, Dictionary<TKey2, TValue>> dict, TKey1 key1, TKey2 key2) => dict.TryGetValue(key1, out var innerDict) && innerDict.ContainsKey(key2);
 
-            if (!innerDict.ContainsKey(key2))
-            {
-                innerDict![key2] = func();
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    internal static bool Contains<TKey1, TKey2, TValue>(this Dictionary<TKey1, Dictionary<TKey2, TValue>> dict, TKey1 key1, TKey2 key2)
-    {
-        return dict.TryGetValue(key1, out var innerDict) && innerDict.ContainsKey(key2);
-    }
+    internal static bool Contains<TKey1, TKey2>(this IReadOnlyDictionary<TKey1, ISet<TKey2>> dict, TKey1 key1, TKey2 key2) => dict.TryGetValue(key1, out var innserSet) && innserSet.Contains(key2);
 
     internal static bool Contains<TKey1, TKey2, TKey3, TValue>(this Dictionary<TKey1, Dictionary<TKey2, Dictionary<TKey3, TValue>>> dict, TKey1 key1, TKey2 key2, TKey3 key3)
     {
@@ -219,31 +134,6 @@ internal static class Utilities
     {
         return dict.TryGetValue(key1, out var innerDict) && innerDict.TryGetValue(key2, out var item)
             ? item : default;
-    }
-
-    internal static PropertyInfo GetProperty<TEntity, TProperty>(Expression<Func<TEntity, TProperty>> expression)
-    {
-        MemberExpression? memberExpression = null;
-        if (expression.Body.NodeType == ExpressionType.Convert)
-        {
-            var body = (UnaryExpression)expression.Body;
-            memberExpression = body.Operand as MemberExpression;
-        }
-        else if (expression.Body.NodeType == ExpressionType.MemberAccess)
-        {
-            memberExpression = expression.Body as MemberExpression;
-        }
-
-        if (memberExpression == null)
-        {
-            throw new ArgumentException("Not a member access", nameof(expression));
-        }
-
-        var member = memberExpression.Member;
-        var property = member as PropertyInfo;
-        return property == null
-            ? throw new InvalidOperationException(string.Format("Member with Name '{0}' is not a property.", member.Name))
-            : property;
     }
 
     private static bool IsOfGenericTypeDefinition(Type source, Type target) => source.IsGenericType && source.GetGenericTypeDefinition() == target;

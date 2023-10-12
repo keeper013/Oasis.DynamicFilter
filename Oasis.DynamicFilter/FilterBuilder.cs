@@ -11,7 +11,7 @@ using System.Security.Cryptography;
 
 public sealed class FilterBuilder : IFilterBuilder
 {
-    private readonly DynamicMethodBuilder _dynamicMethodBuilder;
+    private readonly FilterTypeBuilder _filterTypeBuilder;
     private readonly Dictionary<Type, Dictionary<Type, Delegate>> _filterBuilders = new ();
 
     public FilterBuilder()
@@ -19,7 +19,7 @@ public sealed class FilterBuilder : IFilterBuilder
         var name = new AssemblyName($"{GenerateRandomTypeName(16)}.Oasis.DynamicFilter.Generated");
         var assemblyBuilder = AssemblyBuilder.DefineDynamicAssembly(name, AssemblyBuilderAccess.Run);
         var module = assemblyBuilder.DefineDynamicModule($"{name.Name}.dll");
-        _dynamicMethodBuilder = new (module.DefineType("Mapper", TypeAttributes.Public));
+        _filterTypeBuilder = new (module);
     }
 
     public IFilter Build()

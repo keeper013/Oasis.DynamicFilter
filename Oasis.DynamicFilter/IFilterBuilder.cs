@@ -80,22 +80,22 @@ public interface IFilterConfigurationBuilder<TEntity, TFilter>
         Func<TFilter, bool>? reverseIf = null,
         Func<TFilter, bool>? ignoreIf = null);
 
-    IFilterConfigurationBuilder<TEntity, TFilter> FilterByRange<TEntityProperty, TFilterProperty>(
-        Expression<Func<TFilter, TFilterProperty>> filterPropertyMinExpression,
+    IFilterConfigurationBuilder<TEntity, TFilter> FilterByRange<TEntityProperty, TMinFilterProperty, TMaxFilterProperty>(
+        Expression<Func<TFilter, TMinFilterProperty>> filterPropertyMinExpression,
         FilterByRangeType minFilteringType,
         Expression<Func<TEntity, TEntityProperty>> entityPropertyExpression,
         FilterByRangeType maxFilteringType,
-        Expression<Func<TFilter, TFilterProperty>> filterPropertyMaxExpression,
+        Expression<Func<TFilter, TMaxFilterProperty>> filterPropertyMaxExpression,
         Func<TFilter, bool>? reverseIf = null,
         Func<TFilter, bool>? ignoreMinIf = null,
         Func<TFilter, bool>? ignoreMaxIf = null);
 
-    IFilterConfigurationBuilder<TEntity, TFilter> FilterByRange<TEntityProperty, TFilterProperty>(
-        Expression<Func<TEntity, TFilterProperty>> entityPropertyMinExpression,
+    IFilterConfigurationBuilder<TEntity, TFilter> FilterByRange<TMinEntityProperty, TFilterProperty, TMaxEntityProperty>(
+        Expression<Func<TEntity, TMinEntityProperty>> entityPropertyMinExpression,
         FilterByRangeType minFilteringType,
-        Expression<Func<TFilter, TEntityProperty>> filterPropertyExpression,
+        Expression<Func<TFilter, TFilterProperty>> filterPropertyExpression,
         FilterByRangeType maxFilteringType,
-        Expression<Func<TEntity, TFilterProperty>> entityPropertyMaxExpression,
+        Expression<Func<TEntity, TMaxEntityProperty>> entityPropertyMaxExpression,
         Func<TFilter, bool>? reverseIf = null,
         Func<TFilter, bool>? ignoreIf = null);
 

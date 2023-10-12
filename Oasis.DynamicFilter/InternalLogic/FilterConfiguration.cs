@@ -6,30 +6,66 @@ using System.Linq.Expressions;
 using System.Reflection;
 using System;
 
-internal record struct ByPropertyFilter<TFilter>(
+internal record struct CompareData<TFilter>(
     PropertyInfo entityProperty,
+    bool entityPropertyIsNullable,
+    Type? entityPropertyConvertTo,
+    FilterByPropertyType type,
+    PropertyInfo filterProperty,
+    bool filterPropertyIsNullable,
+    Type? filterPropertyConvertTo,
+    Func<TFilter, bool>? revertIf,
+    Func<TFilter, bool>? ignoreIf)
+    where TFilter : class;
+
+internal record struct ContainData<TFilter>(
+    PropertyInfo entityProperty,
+    FilterByPropertyType type,
+    PropertyInfo filterProperty,
+    Type? filterPropertyConvertTo,
+    Func<TFilter, bool>? revertIf,
+    Func<TFilter, bool>? ignoreIf)
+    where TFilter : class;
+
+internal record struct InData<TFilter>(
+    PropertyInfo entityProperty,
+    Type? entityPropertyConvertTo,
     FilterByPropertyType type,
     PropertyInfo filterProperty,
     Func<TFilter, bool>? revertIf,
     Func<TFilter, bool>? ignoreIf)
     where TFilter : class;
 
-internal record struct ByFilterRangeFilter<TFilter>(
+internal record struct FilterRangeData<TFilter>(
     PropertyInfo minFilterProperty,
+    bool minFilterPropertyIsNullable,
+    Type? minFilterPropertyConvertTo,
     FilterByRangeType minFilterType,
+    bool entityPropertyIsNullable,
+    Type? entityPropertyMinConvertTo,
     PropertyInfo entityProperty,
+    Type? entityPropertyMaxConvertTo,
     FilterByRangeType maxFilterType,
+    bool maxFilterPropertyIsNullable,
+    Type? maxFilterPropertyConvertTo,
     PropertyInfo maxFilterProperty,
     Func<TFilter, bool>? reverseIf,
     Func<TFilter, bool>? ignoreMinIf,
     Func<TFilter, bool>? ignoreMaxIf)
     where TFilter : class;
 
-internal record struct ByEntityRangeFilter<TFilter>(
+internal record struct EntityRangeData<TFilter>(
     PropertyInfo minEntityProperty,
+    bool minEntityPropertyIsNullable,
+    Type? minEntityPropertyConvertTo,
     FilterByRangeType minEntityType,
+    bool filterPropertyIsNullable,
+    Type? filterPropertyMinConvertTo,
     PropertyInfo filterProperty,
+    Type? filterPropertyMaxConvertTo,
     FilterByRangeType maxEntityType,
+    bool maxEntityPropertyIsNullable,
+    Type? maxEntityPropertyConvertTo,
     PropertyInfo maxEntityProperty,
     Func<TFilter, bool>? reverseIf,
     Func<TFilter, bool>? ignoreIf)
@@ -39,32 +75,20 @@ internal sealed class FilterConfiguration<TEntity, TFilter> : IFilterConfigurati
     where TEntity : class
     where TFilter : class
 {
-    private static readonly Type DecimalType = typeof(decimal);
-    private static readonly Type FloatType = typeof(float);
-    private static readonly Type DoubleType = typeof(double);
-    private static readonly Type StringType = typeof(string);
-    private static readonly IReadOnlyDictionary<Type, int> NumericSizeDictionary = new Dictionary<Type, int>
-    {
-        { typeof(sbyte), sizeof(sbyte) },
-        { typeof(byte), sizeof(byte) },
-        { typeof(short), sizeof(short) },
-        { typeof(ushort), sizeof(ushort) },
-        { typeof(int), sizeof(int) },
-        { typeof(uint), sizeof(uint) },
-        { typeof(long), sizeof(long) },
-        { typeof(ulong), sizeof(ulong) },
-    };
-
     private readonly FilterBuilder _builder;
+    private readonly FilterTypeBuilder _filterTypeBuilder;
     private readonly HashSet<string> _configuredEntityProperties = new ();
     private readonly HashSet<string> _configuredFilterProperties = new ();
-    private readonly Dictionary<string, Dictionary<string, ByPropertyFilter<TFilter>>> _byPropertyFilters = new ();
-    private readonly Dictionary<string, Dictionary<string, Dictionary<string, ByFilterRangeFilter<TFilter>>>> _byFilterRangeFilters = new ();
-    private readonly Dictionary<string, Dictionary<string, Dictionary<string, ByEntityRangeFilter<TFilter>>>> _byEntityRangeFilters = new ();
+    private readonly Dictionary<string, Dictionary<string, CompareData<TFilter>>> _compareDictionary = new ();
+    private readonly Dictionary<string, Dictionary<string, ContainData<TFilter>>> _containDictionary = new ();
+    private readonly Dictionary<string, Dictionary<string, InData<TFilter>>> _inDictionary = new ();
+    private readonly Dictionary<string, Dictionary<string, Dictionary<string, FilterRangeData<TFilter>>>> _filterRangeDictionary = new ();
+    private readonly Dictionary<string, Dictionary<string, Dictionary<string, EntityRangeData<TFilter>>>> _entityRangeDictionary = new ();
 
-    public FilterConfiguration(FilterBuilder builder)
+    public FilterConfiguration(FilterBuilder builder, FilterTypeBuilder filterTypeBuilder)
     {
         _builder = builder;
+        _filterTypeBuilder = filterTypeBuilder;
     }
 
     public IFilterConfigurationBuilder<TEntity, TFilter> FilterByProperty<TEntityProperty, TFilterProperty>(
@@ -76,47 +100,58 @@ internal sealed class FilterConfiguration<TEntity, TFilter> : IFilterConfigurati
     {
         var entityProperty = GetProperty(entityPropertyExpression);
         var filterProperty = GetProperty(filterPropertyExpression);
+        var entityPropertyName = entityProperty.Name;
+        var filterPropertyName = filterProperty.Name;
 
-        if (_byPropertyFilters.Contains(entityProperty.Name, filterProperty.Name))
+        if (_compareDictionary.Contains(entityPropertyName, filterPropertyName) || _containDictionary.Contains(entityPropertyName, filterPropertyName) || _inDictionary.Contains(entityPropertyName, filterPropertyName))
         {
             throw new RedundantMatchingException(typeof(TEntity), entityProperty.Name, typeof(TFilter), filterProperty.Name);
         }
 
-        var entityPropertyType = typeof(TEntityProperty);
-        var filterPropertyType = typeof(TFilterProperty);
+        var entityPropertyType = entityProperty.PropertyType;
+        var filterPropertyType = filterProperty.PropertyType;
+        if ((filterPropertyType.IsClass || filterPropertyType.IsNullable(out _)) && ignoreIf is null)
+        {
+            ignoreIf = TypeUtilities.BuildFilterPropertyIsDefaultFunction<TFilter>(filterProperty);
+        }
+
         switch (type)
         {
             case FilterByPropertyType.In:
             case FilterByPropertyType.NotIn:
-                ValidateForContains(filterPropertyType, entityPropertyType);
+                var entityConversionType = TypeUtilities.GetContainConversion(filterPropertyType, entityPropertyType);
+                _inDictionary.Add(entityPropertyName, filterPropertyName, new InData<TFilter>(entityProperty, entityConversionType, type, filterProperty, reverseIf, ignoreIf));
                 break;
             case FilterByPropertyType.Contains:
             case FilterByPropertyType.NotContains:
-                ValidateForContains(entityPropertyType, filterPropertyType);
+                var filterConversionType = TypeUtilities.GetContainConversion(entityPropertyType, filterPropertyType);
+                _containDictionary.Add(entityPropertyName, filterPropertyName, new ContainData<TFilter>(entityProperty, type, filterProperty, filterConversionType, reverseIf, ignoreIf));
                 break;
             default:
-                ValidateForComparison(entityPropertyType, filterPropertyType, type);
+                var conversion = TypeUtilities.GetComparisonConversion(entityPropertyType, filterPropertyType, type);
+                if (conversion == null)
+                {
+                    throw new InvalidComparisonException(typeof(TEntity), entityPropertyName, type, typeof(TFilter), filterPropertyName);
+                }
+
+                var c = conversion.Value;
+
+                _compareDictionary.Add(entityPropertyName, filterPropertyName, new CompareData<TFilter>(entityProperty, c.Item1, c.Item2, type, filterProperty, c.Item3, c.Item4, reverseIf, ignoreIf));
                 break;
         }
 
-        if ((filterPropertyType.IsClass || filterPropertyType.IsNullable(out _)) && ignoreIf is null)
-        {
-            ignoreIf = BuildFilterPropertyIsDefaultFunction(filterProperty).Compile();
-        }
-
-        _byPropertyFilters.Add(entityProperty.Name, filterProperty.Name, new ByPropertyFilter<TFilter>(entityProperty, type, filterProperty, reverseIf, ignoreIf));
-        _configuredEntityProperties.Add(entityProperty.Name);
-        _configuredFilterProperties.Add(filterProperty.Name);
+        _configuredEntityProperties.Add(entityPropertyName);
+        _configuredFilterProperties.Add(filterPropertyName);
 
         return this;
     }
 
-    public IFilterConfigurationBuilder<TEntity, TFilter> FilterByRange<TEntityProperty, TFilterProperty>(
-        Expression<Func<TFilter, TFilterProperty>> filterPropertyMinExpression,
+    public IFilterConfigurationBuilder<TEntity, TFilter> FilterByRange<TEntityProperty, TMinFilterProperty, TMaxFilterProperty>(
+        Expression<Func<TFilter, TMinFilterProperty>> filterPropertyMinExpression,
         FilterByRangeType minFilteringType,
         Expression<Func<TEntity, TEntityProperty>> entityPropertyExpression,
         FilterByRangeType maxFilteringType,
-        Expression<Func<TFilter, TFilterProperty>> filterPropertyMaxExpression,
+        Expression<Func<TFilter, TMaxFilterProperty>> filterPropertyMaxExpression,
         Func<TFilter, bool>? reverseIf = null,
         Func<TFilter, bool>? ignoreMinIf = null,
         Func<TFilter, bool>? ignoreMaxIf = null)
@@ -124,33 +159,43 @@ internal sealed class FilterConfiguration<TEntity, TFilter> : IFilterConfigurati
         var minFilterProperty = GetProperty(filterPropertyMinExpression);
         var entityProperty = GetProperty(entityPropertyExpression);
         var maxFilterProperty = GetProperty(filterPropertyMaxExpression);
-        if (_byFilterRangeFilters.Contains(minFilterProperty.Name, entityProperty.Name, maxFilterProperty.Name))
+        if (_filterRangeDictionary.Contains(minFilterProperty.Name, entityProperty.Name, maxFilterProperty.Name))
         {
-            throw new RedundantMatchingException(typeof(TEntity), entityProperty.Name, typeof(TFilterProperty), minFilterProperty.Name, maxFilterProperty.Name);
+            throw new RedundantMatchingException(typeof(TEntity), entityProperty.Name, typeof(TMaxFilterProperty), minFilterProperty.Name, maxFilterProperty.Name);
         }
 
         var entityPropertyType = typeof(TEntityProperty);
-        var filterPropertyType = typeof(TFilterProperty);
-        ValidateForComparison(entityPropertyType, filterPropertyType, ToFilterByPropertyType(minFilteringType));
-
-        if (filterPropertyType.IsClass || filterPropertyType.IsNullable(out _))
+        var minFilterPropertyType = typeof(TMinFilterProperty);
+        var maxFilterPropertyType = typeof(TMaxFilterProperty);
+        var minConversion = TypeUtilities.GetComparisonConversion(minFilterPropertyType, entityPropertyType, ToFilterByPropertyType(minFilteringType));
+        if (minConversion == null)
         {
-            if (ignoreMinIf == null)
-            {
-                ignoreMinIf = BuildFilterPropertyIsDefaultFunction(minFilterProperty).Compile();
-            }
-
-            if (ignoreMaxIf == null)
-            {
-                ignoreMaxIf = BuildFilterPropertyIsDefaultFunction(maxFilterProperty).Compile();
-            }
+            throw new InvalidComparisonException(typeof(TFilter), minFilterProperty.Name, ToFilterByPropertyType(minFilteringType), typeof(TEntity), entityProperty.Name);
         }
 
-        _byFilterRangeFilters.Add(
+        var maxConversion = TypeUtilities.GetComparisonConversion(entityPropertyType, maxFilterPropertyType, ToFilterByPropertyType(maxFilteringType));
+        if (maxConversion == null)
+        {
+            throw new InvalidComparisonException(typeof(TEntity), entityProperty.Name, ToFilterByPropertyType(maxFilteringType), typeof(TFilter), maxFilterProperty.Name);
+        }
+
+        if ((minFilterPropertyType.IsClass || minFilterPropertyType.IsNullable(out _)) && ignoreMinIf == null)
+        {
+            ignoreMinIf = TypeUtilities.BuildFilterPropertyIsDefaultFunction<TFilter>(minFilterProperty);
+        }
+
+        if ((maxFilterPropertyType.IsClass || maxFilterPropertyType.IsNullable(out _)) && ignoreMaxIf == null)
+        {
+            ignoreMaxIf = TypeUtilities.BuildFilterPropertyIsDefaultFunction<TFilter>(maxFilterProperty);
+        }
+
+        var min = minConversion.Value;
+        var max = maxConversion.Value;
+        _filterRangeDictionary.Add(
             minFilterProperty.Name,
             entityProperty.Name,
             maxFilterProperty.Name,
-            new ByFilterRangeFilter<TFilter>(minFilterProperty, minFilteringType, entityProperty, maxFilteringType, maxFilterProperty, reverseIf, ignoreMinIf, ignoreMaxIf));
+            new FilterRangeData<TFilter>(minFilterProperty, min.Item1, min.Item2, minFilteringType, min.Item3, min.Item4, entityProperty, max.Item2, maxFilteringType, max.Item3, max.Item4, maxFilterProperty, reverseIf, ignoreMinIf, ignoreMaxIf));
         _configuredEntityProperties.Add(entityProperty.Name);
         _configuredFilterProperties.Add(minFilterProperty.Name);
         _configuredFilterProperties.Add(maxFilterProperty.Name);
@@ -158,12 +203,12 @@ internal sealed class FilterConfiguration<TEntity, TFilter> : IFilterConfigurati
         return this;
     }
 
-    public IFilterConfigurationBuilder<TEntity, TFilter> FilterByRange<TEntityProperty, TFilterProperty>(
-        Expression<Func<TEntity, TFilterProperty>> entityPropertyMinExpression,
+    public IFilterConfigurationBuilder<TEntity, TFilter> FilterByRange<TMinEntityProperty, TFilterProperty, TMaxEntityProperty>(
+        Expression<Func<TEntity, TMinEntityProperty>> entityPropertyMinExpression,
         FilterByRangeType minFilteringType,
-        Expression<Func<TFilter, TEntityProperty>> filterPropertyExpression,
+        Expression<Func<TFilter, TFilterProperty>> filterPropertyExpression,
         FilterByRangeType maxFilteringType,
-        Expression<Func<TEntity, TFilterProperty>> entityPropertyMaxExpression,
+        Expression<Func<TEntity, TMaxEntityProperty>> entityPropertyMaxExpression,
         Func<TFilter, bool>? reverseIf = null,
         Func<TFilter, bool>? ignoreIf = null)
     {
@@ -171,25 +216,38 @@ internal sealed class FilterConfiguration<TEntity, TFilter> : IFilterConfigurati
         var filterProperty = GetProperty(filterPropertyExpression);
         var maxEntityProperty = GetProperty(entityPropertyMaxExpression);
 
-        if (_byEntityRangeFilters.Contains(minEntityProperty.Name, filterProperty.Name, maxEntityProperty.Name))
+        if (_entityRangeDictionary.Contains(minEntityProperty.Name, filterProperty.Name, maxEntityProperty.Name))
         {
             throw new RedundantMatchingException(typeof(TEntity), minEntityProperty.Name, maxEntityProperty.Name, typeof(TFilter), filterProperty.Name);
         }
 
-        var entityPropertyType = typeof(TEntityProperty);
+        var minEntityPropertyType = typeof(TMinEntityProperty);
         var filterPropertyType = typeof(TFilterProperty);
-        ValidateForComparison(entityPropertyType, filterPropertyType, ToFilterByPropertyType(minFilteringType));
+        var maxEntityPropertyType = typeof(TMaxEntityProperty);
+        var minConversion = TypeUtilities.GetComparisonConversion(minEntityPropertyType, filterPropertyType, ToFilterByPropertyType(minFilteringType));
+        if (minConversion == null)
+        {
+            throw new InvalidComparisonException(typeof(TEntity), minEntityProperty.Name, ToFilterByPropertyType(minFilteringType), typeof(TFilter), filterProperty.Name);
+        }
+
+        var maxConversion = TypeUtilities.GetComparisonConversion(filterPropertyType, maxEntityPropertyType, ToFilterByPropertyType(maxFilteringType));
+        if (maxConversion == null)
+        {
+            throw new InvalidComparisonException(typeof(TFilter), filterProperty.Name, ToFilterByPropertyType(maxFilteringType), typeof(TEntity), maxEntityProperty.Name);
+        }
 
         if ((filterPropertyType.IsClass || filterPropertyType.IsNullable(out _)) && ignoreIf is null)
         {
-            ignoreIf = BuildFilterPropertyIsDefaultFunction(filterProperty).Compile();
+            ignoreIf = TypeUtilities.BuildFilterPropertyIsDefaultFunction<TFilter>(filterProperty);
         }
 
-        _byEntityRangeFilters.Add(
+        var min = minConversion.Value;
+        var max = maxConversion.Value;
+        _entityRangeDictionary.Add(
             minEntityProperty.Name,
             filterProperty.Name,
             maxEntityProperty.Name,
-            new ByEntityRangeFilter<TFilter>(minEntityProperty, minFilteringType, filterProperty, maxFilteringType, maxEntityProperty, reverseIf, ignoreIf));
+            new EntityRangeData<TFilter>(minEntityProperty, min.Item1, min.Item2, minFilteringType, min.Item3, min.Item4, filterProperty, max.Item2, maxFilteringType, max.Item3, max.Item4, maxEntityProperty, reverseIf, ignoreIf));
         _configuredEntityProperties.Add(minEntityProperty.Name);
         _configuredEntityProperties.Add(maxEntityProperty.Name);
         _configuredFilterProperties.Add(filterProperty.Name);
@@ -202,89 +260,6 @@ internal sealed class FilterConfiguration<TEntity, TFilter> : IFilterConfigurati
         _builder.Add(typeof(TEntity), typeof(TFilter), BuildTypeAndFunction());
         return _builder;
     }
-
-    private static Expression<Func<TFilter, bool>> BuildFilterPropertyIsDefaultFunction(PropertyInfo filterProperty)
-    {
-        var parameter = Expression.Parameter(typeof(TFilter), "t");
-        return Expression.Lambda<Func<TFilter, bool>>(Expression.Equal(Expression.Default(filterProperty.PropertyType), Expression.Property(parameter, filterProperty)), parameter);
-    }
-
-    private static void ValidateForComparison(Type entityPropertyType, Type filterPropertyType, FilterByPropertyType type)
-    {
-        entityPropertyType = entityPropertyType.IsNullable(out var entityArgumentType) ? entityArgumentType : entityPropertyType;
-        filterPropertyType = filterPropertyType.IsNullable(out var filterArgumentType) ? filterArgumentType : filterPropertyType;
-        if (entityPropertyType == filterPropertyType)
-        {
-            // same type comparison, allowed for primitives and enums and others with compare operator defined
-            if (!entityPropertyType.IsPrimitive && !entityPropertyType.IsEnum && !filterPropertyType.IsPrimitive && !filterPropertyType.IsEnum && !entityPropertyType.HasOperator(type))
-            {
-                throw new ArgumentException($"{entityPropertyType.Name} doesn't have a defined ${type} operator.");
-            }
-        }
-        else if (!(filterPropertyType.IsPrimitive && entityPropertyType.IsPrimitive)
-            && !(filterPropertyType == DecimalType && entityPropertyType.IsPrimitive && entityPropertyType != FloatType && entityPropertyType != DoubleType)
-            && !(entityPropertyType == DecimalType && filterPropertyType.IsPrimitive && filterPropertyType != FloatType && filterPropertyType != DoubleType))
-        {
-            // decimal compare to long/int/short/byte is allowed
-            // primitive compare to primitive is allowed
-            // the rest are not allowed
-            throw new ArgumentException($"Equality/Inequality can't be applied to {entityPropertyType.Name} and {filterPropertyType.Name}.");
-        }
-    }
-
-    private static void ValidateForContains(Type containerType, Type itemType)
-    {
-        var containerItemType = containerType.GetCollectionItemType();
-        if (containerItemType == null && containerType.IsArray)
-        {
-            containerItemType = containerType.GetElementType();
-        }
-
-        if (containerItemType != null)
-        {
-            // type collection contains equal type is allowed for value types and string (for class types contains match them by reference)
-            if (containerItemType == itemType)
-            {
-                if (itemType == StringType || (itemType.IsValueType && (itemType.IsPrimitive || itemType.IsEnum || itemType.HasOperator(FilterByPropertyType.Equality))))
-                {
-                    return;
-                }
-            }
-            else if (containerItemType.IsNullable(out var containerItemArgumentType))
-            {
-                if (NonNullableValueTypeCanContain(containerItemArgumentType, itemType.IsNullable(out var itemargumentType) ? itemargumentType : itemType))
-                {
-                    return;
-                }
-            }
-            else
-            {
-                if (NonNullableValueTypeCanContain(containerItemType, itemType))
-                {
-                    return;
-                }
-            }
-        }
-
-        throw new ArgumentException($"{containerType.Name} can't be the container type for {itemType.Name}.");
-    }
-
-    /// <summary>
-    /// This is only for different value types containing judgement
-    /// double type can contain any primitive.
-    /// float type can contain any primitive but double.
-    /// decimal type can contain any primitive but double and float.
-    /// other primitive types must contain shorter primitive types.
-    /// </summary>
-    /// <param name="containerItemType">Container item type.</param>
-    /// <param name="itemType">Item to be contained.</param>
-    /// <returns>True if can contain, else false.</returns>
-    private static bool NonNullableValueTypeCanContain(Type containerItemType, Type itemType)
-        => (containerItemType == DoubleType && itemType.IsPrimitive)
-            || (containerItemType == FloatType && itemType.IsPrimitive && itemType != DoubleType)
-            || (containerItemType == DecimalType && itemType.IsPrimitive && itemType != DoubleType && itemType != FloatType)
-            || (containerItemType.IsPrimitive && containerItemType != DoubleType && containerItemType != FloatType && itemType.IsPrimitive &&
-                itemType != DoubleType && itemType != FloatType && NumericSizeDictionary[containerItemType] > NumericSizeDictionary[itemType]);
 
     private static PropertyInfo GetProperty<TClass, TProperty>(Expression<Func<TClass, TProperty>> expression)
         where TClass : class
@@ -314,11 +289,17 @@ internal sealed class FilterConfiguration<TEntity, TFilter> : IFilterConfigurati
 
     private static FilterByPropertyType ToFilterByPropertyType(FilterByRangeType type) => type == FilterByRangeType.LessThan ? FilterByPropertyType.LessThan : FilterByPropertyType.LessThanOrEqual;
 
-    private Func<TFilter, Expression<Func<TEntity, bool>>> BuildTypeAndFunction()
+    private Delegate BuildTypeAndFunction()
     {
-        var entityType = typeof(TEntity);
-        var filterType = typeof(TFilter);
-
-        throw new NotImplementedException();
+        var type = _filterTypeBuilder.BuildFilterMethodBuilder<TEntity, TFilter>().Build(
+            _configuredEntityProperties,
+            _configuredFilterProperties,
+            _compareDictionary,
+            _containDictionary,
+            _inDictionary,
+            _filterRangeDictionary,
+            _entityRangeDictionary);
+        var delegateType = typeof(Func<,>).MakeGenericType(typeof(TFilter), typeof(Expression<>).MakeGenericType(typeof(Func<,>).MakeGenericType(typeof(TEntity), typeof(bool))));
+        return Delegate.CreateDelegate(delegateType, type.GetMethod(FilterTypeBuilder.FilterMethodName, Utilities.PublicStatic));
     }
 }
