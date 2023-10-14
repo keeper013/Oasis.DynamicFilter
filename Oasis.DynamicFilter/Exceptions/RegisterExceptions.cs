@@ -51,3 +51,11 @@ public sealed class InvalidComparisonException : DynamicFilterException
     {
     }
 }
+
+public sealed class InvalidContainException : DynamicFilterException
+{
+    public InvalidContainException(Type containerType, Type itemType)
+        : base($"Element type of {containerType.Name} can't be used to compare with type {itemType.Name}.")
+    {
+    }
+}

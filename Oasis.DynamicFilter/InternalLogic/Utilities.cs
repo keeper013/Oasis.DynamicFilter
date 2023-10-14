@@ -30,8 +30,8 @@ internal static class Utilities
         }
         else
         {
-            var elementType = type.GetContainerElementType();
-            return elementType != null && elementType.IsScalarType();
+            var data = type.GetContainerElementType();
+            return data != null && data.Value.Item1.IsScalarType();
         }
     }
 
@@ -47,20 +47,20 @@ internal static class Utilities
         return false;
     }
 
-    public static Type? GetContainerElementType(this Type type)
+    public static (Type, bool)? GetContainerElementType(this Type type)
     {
         if (type.IsArray)
         {
-            return type.GetElementType();
+            return (type.GetElementType(), false);
         }
 
         if (IsOfGenericTypeDefinition(type, CollectionType))
         {
-            return type;
+            return (type, true);
         }
 
         var types = type.GetInterfaces().Where(i => IsOfGenericTypeDefinition(i, CollectionType)).ToList();
-        return types.Count == 1 ? types[0] : default;
+        return types.Count == 1 ? (types[0], true) : null;
     }
 
     internal static bool HasOperator(this Type type, FilterByPropertyType filterType)

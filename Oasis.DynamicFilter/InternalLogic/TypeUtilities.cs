@@ -564,14 +564,15 @@ internal static class TypeUtilities
                 : null;
     }
 
-    internal static Type? GetContainConversion(Type containerType, Type itemType)
+    internal static (Type?, bool)? GetContainConversion(Type containerType, Type itemType)
     {
-        var containerItemType = containerType.GetContainerElementType();
-        if (containerItemType != null)
+        var data = containerType.GetContainerElementType();
+        if (data != null)
         {
+            var containerItemType = data.Value.Item1;
             if (containerItemType == itemType && (itemType == StringType || (itemType.IsValueType && (itemType.IsPrimitive || itemType.IsEnum || itemType.HasOperator(FilterByPropertyType.Equality)))))
             {
-                return null;
+                return (null, data.Value.Item2);
             }
 
             var containerItemTypeIsNullable = containerItemType.IsNullable(out var containerItemArgumentType);
@@ -580,11 +581,11 @@ internal static class TypeUtilities
             var itemUnderlyingType = itemTypeIsNullable ? itemArgumentType : itemType;
             if ((containerItemTypeIsNullable || !itemTypeIsNullable) && _convertForContainDictionary.Contains(containerItemUnderlyingType!, itemUnderlyingType!))
             {
-                return containerItemType;
+                return (containerItemType, data.Value.Item2);
             }
         }
 
-        throw new ArgumentException($"{containerType.Name} can't be the container type for {itemType.Name}.");
+        return null;
     }
 
     internal static Func<TFilter, bool> BuildFilterPropertyIsDefaultFunction<TFilter>(PropertyInfo filterProperty)

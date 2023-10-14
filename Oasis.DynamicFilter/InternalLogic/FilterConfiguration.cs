@@ -22,6 +22,7 @@ internal record struct ContainData<TFilter>(
     FilterByPropertyType type,
     PropertyInfo filterProperty,
     Type? filterPropertyConvertTo,
+    bool isCollection,
     Func<TFilter, bool>? reverseIf,
     Func<TFilter, bool>? ignoreIf)
     where TFilter : class;
@@ -31,6 +32,7 @@ internal record struct InData<TFilter>(
     Type? entityPropertyConvertTo,
     FilterByPropertyType type,
     PropertyInfo filterProperty,
+    bool isCollection,
     Func<TFilter, bool>? reverseIf,
     Func<TFilter, bool>? ignoreIf)
     where TFilter : class;
@@ -112,13 +114,23 @@ internal sealed class FilterConfiguration<TEntity, TFilter> : IFilterConfigurati
         {
             case FilterByPropertyType.In:
             case FilterByPropertyType.NotIn:
-                var entityConversionType = TypeUtilities.GetContainConversion(filterPropertyType, entityPropertyType);
-                _inDictionary.Add(entityPropertyName, filterPropertyName, new InData<TFilter>(entityProperty, entityConversionType, type, filterProperty, reverseIf, ignoreIf));
+                var inData = TypeUtilities.GetContainConversion(filterPropertyType, entityPropertyType);
+                if (inData == null)
+                {
+                    throw new InvalidContainException(filterPropertyType, entityPropertyType);
+                }
+
+                _inDictionary.Add(entityPropertyName, filterPropertyName, new InData<TFilter>(entityProperty, inData.Value.Item1, type, filterProperty, inData.Value.Item2, reverseIf, ignoreIf));
                 break;
             case FilterByPropertyType.Contains:
             case FilterByPropertyType.NotContains:
-                var filterConversionType = TypeUtilities.GetContainConversion(entityPropertyType, filterPropertyType);
-                _containDictionary.Add(entityPropertyName, filterPropertyName, new ContainData<TFilter>(entityProperty, type, filterProperty, filterConversionType, reverseIf, ignoreIf));
+                var containData = TypeUtilities.GetContainConversion(entityPropertyType, filterPropertyType);
+                if (containData == null)
+                {
+                    throw new InvalidContainException(filterPropertyType, entityPropertyType);
+                }
+
+                _containDictionary.Add(entityPropertyName, filterPropertyName, new ContainData<TFilter>(entityProperty, type, filterProperty, containData.Value.Item1, containData.Value.Item2, reverseIf, ignoreIf));
                 break;
             default:
                 var conversion = TypeUtilities.GetComparisonConversion(entityPropertyType, filterPropertyType, type);

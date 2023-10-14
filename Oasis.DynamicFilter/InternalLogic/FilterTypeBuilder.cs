@@ -155,7 +155,7 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
                 if (contains != null)
                 {
                     var ignoreIf = filterPropertyType.IsClass || filterPropertyType.IsNullable(out _) ? TypeUtilities.BuildFilterPropertyIsDefaultFunction<TFilter>(filterProperty) : null;
-                    containList.Add(new ContainData<TFilter>(entityProperty, FilterByPropertyType.Contains, filterProperty, contains, null, ignoreIf));
+                    containList.Add(new ContainData<TFilter>(entityProperty, FilterByPropertyType.Contains, filterProperty, contains.Value.Item1, contains.Value.Item2, null, ignoreIf));
                     continue;
                 }
 
@@ -163,7 +163,7 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
                 if (isIn != null)
                 {
                     var ignoreIf = filterPropertyType.IsClass || filterPropertyType.IsNullable(out _) ? TypeUtilities.BuildFilterPropertyIsDefaultFunction<TFilter>(filterProperty) : null;
-                    inList.Add(new InData<TFilter>(entityProperty, isIn, FilterByPropertyType.In, filterProperty, null, ignoreIf));
+                    inList.Add(new InData<TFilter>(entityProperty, isIn.Value.Item1, FilterByPropertyType.In, filterProperty, isIn.Value.Item2, null, ignoreIf));
                     continue;
                 }
             }
