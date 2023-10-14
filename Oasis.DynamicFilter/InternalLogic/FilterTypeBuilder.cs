@@ -42,8 +42,8 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
 {
     private const string CompareDictionaryFieldName = "_compareDictionary";
     private const string DictionaryItemMethodName = "get_Item";
-    private static readonly MethodInfo CompareFieldOuterGetItem = typeof(Dictionary<string, Dictionary<string, (Type?, Type, Type?, FilterByPropertyType)>>).GetMethod(DictionaryItemMethodName, Utilities.PublicInstance)!;
-    private static readonly MethodInfo CompareFieldInnerGetItem = typeof(Dictionary<Type, (Type?, Type, Type?, FilterByPropertyType)>).GetMethod(DictionaryItemMethodName, Utilities.PublicInstance)!;
+    private static readonly MethodInfo CompareFieldOuterGetItem = typeof(Dictionary<string, Dictionary<string, (Type?, Type?, FilterByPropertyType)>>).GetMethod(DictionaryItemMethodName, Utilities.PublicInstance)!;
+    private static readonly MethodInfo CompareFieldInnerGetItem = typeof(Dictionary<Type, (Type?, Type?, FilterByPropertyType)>).GetMethod(DictionaryItemMethodName, Utilities.PublicInstance)!;
     private static readonly Type EntityType = typeof(TEntity);
     private static readonly Type BooleanType = typeof(bool);
     private static readonly Type ParameterExpressionType = typeof(ParameterExpression);
@@ -89,7 +89,7 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
 
         // generate starting code
         var expressionLocal = _generator.DeclareLocal(typeof(Expression));
-        var parameterExpressionLocal = _generator.DeclareLocal(ParameterExpressionType);
+        _ = _generator.DeclareLocal(ParameterExpressionType);
         _generator.Emit(OpCodes.Ldnull);
         _generator.Emit(OpCodes.Stloc_0);
         _generator.Emit(OpCodes.Ldtoken, EntityType);
@@ -172,10 +172,10 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
         return (compareList, containList, inList);
     }
 
-    private (Dictionary<string, Dictionary<string, (Type?, Type, Type?, FilterByPropertyType)>>, Dictionary<string, Func<TFilter, bool>>, Dictionary<string, Func<TFilter, bool>>) GenerateCompareCode(IList<CompareData<TFilter>> compare, LocalBuilder expressionLocal)
+    private (Dictionary<string, Dictionary<string, (Type?, Type?, FilterByPropertyType)>>, Dictionary<string, Func<TFilter, bool>>, Dictionary<string, Func<TFilter, bool>>) GenerateCompareCode(IList<CompareData<TFilter>> compare, LocalBuilder expressionLocal)
     {
-        var compareDictionaryField = _typeBuilder.DefineField(CompareDictionaryFieldName, typeof(Dictionary<string, Dictionary<string, (Type?, Type, Type?, FilterByPropertyType)>>), FieldAttributes.Private | FieldAttributes.Static);
-        var compareDictionary = new Dictionary<string, Dictionary<string, (Type?, Type, Type?, FilterByPropertyType)>>();
+        var compareDictionaryField = _typeBuilder.DefineField(CompareDictionaryFieldName, typeof(Dictionary<string, Dictionary<string, (Type?, Type?, FilterByPropertyType)>>), FieldAttributes.Private | FieldAttributes.Static);
+        var compareDictionary = new Dictionary<string, Dictionary<string, (Type?, Type?, FilterByPropertyType)>>();
         var ignoreIfFields = new Dictionary<string, Func<TFilter, bool>>();
         var reverseIfFields = new Dictionary<string, Func<TFilter, bool>>();
         foreach (var c in compare)
@@ -196,7 +196,7 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
                 reverseIfFields.Add(fieldName, c.reverseIf);
             }
 
-            compareDictionary.Add(c.entityProperty.Name, c.filterProperty.Name, (c.entityPropertyConvertTo, c.filterProperty.PropertyType, c.filterPropertyConvertTo, c.type));
+            compareDictionary.Add(c.entityProperty.Name, c.filterProperty.Name, (c.entityPropertyConvertTo, c.filterPropertyConvertTo, c.type));
             GenerateFieldCompareCode(c, compareDictionaryField, ignoreIfField, reverseIfField, expressionLocal);
         }
 
@@ -205,7 +205,7 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
 
     private void WrapUpCompareCode(
         Type type,
-        Dictionary<string, Dictionary<string, (Type?, Type, Type?, FilterByPropertyType)>> compareDictionary,
+        Dictionary<string, Dictionary<string, (Type?, Type?, FilterByPropertyType)>> compareDictionary,
         Dictionary<string, Func<TFilter, bool>> ignoreIfFields,
         Dictionary<string, Func<TFilter, bool>> reverseIfFields)
     {
