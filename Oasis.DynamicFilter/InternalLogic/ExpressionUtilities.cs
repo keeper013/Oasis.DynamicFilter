@@ -22,8 +22,8 @@ public static class ExpressionUtilities
     public static void BuildCompareExpression<TFilterProperty>(ParameterExpression parameter, string entityPropertyName, TFilterProperty value, (Type?, Type, Type?, FilterByPropertyType) data, bool reverse, ref Expression? result)
     {
         Expression exp = _compareFunctions[reverse ? data.Item4.GetReversed() : data.Item4](
-            data.Item1 != null ? Expression.Convert(Expression.Constant(value, data.Item2), data.Item1!) : Expression.Constant(value, data.Item2),
-            data.Item3 != null ? Expression.Convert(Expression.Property(parameter, entityPropertyName), data.Item3!) : Expression.Property(parameter, entityPropertyName));
+            data.Item1 != null ? Expression.Convert(Expression.Property(parameter, entityPropertyName), data.Item1!) : Expression.Property(parameter, entityPropertyName),
+            data.Item3 != null ? Expression.Convert(Expression.Constant(value, data.Item2), data.Item3!) : Expression.Constant(value, data.Item2));
         result = result == null ? exp : Expression.And(result, exp);
     }
 

@@ -104,7 +104,7 @@ public interface IFilterConfigurationBuilder<TEntity, TFilter>
 
 public interface IFilterBuilder
 {
-    void Register<TEntity, TFilter>()
+    IFilterBuilder Register<TEntity, TFilter>()
         where TEntity : class
         where TFilter : class;
 

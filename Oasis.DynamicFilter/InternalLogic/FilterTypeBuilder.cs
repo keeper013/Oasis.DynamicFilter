@@ -41,13 +41,18 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
     where TFilter : class
 {
     private const string CompareDictionaryFieldName = "_compareDictionary";
+    private const string DictionaryItemMethodName = "get_Item";
+    private static readonly MethodInfo CompareFieldOuterGetItem = typeof(Dictionary<string, Dictionary<string, (Type?, Type, Type?, FilterByPropertyType)>>).GetMethod(DictionaryItemMethodName, Utilities.PublicInstance)!;
+    private static readonly MethodInfo CompareFieldInnerGetItem = typeof(Dictionary<Type, (Type?, Type, Type?, FilterByPropertyType)>).GetMethod(DictionaryItemMethodName, Utilities.PublicInstance)!;
     private static readonly Type EntityType = typeof(TEntity);
     private static readonly Type BooleanType = typeof(bool);
     private static readonly Type ParameterExpressionType = typeof(ParameterExpression);
     private static readonly MethodInfo TypeOfMethod = typeof(Type).GetMethod(nameof(Type.GetTypeFromHandle), Utilities.PublicStatic)!;
-    private static readonly MethodInfo ParameterMethod = typeof(Expression).GetMethod(nameof(Expression.Parameter), Utilities.PublicStatic)!;
+    private static readonly MethodInfo ParameterMethod = typeof(Expression).GetMethods(Utilities.PublicStatic).First(m => m.Name == nameof(Expression.Parameter) && m.GetParameters().Length == 2)!;
     private static readonly MethodInfo LambdaMethod = typeof(Expression).GetMethods(Utilities.PublicStatic).First(m => m.Name == "Lambda" && m.GetParameters().Length == 2);
     private static readonly MethodInfo ConstantExpressionMethod = typeof(Expression).GetMethods(Utilities.PublicStatic).First(m => m.Name == "Constant" && m.GetParameters().Length == 1);
+    private static readonly MethodInfo FilterConditionInvoke = typeof(Func<,>).MakeGenericType(typeof(TFilter), BooleanType).GetMethod("Invoke", Utilities.PublicInstance);
+    private static readonly MethodInfo BuildCompareExpressionMethod = typeof(ExpressionUtilities).GetMethod(nameof(ExpressionUtilities.BuildCompareExpression), Utilities.PublicStatic);
     private readonly TypeBuilder _typeBuilder;
     private readonly ILGenerator _generator;
 
@@ -93,7 +98,7 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
         _generator.Emit(OpCodes.Call, ParameterMethod);
         _generator.Emit(OpCodes.Stloc_1);
 
-        var compareFields = GenerateCompareCode(compare);
+        var compareFields = GenerateCompareCode(compare, expressionLocal);
 
         // Generate ending code
         _generator.Emit(OpCodes.Ldloc_0);
@@ -167,7 +172,7 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
         return (compareList, containList, inList);
     }
 
-    private (Dictionary<string, Dictionary<string, (Type?, Type, Type?, FilterByPropertyType)>>, Dictionary<string, Func<TFilter, bool>>, Dictionary<string, Func<TFilter, bool>>) GenerateCompareCode(IList<CompareData<TFilter>> compare)
+    private (Dictionary<string, Dictionary<string, (Type?, Type, Type?, FilterByPropertyType)>>, Dictionary<string, Func<TFilter, bool>>, Dictionary<string, Func<TFilter, bool>>) GenerateCompareCode(IList<CompareData<TFilter>> compare, LocalBuilder expressionLocal)
     {
         var compareDictionaryField = _typeBuilder.DefineField(CompareDictionaryFieldName, typeof(Dictionary<string, Dictionary<string, (Type?, Type, Type?, FilterByPropertyType)>>), FieldAttributes.Private | FieldAttributes.Static);
         var compareDictionary = new Dictionary<string, Dictionary<string, (Type?, Type, Type?, FilterByPropertyType)>>();
@@ -192,7 +197,7 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
             }
 
             compareDictionary.Add(c.entityProperty.Name, c.filterProperty.Name, (c.entityPropertyConvertTo, c.filterProperty.PropertyType, c.filterPropertyConvertTo, c.type));
-            GenerateFieldCompareCode(c, compareDictionaryField, ignoreIfField, reverseIfField);
+            GenerateFieldCompareCode(c, compareDictionaryField, ignoreIfField, reverseIfField, expressionLocal);
         }
 
         return (compareDictionary, ignoreIfFields, reverseIfFields);
@@ -216,8 +221,44 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
         }
     }
 
-    private void GenerateFieldCompareCode(CompareData<TFilter> compareData, FieldInfo compareDictionaryField, FieldInfo? ignoreIfField, FieldInfo? reverseIfField)
+    private void GenerateFieldCompareCode(CompareData<TFilter> compareData, FieldInfo compareDictionaryField, FieldInfo? ignoreIfField, FieldInfo? reverseIfField, LocalBuilder expressionLocal)
     {
+        Label endIfIgnore = default;
+        if (ignoreIfField != null)
+        {
+            _generator.Emit(OpCodes.Ldsfld, ignoreIfField);
+            _generator.Emit(OpCodes.Ldarg_0);
+            _generator.Emit(OpCodes.Callvirt, FilterConditionInvoke);
+            endIfIgnore = _generator.DefineLabel();
+            _generator.Emit(OpCodes.Brtrue_S, endIfIgnore);
+        }
 
+        _generator.Emit(OpCodes.Ldloc_1);
+        _generator.Emit(OpCodes.Ldstr, compareData.entityProperty.Name);
+        _generator.Emit(OpCodes.Ldarg_0);
+        _generator.Emit(OpCodes.Callvirt, compareData.filterProperty.GetMethod);
+        _generator.Emit(OpCodes.Ldsfld, compareDictionaryField);
+        _generator.Emit(OpCodes.Ldstr, compareData.entityProperty.Name);
+        _generator.Emit(OpCodes.Callvirt, CompareFieldOuterGetItem);
+        _generator.Emit(OpCodes.Ldstr, compareData.filterProperty.Name);
+        _generator.Emit(OpCodes.Callvirt, CompareFieldInnerGetItem);
+        if (reverseIfField != null)
+        {
+            _generator.Emit(OpCodes.Ldsfld, reverseIfField);
+            _generator.Emit(OpCodes.Ldarg_0);
+            _generator.Emit(OpCodes.Callvirt, FilterConditionInvoke);
+        }
+        else
+        {
+            _generator.Emit(OpCodes.Ldc_I4_0);
+        }
+
+        _generator.Emit(OpCodes.Ldloca_S, expressionLocal);
+        _generator.Emit(OpCodes.Call, BuildCompareExpressionMethod.MakeGenericMethod(compareData.filterProperty.PropertyType));
+
+        if (ignoreIfField != null)
+        {
+            _generator.MarkLabel(endIfIgnore);
+        }
     }
 }

@@ -22,4 +22,8 @@
     </PackageReference>
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\Oasis.DynamicFilter\Oasis.DynamicFilter.csproj" />
+  </ItemGroup>
+
 </Project>

@@ -5,6 +5,7 @@ using Oasis.DynamicFilter.InternalLogic;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Reflection;
 using System.Reflection.Emit;
 using System.Security.Cryptography;
@@ -45,16 +46,22 @@ public sealed class FilterBuilder : IFilterBuilder
         return new FilterConfiguration<TEntity, TFilter>(this, _filterTypeBuilder);
     }
 
-    public void Register<TEntity, TFilter>()
+    public IFilterBuilder Register<TEntity, TFilter>()
         where TEntity : class
         where TFilter : class
     {
-        if (_filterBuilders.Contains(typeof(TEntity), typeof(TFilter)))
+        var entityType = typeof(TEntity);
+        var filterType = typeof(TFilter);
+        if (_filterBuilders.Contains(entityType, typeof(TFilter)))
         {
-            throw new RedundantRegisterException(typeof(TEntity), typeof(TFilter));
+            throw new RedundantRegisterException(entityType, filterType);
         }
 
-        throw new NotImplementedException();
+        var type = _filterTypeBuilder.BuildFilterMethodBuilder<TEntity, TFilter>().Build(null, null, null, null, null, null, null);
+        var delegateType = typeof(Func<,>).MakeGenericType(filterType, typeof(Expression<>).MakeGenericType(typeof(Func<,>).MakeGenericType(entityType, typeof(bool))));
+        _filterBuilders.Add(entityType, filterType, Delegate.CreateDelegate(delegateType, type.GetMethod(FilterTypeBuilder.FilterMethodName, Utilities.PublicStatic)));
+
+        return this;
     }
 
     internal void Add(Type entityType, Type filterType, Delegate filterBuilder) => _filterBuilders.Add(entityType, filterType, filterBuilder);
