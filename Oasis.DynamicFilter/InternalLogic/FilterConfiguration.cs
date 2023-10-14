@@ -19,6 +19,7 @@ internal record struct CompareData<TFilter>(
 
 internal record struct ContainData<TFilter>(
     PropertyInfo entityProperty,
+    Type entityPropertyItemType,
     FilterByPropertyType type,
     PropertyInfo filterProperty,
     Type? filterPropertyConvertTo,
@@ -32,6 +33,7 @@ internal record struct InData<TFilter>(
     Type? entityPropertyConvertTo,
     FilterByPropertyType type,
     PropertyInfo filterProperty,
+    Type filterPropertyItemType,
     bool isCollection,
     Func<TFilter, bool>? reverseIf,
     Func<TFilter, bool>? ignoreIf)
@@ -120,7 +122,8 @@ internal sealed class FilterConfiguration<TEntity, TFilter> : IFilterConfigurati
                     throw new InvalidContainException(filterPropertyType, entityPropertyType);
                 }
 
-                _inDictionary.Add(entityPropertyName, filterPropertyName, new InData<TFilter>(entityProperty, inData.Value.Item1, type, filterProperty, inData.Value.Item2, reverseIf, ignoreIf));
+                var inValue = inData.Value;
+                _inDictionary.Add(entityPropertyName, filterPropertyName, new InData<TFilter>(entityProperty, inValue.Item2, type, filterProperty, inValue.Item1, inValue.Item3, reverseIf, ignoreIf));
                 break;
             case FilterByPropertyType.Contains:
             case FilterByPropertyType.NotContains:
@@ -130,7 +133,8 @@ internal sealed class FilterConfiguration<TEntity, TFilter> : IFilterConfigurati
                     throw new InvalidContainException(filterPropertyType, entityPropertyType);
                 }
 
-                _containDictionary.Add(entityPropertyName, filterPropertyName, new ContainData<TFilter>(entityProperty, type, filterProperty, containData.Value.Item1, containData.Value.Item2, reverseIf, ignoreIf));
+                var containValue = containData.Value;
+                _containDictionary.Add(entityPropertyName, filterPropertyName, new ContainData<TFilter>(entityProperty, containValue.Item1, type, filterProperty, containValue.Item2, containValue.Item3, reverseIf, ignoreIf));
                 break;
             default:
                 var conversion = TypeUtilities.GetComparisonConversion(entityPropertyType, filterPropertyType, type);

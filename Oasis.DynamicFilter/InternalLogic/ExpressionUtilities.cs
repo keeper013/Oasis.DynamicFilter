@@ -29,11 +29,14 @@ public static class ExpressionUtilities
 
     public static void BuildCollectionContainsExpression<TEntityPropertyItem, TFilterProperty>(ParameterExpression parameter, string entityPropertyName, TFilterProperty value, (Type?, FilterByPropertyType) data, bool reverse, ref Expression? result)
     {
-        var containsMethod = typeof(ICollection<TEntityPropertyItem>).GetMethod(nameof(ICollection<TEntityPropertyItem>.Contains))!;
-        Expression exp = Expression.Call(
-            Expression.Property(parameter, entityPropertyName),
-            containsMethod,
-            data.Item1 == null ? Expression.Constant(value, typeof(TFilterProperty)) : Expression.Convert(Expression.Constant(value, typeof(TFilterProperty)), data.Item1));
+        var collectionType = typeof(ICollection<TEntityPropertyItem>);
+        var containsMethod = collectionType.GetMethod(nameof(ICollection<TEntityPropertyItem>.Contains))!;
+        Expression exp = Expression.And(
+            Expression.NotEqual(Expression.Property(parameter, entityPropertyName), Expression.Constant(null, collectionType)),
+            Expression.Call(
+                Expression.Property(parameter, entityPropertyName),
+                containsMethod,
+                data.Item1 == null ? Expression.Constant(value, typeof(TFilterProperty)) : Expression.Convert(Expression.Constant(value, typeof(TFilterProperty)), data.Item1)));
         if ((data.Item2 == FilterByPropertyType.NotContains) ^ reverse)
         {
             exp = Expression.Not(exp);
@@ -46,10 +49,12 @@ public static class ExpressionUtilities
     {
         var entityPropertyItemType = typeof(TEntityPropertyItem);
         var containsMethod = EnumerableContains.MakeGenericMethod(entityPropertyItemType);
-        Expression exp = Expression.Call(
-            Expression.Property(parameter, entityPropertyName),
-            containsMethod,
-            data.Item1 == null ? Expression.Constant(value, typeof(TFilterProperty)) : Expression.Convert(Expression.Constant(value, typeof(TFilterProperty)), data.Item1));
+        Expression exp = Expression.And(
+            Expression.NotEqual(Expression.Property(parameter, entityPropertyName), Expression.Constant(null, typeof(TEntityPropertyItem[]))),
+            Expression.Call(
+                Expression.Property(parameter, entityPropertyName),
+                containsMethod,
+                data.Item1 == null ? Expression.Constant(value, typeof(TFilterProperty)) : Expression.Convert(Expression.Constant(value, typeof(TFilterProperty)), data.Item1)));
         if ((data.Item2 == FilterByPropertyType.NotContains) ^ reverse)
         {
             exp = Expression.Not(exp);
@@ -60,11 +65,14 @@ public static class ExpressionUtilities
 
     public static void BuildInCollectionExpression<TEntityProperty, TFilterPropertyItem>(ParameterExpression parameter, string entityPropertyName, ICollection<TFilterPropertyItem> value, (Type?, FilterByPropertyType) data, bool reverse, ref Expression? result)
     {
-        var containsMethod = typeof(ICollection<TFilterPropertyItem>).GetMethod(nameof(ICollection<TFilterPropertyItem>.Contains))!;
-        Expression exp = Expression.Call(
-            Expression.Constant(value),
-            containsMethod,
-            data.Item1 == null ? Expression.Property(parameter, entityPropertyName) : Expression.Convert(Expression.Property(parameter, entityPropertyName), data.Item1));
+        var collectionType = typeof(ICollection<TFilterPropertyItem>);
+        var containsMethod = collectionType.GetMethod(nameof(ICollection<TFilterPropertyItem>.Contains))!;
+        Expression exp = Expression.And(
+            Expression.NotEqual(Expression.Constant(value), Expression.Constant(null, collectionType)),
+            Expression.Call(
+                Expression.Constant(value),
+                containsMethod,
+                data.Item1 == null ? Expression.Property(parameter, entityPropertyName) : Expression.Convert(Expression.Property(parameter, entityPropertyName), data.Item1)));
         if ((data.Item2 == FilterByPropertyType.NotIn) ^ reverse)
         {
             exp = Expression.Not(exp);
@@ -77,10 +85,12 @@ public static class ExpressionUtilities
     {
         var filterPropertyItemType = typeof(TFilterPropertyItem);
         var containsMethod = EnumerableContains.MakeGenericMethod(filterPropertyItemType);
-        Expression exp = Expression.Call(
-            Expression.Constant(value),
-            containsMethod,
-            data.Item1 == null ? Expression.Property(parameter, entityPropertyName) : Expression.Convert(Expression.Property(parameter, entityPropertyName), data.Item1));
+        Expression exp = Expression.And(
+            Expression.NotEqual(Expression.Constant(value), Expression.Constant(null, typeof(TFilterPropertyItem[]))),
+            Expression.Call(
+                Expression.Constant(value),
+                containsMethod,
+                data.Item1 == null ? Expression.Property(parameter, entityPropertyName) : Expression.Convert(Expression.Property(parameter, entityPropertyName), data.Item1)));
         if ((data.Item2 == FilterByPropertyType.NotIn) ^ reverse)
         {
             exp = Expression.Not(exp);
