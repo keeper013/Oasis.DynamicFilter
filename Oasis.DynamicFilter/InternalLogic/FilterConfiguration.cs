@@ -5,16 +5,15 @@ using System.Collections.Generic;
 using System.Linq.Expressions;
 using System.Reflection;
 using System;
+using System.Linq;
 
 internal record struct CompareData<TFilter>(
     PropertyInfo entityProperty,
-    bool entityPropertyIsNullable,
     Type? entityPropertyConvertTo,
     FilterByPropertyType type,
     PropertyInfo filterProperty,
-    bool filterPropertyIsNullable,
     Type? filterPropertyConvertTo,
-    Func<TFilter, bool>? revertIf,
+    Func<TFilter, bool>? reverseIf,
     Func<TFilter, bool>? ignoreIf)
     where TFilter : class;
 
@@ -23,7 +22,7 @@ internal record struct ContainData<TFilter>(
     FilterByPropertyType type,
     PropertyInfo filterProperty,
     Type? filterPropertyConvertTo,
-    Func<TFilter, bool>? revertIf,
+    Func<TFilter, bool>? reverseIf,
     Func<TFilter, bool>? ignoreIf)
     where TFilter : class;
 
@@ -32,21 +31,18 @@ internal record struct InData<TFilter>(
     Type? entityPropertyConvertTo,
     FilterByPropertyType type,
     PropertyInfo filterProperty,
-    Func<TFilter, bool>? revertIf,
+    Func<TFilter, bool>? reverseIf,
     Func<TFilter, bool>? ignoreIf)
     where TFilter : class;
 
 internal record struct FilterRangeData<TFilter>(
     PropertyInfo minFilterProperty,
-    bool minFilterPropertyIsNullable,
     Type? minFilterPropertyConvertTo,
     FilterByRangeType minFilterType,
-    bool entityPropertyIsNullable,
     Type? entityPropertyMinConvertTo,
     PropertyInfo entityProperty,
     Type? entityPropertyMaxConvertTo,
     FilterByRangeType maxFilterType,
-    bool maxFilterPropertyIsNullable,
     Type? maxFilterPropertyConvertTo,
     PropertyInfo maxFilterProperty,
     Func<TFilter, bool>? reverseIf,
@@ -56,15 +52,12 @@ internal record struct FilterRangeData<TFilter>(
 
 internal record struct EntityRangeData<TFilter>(
     PropertyInfo minEntityProperty,
-    bool minEntityPropertyIsNullable,
     Type? minEntityPropertyConvertTo,
     FilterByRangeType minEntityType,
-    bool filterPropertyIsNullable,
     Type? filterPropertyMinConvertTo,
     PropertyInfo filterProperty,
     Type? filterPropertyMaxConvertTo,
     FilterByRangeType maxEntityType,
-    bool maxEntityPropertyIsNullable,
     Type? maxEntityPropertyConvertTo,
     PropertyInfo maxEntityProperty,
     Func<TFilter, bool>? reverseIf,
@@ -136,7 +129,7 @@ internal sealed class FilterConfiguration<TEntity, TFilter> : IFilterConfigurati
 
                 var c = conversion.Value;
 
-                _compareDictionary.Add(entityPropertyName, filterPropertyName, new CompareData<TFilter>(entityProperty, c.Item1, c.Item2, type, filterProperty, c.Item3, c.Item4, reverseIf, ignoreIf));
+                _compareDictionary.Add(entityPropertyName, filterPropertyName, new CompareData<TFilter>(entityProperty, c.Item1, type, filterProperty, c.Item2, reverseIf, ignoreIf));
                 break;
         }
 
@@ -195,7 +188,7 @@ internal sealed class FilterConfiguration<TEntity, TFilter> : IFilterConfigurati
             minFilterProperty.Name,
             entityProperty.Name,
             maxFilterProperty.Name,
-            new FilterRangeData<TFilter>(minFilterProperty, min.Item1, min.Item2, minFilteringType, min.Item3, min.Item4, entityProperty, max.Item2, maxFilteringType, max.Item3, max.Item4, maxFilterProperty, reverseIf, ignoreMinIf, ignoreMaxIf));
+            new FilterRangeData<TFilter>(minFilterProperty, min.Item1, minFilteringType, min.Item2, entityProperty, max.Item2, maxFilteringType, max.Item2, maxFilterProperty, reverseIf, ignoreMinIf, ignoreMaxIf));
         _configuredEntityProperties.Add(entityProperty.Name);
         _configuredFilterProperties.Add(minFilterProperty.Name);
         _configuredFilterProperties.Add(maxFilterProperty.Name);
@@ -247,7 +240,7 @@ internal sealed class FilterConfiguration<TEntity, TFilter> : IFilterConfigurati
             minEntityProperty.Name,
             filterProperty.Name,
             maxEntityProperty.Name,
-            new EntityRangeData<TFilter>(minEntityProperty, min.Item1, min.Item2, minFilteringType, min.Item3, min.Item4, filterProperty, max.Item2, maxFilteringType, max.Item3, max.Item4, maxEntityProperty, reverseIf, ignoreIf));
+            new EntityRangeData<TFilter>(minEntityProperty, min.Item1, minFilteringType, min.Item2, filterProperty, max.Item2, maxFilteringType, max.Item2, maxEntityProperty, reverseIf, ignoreIf));
         _configuredEntityProperties.Add(minEntityProperty.Name);
         _configuredEntityProperties.Add(maxEntityProperty.Name);
         _configuredFilterProperties.Add(filterProperty.Name);
@@ -294,11 +287,11 @@ internal sealed class FilterConfiguration<TEntity, TFilter> : IFilterConfigurati
         var type = _filterTypeBuilder.BuildFilterMethodBuilder<TEntity, TFilter>().Build(
             _configuredEntityProperties,
             _configuredFilterProperties,
-            _compareDictionary,
-            _containDictionary,
-            _inDictionary,
-            _filterRangeDictionary,
-            _entityRangeDictionary);
+            _compareDictionary.Values.SelectMany(c => c.Values).ToList(),
+            _containDictionary.Values.SelectMany(c => c.Values).ToList(),
+            _inDictionary.Values.SelectMany(i => i.Values).ToList(),
+            _filterRangeDictionary.Values.SelectMany(f => f.Values.SelectMany(i => i.Values)).ToList(),
+            _entityRangeDictionary.Values.SelectMany(e => e.Values.SelectMany(i => i.Values)).ToList());
         var delegateType = typeof(Func<,>).MakeGenericType(typeof(TFilter), typeof(Expression<>).MakeGenericType(typeof(Func<,>).MakeGenericType(typeof(TEntity), typeof(bool))));
         return Delegate.CreateDelegate(delegateType, type.GetMethod(FilterTypeBuilder.FilterMethodName, Utilities.PublicStatic));
     }

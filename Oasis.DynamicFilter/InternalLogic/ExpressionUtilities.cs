@@ -9,55 +9,21 @@ using System.Reflection;
 public static class ExpressionUtilities
 {
     private static readonly MethodInfo EnumerableContains = typeof(Enumerable).GetMethods(BindingFlags.Public | BindingFlags.Static).First(m => string.Equals(m.Name, nameof(Enumerable.Contains)) && m.GetParameters().Length == 2);
-
-    public static void BuildFilterByPropertyExpression<TEntityProperty, TFilterProperty>(FilterByPropertyType filterType, TFilterProperty value, ParameterExpression parameter, string entityPropertyName, bool revert, ref Expression? result)
+    private static readonly IReadOnlyDictionary<FilterByPropertyType, Func<Expression, Expression, BinaryExpression>> _compareFunctions = new Dictionary<FilterByPropertyType, Func<Expression, Expression, BinaryExpression>>
     {
-        if (revert)
-        {
-            filterType = filterType.GetReversed();
-        }
+        { FilterByPropertyType.Equality, Expression.Equal },
+        { FilterByPropertyType.GreaterThan, Expression.GreaterThan },
+        { FilterByPropertyType.GreaterThanOrEqual, Expression.GreaterThanOrEqual },
+        { FilterByPropertyType.InEquality, Expression.NotEqual },
+        { FilterByPropertyType.LessThan, Expression.LessThan },
+        { FilterByPropertyType.LessThanOrEqual, Expression.LessThanOrEqual },
+    };
 
-        var entityPropertyType = typeof(TEntityProperty);
-        var entityPropertyIsNullable = entityPropertyType.IsNullable(out var entityArgumenType);
-        if (entityPropertyIsNullable)
-        {
-            entityPropertyType = entityArgumenType;
-        }
-
-        var filterPropertyType = typeof(TFilterProperty);
-        var filterPropertyIsNullable = filterPropertyType.IsNullable(out var filterArgumentType);
-        if (filterPropertyIsNullable)
-        {
-            filterPropertyType = filterArgumentType;
-        }
-
-        var right = Expression.Property(parameter, entityPropertyName);
-        var left = Expression.Constant(value, filterPropertyType);
-        var conversion = GetComparisonConversion(entityPropertyType!, filterPropertyType!);
-
-        Expression exp;
-        switch (filterType)
-        {
-            case FilterByPropertyType.Equality:
-                exp = Expression.Equal(left, right);
-                break;
-            case FilterByPropertyType.GreaterThan:
-                exp = Expression.GreaterThan(left, right);
-                break;
-            case FilterByPropertyType.GreaterThanOrEqual:
-                exp = Expression.GreaterThanOrEqual(left, right);
-                break;
-            case FilterByPropertyType.InEquality:
-                exp = Expression.NotEqual(left, right);
-                break;
-            case FilterByPropertyType.LessThan:
-                exp = Expression.LessThan(left, right);
-                break;
-            default:
-                exp = Expression.LessThanOrEqual(left, right);
-                break;
-        }
-
+    public static void BuildCompareExpression<TFilterProperty>(ParameterExpression parameter, string entityPropertyName, TFilterProperty value, (Type?, Type, Type?, FilterByPropertyType) data, bool reverse, ref Expression? result)
+    {
+        Expression exp = _compareFunctions[reverse ? data.Item4.GetReversed() : data.Item4](
+            data.Item1 != null ? Expression.Convert(Expression.Constant(value, data.Item2), data.Item1!) : Expression.Constant(value, data.Item2),
+            data.Item3 != null ? Expression.Convert(Expression.Property(parameter, entityPropertyName), data.Item3!) : Expression.Property(parameter, entityPropertyName));
         result = result == null ? exp : Expression.And(result, exp);
     }
 

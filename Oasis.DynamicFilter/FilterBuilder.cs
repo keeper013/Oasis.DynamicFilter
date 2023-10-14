@@ -42,7 +42,7 @@ public sealed class FilterBuilder : IFilterBuilder
             throw new RedundantRegisterException(typeof(TEntity), typeof(TFilter));
         }
 
-        throw new NotImplementedException();
+        return new FilterConfiguration<TEntity, TFilter>(this, _filterTypeBuilder);
     }
 
     public void Register<TEntity, TFilter>()
