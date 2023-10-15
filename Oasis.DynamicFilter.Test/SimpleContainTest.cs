@@ -51,6 +51,23 @@ public sealed class SimpleContainTest
         Assert.Equal(4, result[1]);
     }
 
+    [Fact]
+    public void TestNullableIntNullableByteContains()
+    {
+        List<int?[]> ints = new()
+        {
+            new int?[] { 1, 2 },
+            new int?[] { 3, 4 },
+            new int?[] { 1, 4 },
+            new int?[] { 2, 5 },
+            new int?[] { 4, 6 },
+        };
+
+        var result = TestArrayContain(ints, (byte)3);
+        Assert.Equal(3, result[0]);
+        Assert.Equal(4, result[1]);
+    }
+
     private IList<TEntityPropertyItem> TestCollectionContain<TEntityPropertyItem, TFilterProperty>(ICollection<List<TEntityPropertyItem>> entityValues, TFilterProperty filterValue)
     {
         var filter = new FilterBuilder().Register<CollectionEntity<TEntityPropertyItem>, ContainFilter<TFilterProperty>>().Build();

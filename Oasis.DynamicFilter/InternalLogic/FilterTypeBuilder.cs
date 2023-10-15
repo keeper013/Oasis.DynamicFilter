@@ -107,7 +107,7 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
         _generator.Emit(OpCodes.Ldstr, "t");
         _generator.Emit(OpCodes.Call, ParameterMethod);
         _generator.Emit(OpCodes.Stloc_1);
-        // TODO: code refine
+
         var compareFields = GenerateCompareCode(compare, expressionLocal);
         var containFields = GenerateContainCode(contain, expressionLocal);
         var inFields = GenerateInCode(isIn, expressionLocal);
@@ -240,43 +240,18 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
 
     private void GenerateFieldCompareCode(CompareData<TFilter> compareData, FieldInfo compareDictionaryField, FieldInfo? ignoreIfField, FieldInfo? reverseIfField, LocalBuilder expressionLocal)
     {
-        Label endIfIgnore = default;
-        if (ignoreIfField != null)
-        {
-            _generator.Emit(OpCodes.Ldsfld, ignoreIfField);
-            _generator.Emit(OpCodes.Ldarg_0);
-            _generator.Emit(OpCodes.Callvirt, FilterConditionInvoke);
-            endIfIgnore = _generator.DefineLabel();
-            _generator.Emit(OpCodes.Brtrue_S, endIfIgnore);
-        }
+        void CallBuildExpressionMethod() => _generator.Emit(OpCodes.Call, BuildCompareExpressionMethod.MakeGenericMethod(compareData.filterProperty.PropertyType));
 
-        _generator.Emit(OpCodes.Ldloc_1);
-        _generator.Emit(OpCodes.Ldstr, compareData.entityProperty.Name);
-        _generator.Emit(OpCodes.Ldarg_0);
-        _generator.Emit(OpCodes.Callvirt, compareData.filterProperty.GetMethod);
-        _generator.Emit(OpCodes.Ldsfld, compareDictionaryField);
-        _generator.Emit(OpCodes.Ldstr, compareData.entityProperty.Name);
-        _generator.Emit(OpCodes.Callvirt, CompareFieldOuterGetItem);
-        _generator.Emit(OpCodes.Ldstr, compareData.filterProperty.Name);
-        _generator.Emit(OpCodes.Callvirt, CompareFieldInnerGetItem);
-        if (reverseIfField != null)
-        {
-            _generator.Emit(OpCodes.Ldsfld, reverseIfField);
-            _generator.Emit(OpCodes.Ldarg_0);
-            _generator.Emit(OpCodes.Callvirt, FilterConditionInvoke);
-        }
-        else
-        {
-            _generator.Emit(OpCodes.Ldc_I4_0);
-        }
-
-        _generator.Emit(OpCodes.Ldloca_S, expressionLocal);
-        _generator.Emit(OpCodes.Call, BuildCompareExpressionMethod.MakeGenericMethod(compareData.filterProperty.PropertyType));
-
-        if (ignoreIfField != null)
-        {
-            _generator.MarkLabel(endIfIgnore);
-        }
+        GenerateFieldFilterCode(
+            compareDictionaryField,
+            ignoreIfField,
+            reverseIfField,
+            compareData.entityProperty,
+            compareData.filterProperty,
+            expressionLocal,
+            CompareFieldOuterGetItem,
+            CompareFieldInnerGetItem,
+            CallBuildExpressionMethod);
     }
 
     private (Dictionary<string, Dictionary<string, (Type?, FilterByPropertyType)>>, Dictionary<string, Func<TFilter, bool>>, Dictionary<string, Func<TFilter, bool>>) GenerateContainCode(IList<ContainData<TFilter>> contain, LocalBuilder expressionLocal)
@@ -312,50 +287,28 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
 
     private void GenerateFieldContainCode(ContainData<TFilter> containData, FieldInfo containDictionaryField, FieldInfo? ignoreIfField, FieldInfo? reverseIfField, LocalBuilder expressionLocal)
     {
-        Label endIfIgnore = default;
-        if (ignoreIfField != null)
+        void CallBuildExpressionMethod()
         {
-            _generator.Emit(OpCodes.Ldsfld, ignoreIfField);
-            _generator.Emit(OpCodes.Ldarg_0);
-            _generator.Emit(OpCodes.Callvirt, FilterConditionInvoke);
-            endIfIgnore = _generator.DefineLabel();
-            _generator.Emit(OpCodes.Brtrue_S, endIfIgnore);
+            if (containData.isCollection)
+            {
+                _generator.Emit(OpCodes.Call, BuildCollectionContainExpressionMethod.MakeGenericMethod(containData.entityPropertyItemType, containData.filterProperty.PropertyType));
+            }
+            else
+            {
+                _generator.Emit(OpCodes.Call, BuildArrayContainExpressionMethod.MakeGenericMethod(containData.entityPropertyItemType, containData.filterProperty.PropertyType));
+            }
         }
 
-        _generator.Emit(OpCodes.Ldloc_1);
-        _generator.Emit(OpCodes.Ldstr, containData.entityProperty.Name);
-        _generator.Emit(OpCodes.Ldarg_0);
-        _generator.Emit(OpCodes.Callvirt, containData.filterProperty.GetMethod);
-        _generator.Emit(OpCodes.Ldsfld, containDictionaryField);
-        _generator.Emit(OpCodes.Ldstr, containData.entityProperty.Name);
-        _generator.Emit(OpCodes.Callvirt, ContainFieldOuterGetItem);
-        _generator.Emit(OpCodes.Ldstr, containData.filterProperty.Name);
-        _generator.Emit(OpCodes.Callvirt, ContainFieldInnerGetItem);
-        if (reverseIfField != null)
-        {
-            _generator.Emit(OpCodes.Ldsfld, reverseIfField);
-            _generator.Emit(OpCodes.Ldarg_0);
-            _generator.Emit(OpCodes.Callvirt, FilterConditionInvoke);
-        }
-        else
-        {
-            _generator.Emit(OpCodes.Ldc_I4_0);
-        }
-
-        _generator.Emit(OpCodes.Ldloca_S, expressionLocal);
-        if (containData.isCollection)
-        {
-            _generator.Emit(OpCodes.Call, BuildCollectionContainExpressionMethod.MakeGenericMethod(containData.entityPropertyItemType, containData.filterProperty.PropertyType));
-        }
-        else
-        {
-            _generator.Emit(OpCodes.Call, BuildArrayContainExpressionMethod.MakeGenericMethod(containData.entityPropertyItemType, containData.filterProperty.PropertyType));
-        }
-
-        if (ignoreIfField != null)
-        {
-            _generator.MarkLabel(endIfIgnore);
-        }
+        GenerateFieldFilterCode(
+            containDictionaryField,
+            ignoreIfField,
+            reverseIfField,
+            containData.entityProperty,
+            containData.filterProperty,
+            expressionLocal,
+            ContainFieldOuterGetItem,
+            ContainFieldInnerGetItem,
+            CallBuildExpressionMethod);
     }
 
     private (Dictionary<string, Dictionary<string, (Type?, FilterByPropertyType)>>, Dictionary<string, Func<TFilter, bool>>, Dictionary<string, Func<TFilter, bool>>) GenerateInCode(IList<InData<TFilter>> isIn, LocalBuilder expressionLocal)
@@ -391,6 +344,41 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
 
     private void GenerateFieldInCode(InData<TFilter> inData, FieldInfo inDictionaryField, FieldInfo? ignoreIfField, FieldInfo? reverseIfField, LocalBuilder expressionLocal)
     {
+        void CallBuildExpressionMethod()
+        {
+            if (inData.isCollection)
+            {
+                _generator.Emit(OpCodes.Call, BuildInCollectionExpressionMethod.MakeGenericMethod(inData.entityProperty.PropertyType, inData.filterPropertyItemType));
+            }
+            else
+            {
+                _generator.Emit(OpCodes.Call, BuildInArrayExpressionMethod.MakeGenericMethod(inData.entityProperty.PropertyType, inData.filterPropertyItemType));
+            }
+        }
+
+        GenerateFieldFilterCode(
+            inDictionaryField,
+            ignoreIfField,
+            reverseIfField,
+            inData.entityProperty,
+            inData.filterProperty,
+            expressionLocal,
+            InFieldOuterGetItem,
+            InFieldInnerGetItem,
+            CallBuildExpressionMethod);
+    }
+
+    private void GenerateFieldFilterCode(
+        FieldInfo dataDictionaryField,
+        FieldInfo? ignoreIfField,
+        FieldInfo? reverseIfField,
+        PropertyInfo entityProperty,
+        PropertyInfo filterProperty,
+        LocalBuilder expressionLocal,
+        MethodInfo outterGetItem,
+        MethodInfo innerGetItem,
+        Action callBuildExpressionMethod)
+    {
         Label endIfIgnore = default;
         if (ignoreIfField != null)
         {
@@ -402,14 +390,14 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
         }
 
         _generator.Emit(OpCodes.Ldloc_1);
-        _generator.Emit(OpCodes.Ldstr, inData.entityProperty.Name);
+        _generator.Emit(OpCodes.Ldstr, entityProperty.Name);
         _generator.Emit(OpCodes.Ldarg_0);
-        _generator.Emit(OpCodes.Callvirt, inData.filterProperty.GetMethod);
-        _generator.Emit(OpCodes.Ldsfld, inDictionaryField);
-        _generator.Emit(OpCodes.Ldstr, inData.entityProperty.Name);
-        _generator.Emit(OpCodes.Callvirt, InFieldOuterGetItem);
-        _generator.Emit(OpCodes.Ldstr, inData.filterProperty.Name);
-        _generator.Emit(OpCodes.Callvirt, InFieldInnerGetItem);
+        _generator.Emit(OpCodes.Callvirt, filterProperty.GetMethod);
+        _generator.Emit(OpCodes.Ldsfld, dataDictionaryField);
+        _generator.Emit(OpCodes.Ldstr, entityProperty.Name);
+        _generator.Emit(OpCodes.Callvirt, outterGetItem);
+        _generator.Emit(OpCodes.Ldstr, filterProperty.Name);
+        _generator.Emit(OpCodes.Callvirt, innerGetItem);
         if (reverseIfField != null)
         {
             _generator.Emit(OpCodes.Ldsfld, reverseIfField);
@@ -422,14 +410,7 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
         }
 
         _generator.Emit(OpCodes.Ldloca_S, expressionLocal);
-        if (inData.isCollection)
-        {
-            _generator.Emit(OpCodes.Call, BuildInCollectionExpressionMethod.MakeGenericMethod(inData.entityProperty.PropertyType, inData.filterPropertyItemType));
-        }
-        else
-        {
-            _generator.Emit(OpCodes.Call, BuildInArrayExpressionMethod.MakeGenericMethod(inData.entityProperty.PropertyType, inData.filterPropertyItemType));
-        }
+        callBuildExpressionMethod();
 
         if (ignoreIfField != null)
         {

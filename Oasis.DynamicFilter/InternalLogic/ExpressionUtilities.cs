@@ -52,8 +52,8 @@ public static class ExpressionUtilities
         Expression exp = Expression.And(
             Expression.NotEqual(Expression.Property(parameter, entityPropertyName), Expression.Constant(null, typeof(TEntityPropertyItem[]))),
             Expression.Call(
-                Expression.Property(parameter, entityPropertyName),
                 containsMethod,
+                Expression.Property(parameter, entityPropertyName),
                 data.Item1 == null ? Expression.Constant(value, typeof(TFilterProperty)) : Expression.Convert(Expression.Constant(value, typeof(TFilterProperty)), data.Item1)));
         if ((data.Item2 == FilterByPropertyType.NotContains) ^ reverse)
         {
@@ -88,8 +88,8 @@ public static class ExpressionUtilities
         Expression exp = Expression.And(
             Expression.NotEqual(Expression.Constant(value), Expression.Constant(null, typeof(TFilterPropertyItem[]))),
             Expression.Call(
-                Expression.Constant(value),
                 containsMethod,
+                Expression.Constant(value),
                 data.Item1 == null ? Expression.Property(parameter, entityPropertyName) : Expression.Convert(Expression.Property(parameter, entityPropertyName), data.Item1)));
         if ((data.Item2 == FilterByPropertyType.NotIn) ^ reverse)
         {
