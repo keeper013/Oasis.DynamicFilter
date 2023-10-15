@@ -46,10 +46,10 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
     private const string DictionaryItemMethodName = "get_Item";
     private static readonly MethodInfo CompareFieldOuterGetItem = typeof(Dictionary<string, Dictionary<string, (Type?, Type?, FilterByPropertyType)>>).GetMethod(DictionaryItemMethodName, Utilities.PublicInstance)!;
     private static readonly MethodInfo CompareFieldInnerGetItem = typeof(Dictionary<Type, (Type?, Type?, FilterByPropertyType)>).GetMethod(DictionaryItemMethodName, Utilities.PublicInstance)!;
-    private static readonly MethodInfo ContainFieldOuterGetItem = typeof(Dictionary<string, Dictionary<string, (Type?, FilterByPropertyType)>>).GetMethod(DictionaryItemMethodName, Utilities.PublicInstance)!;
-    private static readonly MethodInfo ContainFieldInnerGetItem = typeof(Dictionary<Type, (Type?, FilterByPropertyType)>).GetMethod(DictionaryItemMethodName, Utilities.PublicInstance)!;
-    private static readonly MethodInfo InFieldOuterGetItem = typeof(Dictionary<string, Dictionary<string, (Type?, FilterByPropertyType)>>).GetMethod(DictionaryItemMethodName, Utilities.PublicInstance)!;
-    private static readonly MethodInfo InFieldInnerGetItem = typeof(Dictionary<Type, (Type?, FilterByPropertyType)>).GetMethod(DictionaryItemMethodName, Utilities.PublicInstance)!;
+    private static readonly MethodInfo ContainFieldOuterGetItem = typeof(Dictionary<string, Dictionary<string, (Type?, FilterByPropertyType, bool)>>).GetMethod(DictionaryItemMethodName, Utilities.PublicInstance)!;
+    private static readonly MethodInfo ContainFieldInnerGetItem = typeof(Dictionary<Type, (Type?, FilterByPropertyType, bool)>).GetMethod(DictionaryItemMethodName, Utilities.PublicInstance)!;
+    private static readonly MethodInfo InFieldOuterGetItem = typeof(Dictionary<string, Dictionary<string, (Type?, FilterByPropertyType, bool)>>).GetMethod(DictionaryItemMethodName, Utilities.PublicInstance)!;
+    private static readonly MethodInfo InFieldInnerGetItem = typeof(Dictionary<Type, (Type?, FilterByPropertyType, bool)>).GetMethod(DictionaryItemMethodName, Utilities.PublicInstance)!;
     private static readonly Type EntityType = typeof(TEntity);
     private static readonly Type BooleanType = typeof(bool);
     private static readonly Type ParameterExpressionType = typeof(ParameterExpression);
@@ -160,7 +160,8 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
                 if (comparison != null)
                 {
                     var c = comparison.Value;
-                    var ignoreIf = filterPropertyType.IsClass || filterPropertyType.IsNullable(out _) ? TypeUtilities.BuildFilterPropertyIsDefaultFunction<TFilter>(filterProperty) : null;
+                    var ignoreIf = filterPropertyType.IsClass || (filterPropertyType.IsNullable(out _) && !entityPropertyType.IsNullable(out _))
+                        ? TypeUtilities.BuildFilterPropertyIsDefaultFunction<TFilter>(filterProperty) : null;
                     compareList.Add(new CompareData<TFilter>(entityProperty, c.Item1, FilterByPropertyType.Equality, filterProperty, c.Item2, null, ignoreIf));
                     continue;
                 }
@@ -169,8 +170,9 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
                 if (contains != null)
                 {
                     var value = contains.Value;
-                    var ignoreIf = filterPropertyType.IsClass || filterPropertyType.IsNullable(out _) ? TypeUtilities.BuildFilterPropertyIsDefaultFunction<TFilter>(filterProperty) : null;
-                    containList.Add(new ContainData<TFilter>(entityProperty, value.Item1, FilterByPropertyType.Contains, filterProperty, value.Item2, value.Item3, null, ignoreIf));
+                    var ignoreIf = filterPropertyType.IsClass || (filterPropertyType.IsNullable(out _) && !value.Item1.IsNullable(out _))
+                        ? TypeUtilities.BuildFilterPropertyIsDefaultFunction<TFilter>(filterProperty) : null;
+                    containList.Add(new ContainData<TFilter>(entityProperty, value.Item1, FilterByPropertyType.Contains, filterProperty, value.Item2, value.Item3, value.Item4, null, ignoreIf));
                     continue;
                 }
 
@@ -178,8 +180,7 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
                 if (isIn != null)
                 {
                     var value = isIn.Value;
-                    var ignoreIf = filterPropertyType.IsClass || filterPropertyType.IsNullable(out _) ? TypeUtilities.BuildFilterPropertyIsDefaultFunction<TFilter>(filterProperty) : null;
-                    inList.Add(new InData<TFilter>(entityProperty, value.Item2, FilterByPropertyType.In, filterProperty, isIn.Value.Item1, value.Item3, null, ignoreIf));
+                    inList.Add(new InData<TFilter>(entityProperty, value.Item2, FilterByPropertyType.In, filterProperty, isIn.Value.Item1, value.Item3, value.Item4, null, null));
                     continue;
                 }
             }
@@ -254,10 +255,10 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
             CallBuildExpressionMethod);
     }
 
-    private (Dictionary<string, Dictionary<string, (Type?, FilterByPropertyType)>>, Dictionary<string, Func<TFilter, bool>>, Dictionary<string, Func<TFilter, bool>>) GenerateContainCode(IList<ContainData<TFilter>> contain, LocalBuilder expressionLocal)
+    private (Dictionary<string, Dictionary<string, (Type?, FilterByPropertyType, bool)>>, Dictionary<string, Func<TFilter, bool>>, Dictionary<string, Func<TFilter, bool>>) GenerateContainCode(IList<ContainData<TFilter>> contain, LocalBuilder expressionLocal)
     {
-        var containDictionaryField = _typeBuilder.DefineField(ContainDictionaryFieldName, typeof(Dictionary<string, Dictionary<string, (Type?, FilterByPropertyType)>>), FieldAttributes.Private | FieldAttributes.Static);
-        var containDictionary = new Dictionary<string, Dictionary<string, (Type?, FilterByPropertyType)>>();
+        var containDictionaryField = _typeBuilder.DefineField(ContainDictionaryFieldName, typeof(Dictionary<string, Dictionary<string, (Type?, FilterByPropertyType, bool)>>), FieldAttributes.Private | FieldAttributes.Static);
+        var containDictionary = new Dictionary<string, Dictionary<string, (Type?, FilterByPropertyType, bool)>>();
         var ignoreIfFields = new Dictionary<string, Func<TFilter, bool>>();
         var reverseIfFields = new Dictionary<string, Func<TFilter, bool>>();
         foreach (var c in contain)
@@ -278,7 +279,7 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
                 reverseIfFields.Add(fieldName, c.reverseIf);
             }
 
-            containDictionary.Add(c.entityProperty.Name, c.filterProperty.Name, (c.filterPropertyConvertTo, c.type));
+            containDictionary.Add(c.entityProperty.Name, c.filterProperty.Name, (c.filterPropertyConvertTo, c.type, c.nullValueNotCovered));
             GenerateFieldContainCode(c, containDictionaryField, ignoreIfField, reverseIfField, expressionLocal);
         }
 
@@ -311,10 +312,10 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
             CallBuildExpressionMethod);
     }
 
-    private (Dictionary<string, Dictionary<string, (Type?, FilterByPropertyType)>>, Dictionary<string, Func<TFilter, bool>>, Dictionary<string, Func<TFilter, bool>>) GenerateInCode(IList<InData<TFilter>> isIn, LocalBuilder expressionLocal)
+    private (Dictionary<string, Dictionary<string, (Type?, FilterByPropertyType, bool)>>, Dictionary<string, Func<TFilter, bool>>, Dictionary<string, Func<TFilter, bool>>) GenerateInCode(IList<InData<TFilter>> isIn, LocalBuilder expressionLocal)
     {
-        var inDictionaryField = _typeBuilder.DefineField(InDictionaryFieldName, typeof(Dictionary<string, Dictionary<string, (Type?, FilterByPropertyType)>>), FieldAttributes.Private | FieldAttributes.Static);
-        var inDictionary = new Dictionary<string, Dictionary<string, (Type?, FilterByPropertyType)>>();
+        var inDictionaryField = _typeBuilder.DefineField(InDictionaryFieldName, typeof(Dictionary<string, Dictionary<string, (Type?, FilterByPropertyType, bool)>>), FieldAttributes.Private | FieldAttributes.Static);
+        var inDictionary = new Dictionary<string, Dictionary<string, (Type?, FilterByPropertyType, bool)>>();
         var ignoreIfFields = new Dictionary<string, Func<TFilter, bool>>();
         var reverseIfFields = new Dictionary<string, Func<TFilter, bool>>();
         foreach (var i in isIn)
@@ -335,7 +336,7 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
                 reverseIfFields.Add(fieldName, i.reverseIf);
             }
 
-            inDictionary.Add(i.entityProperty.Name, i.filterProperty.Name, (i.entityPropertyConvertTo, i.type));
+            inDictionary.Add(i.entityProperty.Name, i.filterProperty.Name, (i.entityPropertyConvertTo, i.type, i.nullValueNotCovered));
             GenerateFieldInCode(i, inDictionaryField, ignoreIfField, reverseIfField, expressionLocal);
         }
 

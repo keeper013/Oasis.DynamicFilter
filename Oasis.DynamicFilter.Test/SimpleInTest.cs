@@ -42,10 +42,28 @@ public sealed class SimpleInTest
     }
 
     [Fact]
-    public void TestNullableIntNullableByteContains()
+    public void TestNullableIntByteContains()
     {
         var result = TestInArray(new List<byte> { 1, 2, 3, 4, 5 }, new int?[] { 1, 6, 7 });
         Assert.Equal(1, result);
+    }
+
+    [Fact]
+    public void TestIntNullableByteContains()
+    {
+        var result = TestInArray(new List<byte?> { 1, 2, 3, 4, 5 }, new int[] { 1, 6, 7 });
+        Assert.Equal((byte?)1, result);
+    }
+
+    [Fact]
+    public void TestIntNullableByteNullContains()
+    {
+        var filter = new FilterBuilder().Register<InEntity<byte?>, InArrayFilter<int>>().Build();
+        var list = new List<byte?> { null, 2, 3, 4, 5 }.Select(v => new InEntity<byte?>(v));
+        var inFilter = new InArrayFilter<int>(new int[] { 1, 6, 7 });
+        var exp = filter.GetExpression<InEntity<byte?>, InArrayFilter<int>>(inFilter);
+        var result = list.Where(exp.Compile()).ToList();
+        Assert.Empty(result);
     }
 
     private TEntityProperty TestInCollection<TEntityProperty, TFilterPropertyItem>(ICollection<TEntityProperty> entityValues, List<TFilterPropertyItem> filterValue)

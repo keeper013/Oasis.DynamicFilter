@@ -52,7 +52,7 @@ public sealed class SimpleContainTest
     }
 
     [Fact]
-    public void TestNullableIntNullableByteContains()
+    public void TestNullableIntByteContains()
     {
         List<int?[]> ints = new()
         {
@@ -66,6 +66,46 @@ public sealed class SimpleContainTest
         var result = TestArrayContain(ints, (byte)3);
         Assert.Equal(3, result[0]);
         Assert.Equal(4, result[1]);
+    }
+
+    [Fact]
+    public void TestNullableIntNullableByteContains()
+    {
+        List<int?[]> ints = new()
+        {
+            new int?[] { 1, 2 },
+            new int?[] { 3, 4 },
+            new int?[] { 1, 4 },
+            new int?[] { 2, 5 },
+            new int?[] { 4, 6 },
+        };
+
+        var filter = new FilterBuilder().Register<ArrayEntity<int?>, ContainFilter<byte?>>().Build();
+        var arr = ints.Select(v => new ArrayEntity<int?>(v));
+        var comparisonFilter = new ContainFilter<byte?>(null);
+        var exp = filter.GetExpression<ArrayEntity<int?>, ContainFilter<byte?>>(comparisonFilter);
+        var result = arr.Where(exp.Compile()).ToList();
+        Assert.Empty(result);
+    }
+
+    [Fact]
+    public void TestContainsDefaultIgnore()
+    {
+        List<int[]> ints = new()
+        {
+            new int[] { 1, 2 },
+            new int[] { 3, 4 },
+            new int[] { 1, 4 },
+            new int[] { 2, 5 },
+            new int[] { 4, 6 },
+        };
+
+        var filter = new FilterBuilder().Register<ArrayEntity<int>, ContainFilter<byte?>>().Build();
+        var arr = ints.Select(v => new ArrayEntity<int>(v));
+        var comparisonFilter = new ContainFilter<byte?>(null);
+        var exp = filter.GetExpression<ArrayEntity<int>, ContainFilter<byte?>>(comparisonFilter);
+        var result = arr.Where(exp.Compile()).ToList();
+        Assert.Equal(5, result.Count);
     }
 
     private IList<TEntityPropertyItem> TestCollectionContain<TEntityPropertyItem, TFilterProperty>(ICollection<List<TEntityPropertyItem>> entityValues, TFilterProperty filterValue)

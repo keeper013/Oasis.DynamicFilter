@@ -564,7 +564,7 @@ internal static class TypeUtilities
                 : null;
     }
 
-    internal static (Type, Type?, bool)? GetContainConversion(Type containerType, Type itemType)
+    internal static (Type, Type?, bool, bool)? GetContainConversion(Type containerType, Type itemType)
     {
         var data = containerType.GetContainerElementType();
         if (data != null)
@@ -572,16 +572,16 @@ internal static class TypeUtilities
             var containerItemType = data.Value.Item1;
             if (containerItemType == itemType && (itemType == StringType || (itemType.IsValueType && (itemType.IsPrimitive || itemType.IsEnum || itemType.HasOperator(FilterByPropertyType.Equality)))))
             {
-                return (containerItemType, null, data.Value.Item2);
+                return (containerItemType, null, data.Value.Item2, false);
             }
 
             var containerItemTypeIsNullable = containerItemType.IsNullable(out var containerItemArgumentType);
             var itemTypeIsNullable = itemType.IsNullable(out var itemArgumentType);
             var containerItemUnderlyingType = containerItemTypeIsNullable ? containerItemArgumentType : containerItemType;
             var itemUnderlyingType = itemTypeIsNullable ? itemArgumentType : itemType;
-            if ((containerItemTypeIsNullable || !itemTypeIsNullable) && _convertForContainDictionary.Contains(containerItemUnderlyingType!, itemUnderlyingType!))
+            if (_convertForContainDictionary.Contains(containerItemUnderlyingType!, itemUnderlyingType!))
             {
-                return (containerItemType, containerItemType, data.Value.Item2);
+                return (containerItemType, containerItemType, data.Value.Item2, itemTypeIsNullable && !containerItemTypeIsNullable);
             }
         }
 
