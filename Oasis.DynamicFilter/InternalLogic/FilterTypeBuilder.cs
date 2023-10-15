@@ -46,6 +46,10 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
     private const string DictionaryItemMethodName = "get_Item";
     private static readonly MethodInfo CompareFieldOuterGetItem = typeof(Dictionary<string, Dictionary<string, (Type?, Type?, FilterByPropertyType)>>).GetMethod(DictionaryItemMethodName, Utilities.PublicInstance)!;
     private static readonly MethodInfo CompareFieldInnerGetItem = typeof(Dictionary<Type, (Type?, Type?, FilterByPropertyType)>).GetMethod(DictionaryItemMethodName, Utilities.PublicInstance)!;
+    private static readonly MethodInfo ContainFieldOuterGetItem = typeof(Dictionary<string, Dictionary<string, (Type?, FilterByPropertyType)>>).GetMethod(DictionaryItemMethodName, Utilities.PublicInstance)!;
+    private static readonly MethodInfo ContainFieldInnerGetItem = typeof(Dictionary<Type, (Type?, FilterByPropertyType)>).GetMethod(DictionaryItemMethodName, Utilities.PublicInstance)!;
+    private static readonly MethodInfo InFieldOuterGetItem = typeof(Dictionary<string, Dictionary<string, (Type?, FilterByPropertyType)>>).GetMethod(DictionaryItemMethodName, Utilities.PublicInstance)!;
+    private static readonly MethodInfo InFieldInnerGetItem = typeof(Dictionary<Type, (Type?, FilterByPropertyType)>).GetMethod(DictionaryItemMethodName, Utilities.PublicInstance)!;
     private static readonly Type EntityType = typeof(TEntity);
     private static readonly Type BooleanType = typeof(bool);
     private static readonly Type ParameterExpressionType = typeof(ParameterExpression);
@@ -324,9 +328,9 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
         _generator.Emit(OpCodes.Callvirt, containData.filterProperty.GetMethod);
         _generator.Emit(OpCodes.Ldsfld, containDictionaryField);
         _generator.Emit(OpCodes.Ldstr, containData.entityProperty.Name);
-        _generator.Emit(OpCodes.Callvirt, CompareFieldOuterGetItem);
+        _generator.Emit(OpCodes.Callvirt, ContainFieldOuterGetItem);
         _generator.Emit(OpCodes.Ldstr, containData.filterProperty.Name);
-        _generator.Emit(OpCodes.Callvirt, CompareFieldInnerGetItem);
+        _generator.Emit(OpCodes.Callvirt, ContainFieldInnerGetItem);
         if (reverseIfField != null)
         {
             _generator.Emit(OpCodes.Ldsfld, reverseIfField);
@@ -403,9 +407,9 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
         _generator.Emit(OpCodes.Callvirt, inData.filterProperty.GetMethod);
         _generator.Emit(OpCodes.Ldsfld, inDictionaryField);
         _generator.Emit(OpCodes.Ldstr, inData.entityProperty.Name);
-        _generator.Emit(OpCodes.Callvirt, CompareFieldOuterGetItem);
+        _generator.Emit(OpCodes.Callvirt, InFieldOuterGetItem);
         _generator.Emit(OpCodes.Ldstr, inData.filterProperty.Name);
-        _generator.Emit(OpCodes.Callvirt, CompareFieldInnerGetItem);
+        _generator.Emit(OpCodes.Callvirt, InFieldInnerGetItem);
         if (reverseIfField != null)
         {
             _generator.Emit(OpCodes.Ldsfld, reverseIfField);

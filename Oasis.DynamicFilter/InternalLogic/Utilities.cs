@@ -56,11 +56,11 @@ internal static class Utilities
 
         if (IsOfGenericTypeDefinition(type, CollectionType))
         {
-            return (type, true);
+            return (type.GenericTypeArguments[0], true);
         }
 
         var types = type.GetInterfaces().Where(i => IsOfGenericTypeDefinition(i, CollectionType)).ToList();
-        return types.Count == 1 ? (types[0], true) : null;
+        return types.Count == 1 ? (types[0].GenericTypeArguments[0], true) : null;
     }
 
     internal static bool HasOperator(this Type type, FilterByPropertyType filterType)

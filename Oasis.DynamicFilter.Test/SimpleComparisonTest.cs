@@ -1,5 +1,3 @@
-using System.Linq;
-
 namespace Oasis.DynamicFilter.Test;
 
 public sealed class ComparisonEntity<T>
@@ -22,7 +20,7 @@ public sealed class ComparisonFilter<T>
     public T Value { get; init; }
 }
 
-public sealed class RegisterTest
+public sealed class SimpleConparisonTest
 {
     [Fact]
     public void TestIntIntEqual()
