@@ -9,9 +9,9 @@ public sealed class Entity1
     public string Name { get; set; } = null!;
 }
 
-public sealed class EntityFilter
+public sealed class EntityFilter<T>
 {
-    public int? Number { get; set; }
+    public T Number { get; set; }
 
     public string? Name { get; set; }
 }
