@@ -77,6 +77,7 @@ public interface IFilterConfigurationBuilder<TEntity, TFilter>
         Expression<Func<TEntity, TEntityProperty>> entityPropertyExpression,
         FilterByPropertyType type,
         Expression<Func<TFilter, TFilterProperty>> filterPropertyExpression,
+        Func<TFilter, bool>? includeNull = null,
         Func<TFilter, bool>? reverseIf = null,
         Func<TFilter, bool>? ignoreIf = null);
 
@@ -86,6 +87,7 @@ public interface IFilterConfigurationBuilder<TEntity, TFilter>
         Expression<Func<TEntity, TEntityProperty>> entityPropertyExpression,
         FilterByRangeType maxFilteringType,
         Expression<Func<TFilter, TMaxFilterProperty>> filterPropertyMaxExpression,
+        Func<TFilter, bool>? includeNull = null,
         Func<TFilter, bool>? reverseIf = null,
         Func<TFilter, bool>? ignoreMinIf = null,
         Func<TFilter, bool>? ignoreMaxIf = null);
@@ -96,6 +98,7 @@ public interface IFilterConfigurationBuilder<TEntity, TFilter>
         Expression<Func<TFilter, TFilterProperty>> filterPropertyExpression,
         FilterByRangeType maxFilteringType,
         Expression<Func<TEntity, TMaxEntityProperty>> entityPropertyMaxExpression,
+        Func<TFilter, bool>? includeNull = null,
         Func<TFilter, bool>? reverseIf = null,
         Func<TFilter, bool>? ignoreIf = null);
 

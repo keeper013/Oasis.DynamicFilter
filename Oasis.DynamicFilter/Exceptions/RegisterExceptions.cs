@@ -59,3 +59,16 @@ public sealed class InvalidContainException : DynamicFilterException
     {
     }
 }
+
+public sealed class UnnecessaryIncludeNullException : DynamicFilterException
+{
+    public UnnecessaryIncludeNullException(Type entityType)
+        : base($"Type {entityType.Name} isn't suitable to have an includeNull configuration.")
+    {
+    }
+
+    public UnnecessaryIncludeNullException(Type entityType1, Type entityProperty2)
+        : base($"Type {entityType1.Name} and {entityProperty2.Name} both aren't suitable to have an includeNull configuration.")
+    {
+    }
+}
