@@ -26,6 +26,25 @@ public class UnitTest1 : TestBase
         });
     }
 
+    [Fact]
+    public async Task IgnoreDefaultNullTest()
+    {
+        var expressionMaker = new FilterBuilder().Register<Entity1, EntityFilter<int?>>().Build();
+
+        await InitializeData();
+
+        var filter = new EntityFilter<int?>();
+        var exp = expressionMaker.GetExpression<Entity1, EntityFilter<int?>>(filter);
+
+        await ExecuteWithNewDatabaseContext(async databaseContext =>
+        {
+            var query = databaseContext.Set<Entity1>().Where(exp);
+            // var str = query.ToQueryString();
+            var result = await query.ToListAsync();
+            Assert.Equal(5, result.Count);
+        });
+    }
+
     [Theory]
     [InlineData(2, "2", 1)]
     [InlineData(2, "3", 0)]
