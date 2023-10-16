@@ -225,7 +225,7 @@ public static class ExpressionUtilities
             data.maxData.filterPropertyConvertTo != null ? Expression.Convert(Expression.Constant(value, filterPropertyType), data.maxData.filterPropertyConvertTo!) : Expression.Constant(value, filterPropertyType));
         if (includeNullMax)
         {
-            maxExp = Expression.Or(Expression.Equal(Expression.Property(parameter, entityMaxPropertyName), Expression.Constant(null, typeof(TEntityMinProperty))), maxExp);
+            maxExp = Expression.Or(Expression.Equal(Expression.Property(parameter, entityMaxPropertyName), Expression.Constant(null, typeof(TEntityMaxProperty))), maxExp);
         }
 
         Expression exp = Expression.And(minExp, maxExp);
