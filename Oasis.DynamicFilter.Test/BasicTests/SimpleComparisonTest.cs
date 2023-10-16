@@ -1,4 +1,4 @@
-namespace Oasis.DynamicFilter.Test;
+namespace Oasis.DynamicFilter.Test.BasicTests;
 
 public sealed class ComparisonEntity<T>
 {
@@ -25,7 +25,7 @@ public sealed class SimpleConparisonTest
     [Fact]
     public void TestIntIntEqual()
     {
-        Assert.Equal(2, TestEqual<int, int>(new List<int> { 1, 2, 3, 4, 5 }, 2));
+        Assert.Equal(2, TestEqual(new List<int> { 1, 2, 3, 4, 5 }, 2));
     }
 
     [Fact]

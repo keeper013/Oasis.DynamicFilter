@@ -125,7 +125,7 @@ internal sealed class FilterConfiguration<TEntity, TFilter> : IFilterConfigurati
         return this;
     }
 
-    public IFilterConfigurationBuilder<TEntity, TFilter> FilterByRange<TEntityProperty, TMinFilterProperty, TMaxFilterProperty>(
+    public IFilterConfigurationBuilder<TEntity, TFilter> FilterByRangedFilter<TEntityProperty, TMinFilterProperty, TMaxFilterProperty>(
         Expression<Func<TFilter, TMinFilterProperty>> filterPropertyMinExpression,
         FilterByRangeType minFilteringType,
         Expression<Func<TEntity, TEntityProperty>> entityPropertyExpression,
@@ -176,7 +176,7 @@ internal sealed class FilterConfiguration<TEntity, TFilter> : IFilterConfigurati
         return this;
     }
 
-    public IFilterConfigurationBuilder<TEntity, TFilter> FilterByRange<TMinEntityProperty, TFilterProperty, TMaxEntityProperty>(
+    public IFilterConfigurationBuilder<TEntity, TFilter> FilterByRangedEntity<TMinEntityProperty, TFilterProperty, TMaxEntityProperty>(
         Expression<Func<TEntity, TMinEntityProperty>> entityPropertyMinExpression,
         FilterByRangeType minFilteringType,
         Expression<Func<TFilter, TFilterProperty>> filterPropertyExpression,

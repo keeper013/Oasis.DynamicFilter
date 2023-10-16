@@ -1,6 +1,7 @@
-﻿namespace Oasis.DynamicFilter.Test;
+﻿namespace Oasis.DynamicFilter.Test.BasicTests;
 
 using System.Linq;
+using Oasis.DynamicFilter;
 
 public sealed class CollectionEntity<T>
 {

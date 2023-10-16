@@ -779,7 +779,7 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
         }
 
         _generator.Emit(OpCodes.Ldloca_S, expressionLocal);
-        _generator.Emit(OpCodes.Call, BuildFilterRangeExpressionMethod.MakeGenericMethod(entityMinProperty.PropertyType, entityMaxProperty.PropertyType, filterProperty.PropertyType));
+        _generator.Emit(OpCodes.Call, BuildEntityRangeExpressionMethod.MakeGenericMethod(entityMinProperty.PropertyType, entityMaxProperty.PropertyType, filterProperty.PropertyType));
 
         if (ignoreIfField != null)
         {
