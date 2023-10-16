@@ -177,6 +177,8 @@ public static class ExpressionUtilities
                 return FilterByPropertyType.GreaterThan;
             case FilterByPropertyType.NotContains:
                 return FilterByPropertyType.Contains;
+            case FilterByPropertyType.NotIn:
+                return FilterByPropertyType.In;
             default:
                 return FilterByPropertyType.In;
         }

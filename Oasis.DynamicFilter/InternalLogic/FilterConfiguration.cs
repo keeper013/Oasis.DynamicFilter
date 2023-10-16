@@ -86,28 +86,16 @@ internal sealed class FilterConfiguration<TEntity, TFilter> : IFilterConfigurati
         {
             case FilterByPropertyType.In:
             case FilterByPropertyType.NotIn:
-                var inData = TypeUtilities.GetContainConversion(filterPropertyType, entityPropertyType);
-                if (inData == null)
-                {
-                    throw new InvalidContainException(filterPropertyType, entityPropertyType);
-                }
-
-                var inValue = inData.Value;
+                var inData = TypeUtilities.GetContainConversion(filterPropertyType, entityPropertyType) ?? throw new InvalidContainException(filterPropertyType, entityPropertyType);
                 _inDictionary.Add(
                     entityPropertyName,
                     filterPropertyName,
-                    new InData<TFilter>(entityProperty, inValue.Item2, type, filterProperty, inValue.Item1, inValue.Item3, inValue.Item4, includeNull, reverseIf, ignoreIf));
+                    new InData<TFilter>(entityProperty, inData.Item2, type, filterProperty, inData.Item1, inData.Item3, inData.Item4, includeNull, reverseIf, ignoreIf));
                 break;
             case FilterByPropertyType.Contains:
             case FilterByPropertyType.NotContains:
-                var containData = TypeUtilities.GetContainConversion(entityPropertyType, filterPropertyType);
-                if (containData == null)
-                {
-                    throw new InvalidContainException(filterPropertyType, entityPropertyType);
-                }
-
-                var containValue = containData.Value;
-                if (ignoreIf is null && (filterPropertyType.IsNullable(out _) && !containValue.Item1.IsNullable(out _)))
+                var containData = TypeUtilities.GetContainConversion(entityPropertyType, filterPropertyType) ?? throw new InvalidContainException(filterPropertyType, entityPropertyType);
+                if (ignoreIf is null && (filterPropertyType.IsNullable(out _) && !containData.Item1.IsNullable(out _)))
                 {
                     ignoreIf = TypeUtilities.BuildFilterPropertyIsDefaultFunction<TFilter>(filterProperty);
                 }
@@ -115,22 +103,16 @@ internal sealed class FilterConfiguration<TEntity, TFilter> : IFilterConfigurati
                 _containDictionary.Add(
                     entityPropertyName,
                     filterPropertyName,
-                    new ContainData<TFilter>(entityProperty, containValue.Item1, type, filterProperty, containValue.Item2, containValue.Item3, containValue.Item4, includeNull, reverseIf, ignoreIf));
+                    new ContainData<TFilter>(entityProperty, containData.Item1, type, filterProperty, containData.Item2, containData.Item3, containData.Item4, includeNull, reverseIf, ignoreIf));
                 break;
             default:
-                var conversion = TypeUtilities.GetComparisonConversion(entityPropertyType, filterPropertyType, type);
-                if (conversion == null)
-                {
-                    throw new InvalidComparisonException(typeof(TEntity), entityPropertyName, type, typeof(TFilter), filterPropertyName);
-                }
-
-                var c = conversion.Value;
+                var conversion = TypeUtilities.GetComparisonConversion(entityPropertyType, filterPropertyType, type) ?? throw new InvalidComparisonException(typeof(TEntity), entityPropertyName, type, typeof(TFilter), filterPropertyName);
                 if (ignoreIf is null && (filterPropertyType.IsNullable(out _) && !entityPropertyType.IsNullable(out _)))
                 {
                     ignoreIf = TypeUtilities.BuildFilterPropertyIsDefaultFunction<TFilter>(filterProperty);
                 }
 
-                _compareDictionary.Add(entityPropertyName, filterPropertyName, new CompareData<TFilter>(entityProperty, c.Item1, type, filterProperty, c.Item2, includeNull, reverseIf, ignoreIf));
+                _compareDictionary.Add(entityPropertyName, filterPropertyName, new CompareData<TFilter>(entityProperty, conversion.Item1, type, filterProperty, conversion.Item2, includeNull, reverseIf, ignoreIf));
                 break;
         }
 
@@ -162,18 +144,8 @@ internal sealed class FilterConfiguration<TEntity, TFilter> : IFilterConfigurati
         var entityPropertyType = typeof(TEntityProperty);
         var minFilterPropertyType = typeof(TMinFilterProperty);
         var maxFilterPropertyType = typeof(TMaxFilterProperty);
-        var minConversion = TypeUtilities.GetComparisonConversion(minFilterPropertyType, entityPropertyType, ToFilterByPropertyType(minFilteringType));
-        if (minConversion == null)
-        {
-            throw new InvalidComparisonException(typeof(TFilter), minFilterProperty.Name, ToFilterByPropertyType(minFilteringType), typeof(TEntity), entityProperty.Name);
-        }
-
-        var maxConversion = TypeUtilities.GetComparisonConversion(entityPropertyType, maxFilterPropertyType, ToFilterByPropertyType(maxFilteringType));
-        if (maxConversion == null)
-        {
-            throw new InvalidComparisonException(typeof(TEntity), entityProperty.Name, ToFilterByPropertyType(maxFilteringType), typeof(TFilter), maxFilterProperty.Name);
-        }
-
+        var minConversion = TypeUtilities.GetComparisonConversion(minFilterPropertyType, entityPropertyType, ToFilterByPropertyType(minFilteringType)) ?? throw new InvalidComparisonException(typeof(TFilter), minFilterProperty.Name, ToFilterByPropertyType(minFilteringType), typeof(TEntity), entityProperty.Name);
+        var maxConversion = TypeUtilities.GetComparisonConversion(entityPropertyType, maxFilterPropertyType, ToFilterByPropertyType(maxFilteringType)) ?? throw new InvalidComparisonException(typeof(TEntity), entityProperty.Name, ToFilterByPropertyType(maxFilteringType), typeof(TFilter), maxFilterProperty.Name);
         if (ignoreMinIf is null && (minFilterPropertyType.IsNullable(out _) && !entityPropertyType.IsNullable(out _)))
         {
             ignoreMinIf = TypeUtilities.BuildFilterPropertyIsDefaultFunction<TFilter>(minFilterProperty);
@@ -189,13 +161,11 @@ internal sealed class FilterConfiguration<TEntity, TFilter> : IFilterConfigurati
             throw new UnnecessaryIncludeNullException(entityPropertyType);
         }
 
-        var min = minConversion.Value;
-        var max = maxConversion.Value;
         _filterRangeDictionary.Add(
             minFilterProperty.Name,
             entityProperty.Name,
             maxFilterProperty.Name,
-            new FilterRangeData<TFilter>(minFilterProperty, min.Item1, minFilteringType, min.Item2, entityProperty, max.Item2, maxFilteringType, max.Item2, maxFilterProperty, reverseIf, ignoreMinIf, ignoreMaxIf));
+            new FilterRangeData<TFilter>(minFilterProperty, minConversion.Item1, minFilteringType, minConversion.Item2, entityProperty, maxConversion.Item2, maxFilteringType, maxConversion.Item2, maxFilterProperty, reverseIf, ignoreMinIf, ignoreMaxIf));
         _configuredEntityProperties.Add(entityProperty.Name);
         _configuredFilterProperties.Add(minFilterProperty.Name);
         _configuredFilterProperties.Add(maxFilterProperty.Name);
@@ -225,18 +195,8 @@ internal sealed class FilterConfiguration<TEntity, TFilter> : IFilterConfigurati
         var minEntityPropertyType = typeof(TMinEntityProperty);
         var filterPropertyType = typeof(TFilterProperty);
         var maxEntityPropertyType = typeof(TMaxEntityProperty);
-        var minConversion = TypeUtilities.GetComparisonConversion(minEntityPropertyType, filterPropertyType, ToFilterByPropertyType(minFilteringType));
-        if (minConversion == null)
-        {
-            throw new InvalidComparisonException(typeof(TEntity), minEntityProperty.Name, ToFilterByPropertyType(minFilteringType), typeof(TFilter), filterProperty.Name);
-        }
-
-        var maxConversion = TypeUtilities.GetComparisonConversion(filterPropertyType, maxEntityPropertyType, ToFilterByPropertyType(maxFilteringType));
-        if (maxConversion == null)
-        {
-            throw new InvalidComparisonException(typeof(TFilter), filterProperty.Name, ToFilterByPropertyType(maxFilteringType), typeof(TEntity), maxEntityProperty.Name);
-        }
-
+        var minConversion = TypeUtilities.GetComparisonConversion(minEntityPropertyType, filterPropertyType, ToFilterByPropertyType(minFilteringType)) ?? throw new InvalidComparisonException(typeof(TEntity), minEntityProperty.Name, ToFilterByPropertyType(minFilteringType), typeof(TFilter), filterProperty.Name);
+        var maxConversion = TypeUtilities.GetComparisonConversion(filterPropertyType, maxEntityPropertyType, ToFilterByPropertyType(maxFilteringType)) ?? throw new InvalidComparisonException(typeof(TFilter), filterProperty.Name, ToFilterByPropertyType(maxFilteringType), typeof(TEntity), maxEntityProperty.Name);
         if ((filterPropertyType.IsNullable(out _) && (!minEntityPropertyType.IsNullable(out _) || !maxEntityPropertyType.IsNullable(out _))) && ignoreIf is null)
         {
             ignoreIf = TypeUtilities.BuildFilterPropertyIsDefaultFunction<TFilter>(filterProperty);
@@ -247,13 +207,11 @@ internal sealed class FilterConfiguration<TEntity, TFilter> : IFilterConfigurati
             throw new UnnecessaryIncludeNullException(minEntityPropertyType, maxEntityPropertyType);
         }
 
-        var min = minConversion.Value;
-        var max = maxConversion.Value;
         _entityRangeDictionary.Add(
             minEntityProperty.Name,
             filterProperty.Name,
             maxEntityProperty.Name,
-            new EntityRangeData<TFilter>(minEntityProperty, min.Item1, minFilteringType, min.Item2, filterProperty, max.Item2, maxFilteringType, max.Item2, maxEntityProperty, reverseIf, ignoreIf));
+            new EntityRangeData<TFilter>(minEntityProperty, minConversion.Item1, minFilteringType, minConversion.Item2, filterProperty, maxConversion.Item2, maxFilteringType, maxConversion.Item2, maxEntityProperty, reverseIf, ignoreIf));
         _configuredEntityProperties.Add(minEntityProperty.Name);
         _configuredEntityProperties.Add(maxEntityProperty.Name);
         _configuredFilterProperties.Add(filterProperty.Name);
@@ -288,9 +246,7 @@ internal sealed class FilterConfiguration<TEntity, TFilter> : IFilterConfigurati
 
         var member = memberExpression.Member;
         var property = member as PropertyInfo;
-        return property == null
-            ? throw new InvalidOperationException(string.Format("Member with Name '{0}' is not a property.", member.Name))
-            : property;
+        return property ?? throw new InvalidOperationException(string.Format("Member with Name '{0}' is not a property.", member.Name));
     }
 
     private static FilterByPropertyType ToFilterByPropertyType(FilterByRangeType type) => type == FilterByRangeType.LessThan ? FilterByPropertyType.LessThan : FilterByPropertyType.LessThanOrEqual;
