@@ -98,7 +98,8 @@ public interface IFilterConfigurationBuilder<TEntity, TFilter>
         Expression<Func<TFilter, TFilterProperty>> filterPropertyExpression,
         FilterByRangeType maxFilteringType,
         Expression<Func<TEntity, TMaxEntityProperty>> entityPropertyMaxExpression,
-        Func<TFilter, bool>? includeNull = null,
+        Func<TFilter, bool>? includeNullMin = null,
+        Func<TFilter, bool>? includeNullMax = null,
         Func<TFilter, bool>? reverseIf = null,
         Func<TFilter, bool>? ignoreIf = null);
 

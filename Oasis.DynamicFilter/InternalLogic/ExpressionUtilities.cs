@@ -9,6 +9,7 @@ using System.Reflection;
 public record struct CompareData(Type? entityPropertyConvertTo, Type? filterPropertyConvertTo, FilterByPropertyType filterType);
 public record struct ContainData(Type? filterPropertyConvertTo, FilterByPropertyType filterType, bool nullValueNotCovered);
 public record struct InData(Type? entityPropertyConvertTo, FilterByPropertyType filterType, bool nullValueNotCovered);
+public record struct RangeData(CompareData minData, CompareData maxData);
 
 public static class ExpressionUtilities
 {
@@ -159,32 +160,97 @@ public static class ExpressionUtilities
         result = result == null ? exp : Expression.And(result, exp);
     }
 
+    public static void BuildFilterRangeExpression<TEntityProperty, TFilterMinProperty, TFilterMaxProperty>(ParameterExpression parameter, string entityPropertyName, TFilterMinProperty min, TFilterMaxProperty max, RangeData data, bool ignoreMin, bool ignoreMax, bool includeNull, bool reverse, ref Expression? result)
+    {
+        Expression minExp = null!;
+        Expression maxExp = null!;
+
+        if (!ignoreMin)
+        {
+            minExp = _compareFunctions[data.minData.filterType](
+                data.minData.entityPropertyConvertTo != null ? Expression.Convert(Expression.Property(parameter, entityPropertyName), data.minData.entityPropertyConvertTo!) : Expression.Property(parameter, entityPropertyName),
+                data.minData.filterPropertyConvertTo != null ? Expression.Convert(Expression.Constant(min, typeof(TFilterMinProperty)), data.minData.filterPropertyConvertTo!) : Expression.Constant(min, typeof(TFilterMinProperty)));
+        }
+
+        if (!ignoreMax)
+        {
+            maxExp = _compareFunctions[data.maxData.filterType](
+                data.maxData.entityPropertyConvertTo != null ? Expression.Convert(Expression.Property(parameter, entityPropertyName), data.maxData.entityPropertyConvertTo!) : Expression.Property(parameter, entityPropertyName),
+                data.maxData.filterPropertyConvertTo != null ? Expression.Convert(Expression.Constant(max, typeof(TFilterMaxProperty)), data.maxData.filterPropertyConvertTo!) : Expression.Constant(max, typeof(TFilterMaxProperty)));
+        }
+
+        Expression? exp;
+        if (ignoreMin)
+        {
+            exp = ignoreMax ? null : maxExp;
+        }
+        else if (ignoreMax)
+        {
+            exp = minExp;
+        }
+        else
+        {
+            exp = Expression.And(minExp, maxExp);
+        }
+
+        if (exp != null)
+        {
+            if (reverse)
+            {
+                exp = Expression.Not(exp);
+            }
+
+            if (includeNull)
+            {
+                exp = Expression.Or(Expression.Equal(Expression.Property(parameter, entityPropertyName), Expression.Constant(null, typeof(TEntityProperty))), exp);
+            }
+        }
+
+        result = result == null ? exp : Expression.And(result, exp);
+    }
+
+    public static void BuildEntityRangeExpression<TEntityMinProperty, TEntityMaxProperty, TFilterProperty>(ParameterExpression parameter, string entityMinPropertyName, string entityMaxPropertyName, TFilterProperty value, RangeData data, bool includeNullMin, bool includeNullMax, bool reverse, ref Expression? result)
+    {
+        var filterPropertyType = typeof(TFilterProperty);
+        Expression minExp = _compareFunctions[data.minData.filterType](
+            data.minData.entityPropertyConvertTo != null ? Expression.Convert(Expression.Property(parameter, entityMinPropertyName), data.minData.entityPropertyConvertTo!) : Expression.Property(parameter, entityMinPropertyName),
+            data.minData.filterPropertyConvertTo != null ? Expression.Convert(Expression.Constant(value, filterPropertyType), data.minData.filterPropertyConvertTo!) : Expression.Constant(value, filterPropertyType));
+        if (includeNullMin)
+        {
+            minExp = Expression.Or(Expression.Equal(Expression.Property(parameter, entityMinPropertyName), Expression.Constant(null, typeof(TEntityMinProperty))), minExp);
+        }
+
+        Expression maxExp = _compareFunctions[data.maxData.filterType](
+            data.minData.entityPropertyConvertTo != null ? Expression.Convert(Expression.Property(parameter, entityMaxPropertyName), data.maxData.entityPropertyConvertTo!) : Expression.Property(parameter, entityMaxPropertyName),
+            data.maxData.filterPropertyConvertTo != null ? Expression.Convert(Expression.Constant(value, filterPropertyType), data.maxData.filterPropertyConvertTo!) : Expression.Constant(value, filterPropertyType));
+        if (includeNullMax)
+        {
+            maxExp = Expression.Or(Expression.Equal(Expression.Property(parameter, entityMaxPropertyName), Expression.Constant(null, typeof(TEntityMinProperty))), maxExp);
+        }
+
+        Expression exp = Expression.And(minExp, maxExp);
+        if (reverse)
+        {
+            exp = Expression.Not(exp);
+        }
+
+        result = result == null ? exp : Expression.And(result, exp);
+    }
+
     private static FilterByPropertyType GetReversed(this FilterByPropertyType filterType)
     {
-        switch (filterType)
+        return filterType switch
         {
-            case FilterByPropertyType.Contains:
-                return FilterByPropertyType.NotContains;
-            case FilterByPropertyType.Equality:
-                return FilterByPropertyType.InEquality;
-            case FilterByPropertyType.GreaterThan:
-                return FilterByPropertyType.LessThanOrEqual;
-            case FilterByPropertyType.GreaterThanOrEqual:
-                return FilterByPropertyType.LessThan;
-            case FilterByPropertyType.In:
-                return FilterByPropertyType.NotIn;
-            case FilterByPropertyType.InEquality:
-                return FilterByPropertyType.Equality;
-            case FilterByPropertyType.LessThan:
-                return FilterByPropertyType.GreaterThanOrEqual;
-            case FilterByPropertyType.LessThanOrEqual:
-                return FilterByPropertyType.GreaterThan;
-            case FilterByPropertyType.NotContains:
-                return FilterByPropertyType.Contains;
-            case FilterByPropertyType.NotIn:
-                return FilterByPropertyType.In;
-            default:
-                return FilterByPropertyType.In;
-        }
+            FilterByPropertyType.Contains => FilterByPropertyType.NotContains,
+            FilterByPropertyType.Equality => FilterByPropertyType.InEquality,
+            FilterByPropertyType.GreaterThan => FilterByPropertyType.LessThanOrEqual,
+            FilterByPropertyType.GreaterThanOrEqual => FilterByPropertyType.LessThan,
+            FilterByPropertyType.In => FilterByPropertyType.NotIn,
+            FilterByPropertyType.InEquality => FilterByPropertyType.Equality,
+            FilterByPropertyType.LessThan => FilterByPropertyType.GreaterThanOrEqual,
+            FilterByPropertyType.LessThanOrEqual => FilterByPropertyType.GreaterThan,
+            FilterByPropertyType.NotContains => FilterByPropertyType.Contains,
+            _ => FilterByPropertyType.In,
+        };
     }
 }
