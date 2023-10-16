@@ -113,6 +113,8 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
     private static readonly MethodInfo BuildCollectionContainExpressionMethod = typeof(ExpressionUtilities).GetMethod(nameof(ExpressionUtilities.BuildCollectionContainsExpression), Utilities.PublicStatic);
     private static readonly MethodInfo BuildInArrayExpressionMethod = typeof(ExpressionUtilities).GetMethod(nameof(ExpressionUtilities.BuildInArrayExpression), Utilities.PublicStatic);
     private static readonly MethodInfo BuildInCollectionExpressionMethod = typeof(ExpressionUtilities).GetMethod(nameof(ExpressionUtilities.BuildInCollectionExpression), Utilities.PublicStatic);
+    private static readonly MethodInfo BuildFilterRangeExpressionMethod = typeof(ExpressionUtilities).GetMethod(nameof(ExpressionUtilities.BuildFilterRangeExpression), Utilities.PublicStatic);
+    private static readonly MethodInfo BuildEntityRangeExpressionMethod = typeof(ExpressionUtilities).GetMethod(nameof(ExpressionUtilities.BuildEntityRangeExpression), Utilities.PublicStatic);
     private readonly TypeBuilder _typeBuilder;
     private readonly ILGenerator _generator;
 
@@ -649,6 +651,65 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
         PropertyInfo filterMaxProperty,
         LocalBuilder expressionLocal)
     {
+        _generator.Emit(OpCodes.Ldloc_1);
+        _generator.Emit(OpCodes.Ldstr, entityProperty.Name);
+        _generator.Emit(OpCodes.Ldarg_0);
+        _generator.Emit(OpCodes.Callvirt, filterMinProperty.GetMethod);
+        _generator.Emit(OpCodes.Ldarg_0);
+        _generator.Emit(OpCodes.Callvirt, filterMaxProperty.GetMethod);
+        _generator.Emit(OpCodes.Ldsfld, filterRangeDictionary);
+        _generator.Emit(OpCodes.Ldstr, entityProperty.Name);
+        _generator.Emit(OpCodes.Callvirt, RangeFieldLevel1GetItem);
+        _generator.Emit(OpCodes.Ldstr, filterMinProperty.Name);
+        _generator.Emit(OpCodes.Callvirt, RangeFieldLevel2GetItem);
+        _generator.Emit(OpCodes.Ldstr, filterMaxProperty.Name);
+        _generator.Emit(OpCodes.Callvirt, RangeFieldLevel3GetItem);
+        if (ignoreMinIfField != null)
+        {
+            _generator.Emit(OpCodes.Ldsfld, ignoreMinIfField);
+            _generator.Emit(OpCodes.Ldarg_0);
+            _generator.Emit(OpCodes.Callvirt, FilterConditionInvoke);
+        }
+        else
+        {
+            _generator.Emit(OpCodes.Ldc_I4_0);
+        }
+
+        if (ignoreMaxIfField != null)
+        {
+            _generator.Emit(OpCodes.Ldsfld, ignoreMaxIfField);
+            _generator.Emit(OpCodes.Ldarg_0);
+            _generator.Emit(OpCodes.Callvirt, FilterConditionInvoke);
+        }
+        else
+        {
+            _generator.Emit(OpCodes.Ldc_I4_0);
+        }
+
+        if (includeNullField != null)
+        {
+            _generator.Emit(OpCodes.Ldsfld, includeNullField);
+            _generator.Emit(OpCodes.Ldarg_0);
+            _generator.Emit(OpCodes.Callvirt, FilterConditionInvoke);
+        }
+        else
+        {
+            _generator.Emit(OpCodes.Ldc_I4_0);
+        }
+
+        if (reverseIfField != null)
+        {
+            _generator.Emit(OpCodes.Ldsfld, reverseIfField);
+            _generator.Emit(OpCodes.Ldarg_0);
+            _generator.Emit(OpCodes.Callvirt, FilterConditionInvoke);
+        }
+        else
+        {
+            _generator.Emit(OpCodes.Ldc_I4_0);
+        }
+
+        _generator.Emit(OpCodes.Ldloca_S, expressionLocal);
+        _generator.Emit(OpCodes.Call, BuildFilterRangeExpressionMethod.MakeGenericMethod(entityProperty.PropertyType, filterMinProperty.PropertyType, filterMaxProperty.PropertyType));
     }
 
     private void GenerateEntityRangeFilterCode(
@@ -662,5 +723,67 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
         PropertyInfo filterProperty,
         LocalBuilder expressionLocal)
     {
+        Label endIfIgnore = default;
+        if (ignoreIfField != null)
+        {
+            _generator.Emit(OpCodes.Ldsfld, ignoreIfField);
+            _generator.Emit(OpCodes.Ldarg_0);
+            _generator.Emit(OpCodes.Callvirt, FilterConditionInvoke);
+            endIfIgnore = _generator.DefineLabel();
+            _generator.Emit(OpCodes.Brtrue_S, endIfIgnore);
+        }
+
+        _generator.Emit(OpCodes.Ldloc_1);
+        _generator.Emit(OpCodes.Ldstr, entityMinProperty.Name);
+        _generator.Emit(OpCodes.Ldstr, entityMaxProperty.Name);
+        _generator.Emit(OpCodes.Ldarg_0);
+        _generator.Emit(OpCodes.Callvirt, filterProperty.GetMethod);
+        _generator.Emit(OpCodes.Ldsfld, entityRangeDictionary);
+        _generator.Emit(OpCodes.Ldstr, entityMinProperty.Name);
+        _generator.Emit(OpCodes.Callvirt, RangeFieldLevel1GetItem);
+        _generator.Emit(OpCodes.Ldstr, entityMaxProperty.Name);
+        _generator.Emit(OpCodes.Callvirt, RangeFieldLevel2GetItem);
+        _generator.Emit(OpCodes.Ldstr, filterProperty.Name);
+        _generator.Emit(OpCodes.Callvirt, RangeFieldLevel3GetItem);
+        if (includeNullMinField != null)
+        {
+            _generator.Emit(OpCodes.Ldsfld, includeNullMinField);
+            _generator.Emit(OpCodes.Ldarg_0);
+            _generator.Emit(OpCodes.Callvirt, FilterConditionInvoke);
+        }
+        else
+        {
+            _generator.Emit(OpCodes.Ldc_I4_0);
+        }
+
+        if (includeNullMaxField != null)
+        {
+            _generator.Emit(OpCodes.Ldsfld, includeNullMaxField);
+            _generator.Emit(OpCodes.Ldarg_0);
+            _generator.Emit(OpCodes.Callvirt, FilterConditionInvoke);
+        }
+        else
+        {
+            _generator.Emit(OpCodes.Ldc_I4_0);
+        }
+
+        if (reverseIfField != null)
+        {
+            _generator.Emit(OpCodes.Ldsfld, reverseIfField);
+            _generator.Emit(OpCodes.Ldarg_0);
+            _generator.Emit(OpCodes.Callvirt, FilterConditionInvoke);
+        }
+        else
+        {
+            _generator.Emit(OpCodes.Ldc_I4_0);
+        }
+
+        _generator.Emit(OpCodes.Ldloca_S, expressionLocal);
+        _generator.Emit(OpCodes.Call, BuildFilterRangeExpressionMethod.MakeGenericMethod(entityMinProperty.PropertyType, entityMaxProperty.PropertyType, filterProperty.PropertyType));
+
+        if (ignoreIfField != null)
+        {
+            _generator.MarkLabel(endIfIgnore);
+        }
     }
 }
