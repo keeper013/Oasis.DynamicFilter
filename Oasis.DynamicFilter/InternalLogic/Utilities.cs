@@ -7,6 +7,8 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using Oasis.DynamicFilter;
 
+internal record struct ContainerElementTypeData(Type elementType, bool isCollection);
+
 internal static class Utilities
 {
     public const BindingFlags PublicInstance = BindingFlags.Public | BindingFlags.Instance;
@@ -31,7 +33,7 @@ internal static class Utilities
         else
         {
             var data = type.GetContainerElementType();
-            return data != null && data.Value.Item1.IsScalarType();
+            return data != null && data.Value.elementType.IsScalarType();
         }
     }
 
@@ -47,20 +49,20 @@ internal static class Utilities
         return false;
     }
 
-    public static (Type, bool)? GetContainerElementType(this Type type)
+    public static ContainerElementTypeData? GetContainerElementType(this Type type)
     {
         if (type.IsArray)
         {
-            return (type.GetElementType(), false);
+            return new (type.GetElementType(), false);
         }
 
         if (IsOfGenericTypeDefinition(type, CollectionType))
         {
-            return (type.GenericTypeArguments[0], true);
+            return new (type.GenericTypeArguments[0], true);
         }
 
         var types = type.GetInterfaces().Where(i => IsOfGenericTypeDefinition(i, CollectionType)).ToList();
-        return types.Count == 1 ? (types[0].GenericTypeArguments[0], true) : null;
+        return types.Count == 1 ? new (types[0].GenericTypeArguments[0], true) : null;
     }
 
     internal static bool HasOperator(this Type type, FilterByPropertyType filterType)
