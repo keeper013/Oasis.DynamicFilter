@@ -1,4 +1,4 @@
-﻿namespace Oasis.DynamicFilter.Test.BasicTests;
+﻿namespace Oasis.DynamicFilter.Test;
 
 using System.Linq;
 using Oasis.DynamicFilter;
@@ -33,7 +33,7 @@ public sealed class ContainFilter<T>
     public T Value { get; init; }
 }
 
-public sealed class SimpleContainTest
+public sealed class ContainTest
 {
     [Fact]
     public void TestIntIntContains()

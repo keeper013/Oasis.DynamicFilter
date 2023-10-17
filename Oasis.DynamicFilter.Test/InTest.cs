@@ -33,7 +33,7 @@ public sealed class InArrayFilter<T>
     public T[] Value { get; init; }
 }
 
-public sealed class SimpleInTest
+public sealed class InTest
 {
     [Fact]
     public void TestIntIntContains()

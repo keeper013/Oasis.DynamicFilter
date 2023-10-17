@@ -24,19 +24,6 @@ internal static class Utilities
 
     public static bool IsScalarType(this Type type) => type.IsNullable(out _) || type.IsValueType || type == typeof(string);
 
-    public static bool IsFilterableType(this Type type)
-    {
-        if (type.IsScalarType())
-        {
-            return true;
-        }
-        else
-        {
-            var data = type.GetContainerElementType();
-            return data != null && data.Value.elementType.IsScalarType();
-        }
-    }
-
     public static bool IsNullable(this Type type, [NotNullWhen(true)] out Type? argumentType)
     {
         if (type.FullName!.StartsWith(NullableTypeName) && type.GenericTypeArguments.Length == 1)

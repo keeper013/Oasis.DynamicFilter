@@ -557,14 +557,30 @@ internal static class TypeUtilities
     internal static ComparisonConversion? GetComparisonConversion(Type left, Type right, FilterByPropertyType type)
     {
         var leftIsNullable = left.IsNullable(out var leftArgumentType);
-        return left == right
-            ? left.IsPrimitive || left.IsEnum || left.HasOperator(type)
-                || (leftIsNullable && (leftArgumentType!.IsPrimitive || leftArgumentType.IsEnum || leftArgumentType.HasOperator(type)))
+        if (left == right)
+        {
+            return left.IsPrimitive || left.IsEnum || left.HasOperator(type) ||
+                (leftIsNullable && (leftArgumentType!.IsPrimitive || leftArgumentType.IsEnum || leftArgumentType.HasOperator(type))) ||
+                (left.IsClass && left.HasOperator(type))
                 ? new (null, null)
-                : null
-            : _convertForComparisonDirectionDictionary.TryGetValue(left, out var inner) && inner.TryGetValue(right, out var conversion)
-                ? conversion
                 : null;
+        }
+        else if (_convertForComparisonDirectionDictionary.TryGetValue(left, out var inner) && inner.TryGetValue(right, out var conversion))
+        {
+            return conversion;
+        }
+        else
+        {
+            // not equal and not nullable primitive, gotta be nullable enum or struct if can be compared
+            var leftUnderlyingType = leftIsNullable ? leftArgumentType : left;
+            var rightUnderlyingType = right.IsNullable(out var rightArgumentType) ? rightArgumentType : right;
+            if (leftUnderlyingType == rightUnderlyingType && (leftUnderlyingType.IsEnum || leftUnderlyingType.HasOperator(type)))
+            {
+                return leftIsNullable ? new (left, left) : new (right, right);
+            }
+
+            return null;
+        }
     }
 
     internal static ContainConversion? GetContainConversion(Type containerType, Type itemType)

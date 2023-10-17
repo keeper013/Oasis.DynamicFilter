@@ -216,9 +216,9 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
     private static (List<CompareData<TFilter>>, List<ContainData<TFilter>>, List<InData<TFilter>>) ExtractFilterProperties(ISet<string>? configuredEntityProperties, ISet<string>? configuredFilterProperties)
     {
         var filterProperties = typeof(TFilter).GetProperties(Utilities.PublicInstance)
-            .Where(p => p.PropertyType.IsFilterableType() && p.GetMethod != default && (configuredFilterProperties == null || !configuredFilterProperties.Contains(p.Name)));
+            .Where(p => p.GetMethod != default && (configuredFilterProperties == null || !configuredFilterProperties.Contains(p.Name)));
         var entityProperties = typeof(TEntity).GetProperties(Utilities.PublicInstance)
-            .Where(p => p.PropertyType.IsFilterableType() && p.GetMethod != default && (configuredEntityProperties == null || !configuredEntityProperties.Contains(p.Name)))
+            .Where(p => p.GetMethod != default && (configuredEntityProperties == null || !configuredEntityProperties.Contains(p.Name)))
             .ToDictionary(p => p.Name, p => p);
 
         var compareList = new List<CompareData<TFilter>>();

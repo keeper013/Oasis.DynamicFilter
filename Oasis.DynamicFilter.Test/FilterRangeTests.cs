@@ -1,6 +1,7 @@
-﻿namespace Oasis.DynamicFilter.Test.BasicTests;
+﻿namespace Oasis.DynamicFilter.Test;
 
 using System.Linq;
+using Oasis.DynamicFilter;
 
 public sealed class FilterRangeEntity<T>
 {
@@ -30,7 +31,7 @@ public sealed class FilterRangeTests
     [Fact]
     public void IntFloatDecimalTest()
     {
-        Assert.Equal(1, Test<int, float, decimal>(new List<int> { 1, 2, 3, 4, 5 }, 0.5f, 1.1m));
+        Assert.Equal(1, Test(new List<int> { 1, 2, 3, 4, 5 }, 0.5f, 1.1m));
     }
 
     private TEntityProperty Test<TEntityProperty, TFilterMinProperty, TFilterMaxProperty>(List<TEntityProperty> entityValues, TFilterMinProperty min, TFilterMaxProperty max)
