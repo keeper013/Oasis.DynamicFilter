@@ -234,7 +234,7 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
                 if (comparison != null)
                 {
                     var c = comparison.Value;
-                    var ignoreIf = filterPropertyType.IsClass || (filterPropertyType.IsNullable(out _) && !entityPropertyType.IsNullable(out _))
+                    var ignoreIf = filterPropertyType.IsClass || filterPropertyType.IsNullable(out _)
                         ? TypeUtilities.BuildFilterPropertyIsDefaultFunction<TFilter>(filterProperty) : null;
                     compareList.Add(new CompareData<TFilter>(entityProperty, c.leftConvertTo, FilterByPropertyType.Equality, filterProperty, c.rightConvertTo, null, null, ignoreIf));
                     continue;
@@ -244,7 +244,7 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
                 if (contains != null)
                 {
                     var value = contains.Value;
-                    var ignoreIf = filterPropertyType.IsClass || (filterPropertyType.IsNullable(out _) && !value.containerItemType.IsNullable(out _))
+                    var ignoreIf = filterPropertyType.IsClass || filterPropertyType.IsNullable(out _)
                         ? TypeUtilities.BuildFilterPropertyIsDefaultFunction<TFilter>(filterProperty) : null;
                     containList.Add(new ContainData<TFilter>(entityProperty, value.containerItemType, FilterByPropertyType.Contains, filterProperty, value.itemConvertTo, value.isCollection, value.nullValueNotCovered, null, null, ignoreIf));
                     continue;

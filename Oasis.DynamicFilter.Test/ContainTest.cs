@@ -81,7 +81,11 @@ public sealed class ContainTest
             new int?[] { 4, 6 },
         };
 
-        var filter = new FilterBuilder().Register<ArrayEntity<int?>, ContainFilter<byte?>>().Build();
+        var filter = new FilterBuilder()
+            .Configure<ArrayEntity<int?>, ContainFilter<byte?>>()
+                .FilterByProperty(e => e.Value, FilterByPropertyType.Contains, f => f.Value, null, null, f => false)
+                .Finish()
+            .Build();
         var arr = ints.Select(v => new ArrayEntity<int?>(v));
         var comparisonFilter = new ContainFilter<byte?>(null);
         var exp = filter.GetExpression<ArrayEntity<int?>, ContainFilter<byte?>>(comparisonFilter);

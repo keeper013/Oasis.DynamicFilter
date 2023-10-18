@@ -98,7 +98,7 @@ internal sealed class FilterConfiguration<TEntity, TFilter> : IFilterConfigurati
             case FilterByPropertyType.Contains:
             case FilterByPropertyType.NotContains:
                 var containData = TypeUtilities.GetContainConversion(entityPropertyType, filterPropertyType) ?? throw new InvalidContainException(filterPropertyType, entityPropertyType);
-                if (ignoreIf is null && (filterPropertyType.IsClass || (filterPropertyType.IsNullable(out _) && !containData.containerItemType.IsNullable(out _))))
+                if (ignoreIf is null && (filterPropertyType.IsClass || filterPropertyType.IsNullable(out _)))
                 {
                     ignoreIf = TypeUtilities.BuildFilterPropertyIsDefaultFunction<TFilter>(filterProperty);
                 }
@@ -110,7 +110,7 @@ internal sealed class FilterConfiguration<TEntity, TFilter> : IFilterConfigurati
                 break;
             default:
                 var conversion = TypeUtilities.GetComparisonConversion(entityPropertyType, filterPropertyType, type) ?? throw new InvalidComparisonException(typeof(TEntity), entityPropertyName, type, typeof(TFilter), filterPropertyName);
-                if (ignoreIf is null && (filterPropertyType.IsClass || (filterPropertyType.IsNullable(out _) && !entityPropertyType.IsNullable(out _))))
+                if (ignoreIf is null && (filterPropertyType.IsClass || filterPropertyType.IsNullable(out _)))
                 {
                     ignoreIf = TypeUtilities.BuildFilterPropertyIsDefaultFunction<TFilter>(filterProperty);
                 }
@@ -149,12 +149,12 @@ internal sealed class FilterConfiguration<TEntity, TFilter> : IFilterConfigurati
         var maxFilterPropertyType = typeof(TMaxFilterProperty);
         var minConversion = TypeUtilities.GetComparisonConversion(minFilterPropertyType, entityPropertyType, ToFilterByPropertyType(minFilteringType)) ?? throw new InvalidComparisonException(typeof(TFilter), minFilterProperty.Name, ToFilterByPropertyType(minFilteringType), typeof(TEntity), entityProperty.Name);
         var maxConversion = TypeUtilities.GetComparisonConversion(entityPropertyType, maxFilterPropertyType, ToFilterByPropertyType(maxFilteringType)) ?? throw new InvalidComparisonException(typeof(TEntity), entityProperty.Name, ToFilterByPropertyType(maxFilteringType), typeof(TFilter), maxFilterProperty.Name);
-        if (ignoreMinIf is null && (maxFilterPropertyType.IsClass || (minFilterPropertyType.IsNullable(out _) && !entityPropertyType.IsNullable(out _))))
+        if (ignoreMinIf is null && (maxFilterPropertyType.IsClass || minFilterPropertyType.IsNullable(out _)))
         {
             ignoreMinIf = TypeUtilities.BuildFilterPropertyIsDefaultFunction<TFilter>(minFilterProperty);
         }
 
-        if (ignoreMaxIf is null && (maxFilterPropertyType.IsClass || (maxFilterPropertyType.IsNullable(out _) && !entityPropertyType.IsNullable(out _))))
+        if (ignoreMaxIf is null && (maxFilterPropertyType.IsClass || maxFilterPropertyType.IsNullable(out _)))
         {
             ignoreMaxIf = TypeUtilities.BuildFilterPropertyIsDefaultFunction<TFilter>(maxFilterProperty);
         }
@@ -201,7 +201,7 @@ internal sealed class FilterConfiguration<TEntity, TFilter> : IFilterConfigurati
         var maxEntityPropertyType = typeof(TMaxEntityProperty);
         var minConversion = TypeUtilities.GetComparisonConversion(minEntityPropertyType, filterPropertyType, ToFilterByPropertyType(minFilteringType)) ?? throw new InvalidComparisonException(typeof(TEntity), minEntityProperty.Name, ToFilterByPropertyType(minFilteringType), typeof(TFilter), filterProperty.Name);
         var maxConversion = TypeUtilities.GetComparisonConversion(filterPropertyType, maxEntityPropertyType, ToFilterByPropertyType(maxFilteringType)) ?? throw new InvalidComparisonException(typeof(TFilter), filterProperty.Name, ToFilterByPropertyType(maxFilteringType), typeof(TEntity), maxEntityProperty.Name);
-        if (ignoreIf is null && (filterPropertyType.IsClass || (filterPropertyType.IsNullable(out _) && (!minEntityPropertyType.IsNullable(out _) || !maxEntityPropertyType.IsNullable(out _)))))
+        if (ignoreIf is null && (filterPropertyType.IsClass || filterPropertyType.IsNullable(out _)))
         {
             ignoreIf = TypeUtilities.BuildFilterPropertyIsDefaultFunction<TFilter>(filterProperty);
         }
