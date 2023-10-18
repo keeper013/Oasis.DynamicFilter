@@ -91,7 +91,7 @@ public sealed class ComparisonTests
     {
         var filter = new FilterBuilder()
             .Configure<ComparisonEntity<int>, ComparisonFilter1<byte?>>()
-                .FilterByProperty(e => e.Value, FilterByPropertyType.Equality, f => f.Value1, null, null, f => false)
+                .FilterByProperty(e => e.Value, FilterByPropertyType.Equality, f => f.Value1)
                 .Finish()
             .Build();
         var list = new List<int> { 1, 2, 3, 4, 5 }.Select(v => new ComparisonEntity<int>(v));
