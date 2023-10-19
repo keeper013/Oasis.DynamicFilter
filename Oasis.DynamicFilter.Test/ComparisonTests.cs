@@ -170,6 +170,29 @@ public sealed class ComparisonTests
         Assert.Null(result[0].Value);
     }
 
+    [Theory]
+    [InlineData(true, true, 1, 3)]
+    [InlineData(true, true, 2, 2)]
+    [InlineData(true, false, 1, 1)]
+    [InlineData(true, false, 2, 2)]
+    [InlineData(false, true, 1, 2)]
+    [InlineData(false, true, 2, 1)]
+    [InlineData(false, false, 1, 0)]
+    [InlineData(false, false, 2, 1)]
+    public void TestReverseIncludeNull(bool includeNull, bool reverse, int filterValue, int number)
+    {
+        var filter = new FilterBuilder()
+            .Configure<ComparisonEntity<TestStruct2?>, ComparisonFilter<TestStruct2>>()
+                .FilterByProperty(e => e.Value, FilterByPropertyType.Equality, f => f.Value, f => includeNull, f => reverse, null)
+                .Finish()
+            .Build();
+        var list = new List<TestStruct2?> { null, new TestStruct2 { X = 2 }, new TestStruct2 { X = 3 } }.Select(v => new ComparisonEntity<TestStruct2?>(v));
+        var comparisonFilter = new ComparisonFilter<TestStruct2>(new TestStruct2 { X = filterValue });
+        var exp = filter.GetExpression<ComparisonEntity<TestStruct2?>, ComparisonFilter<TestStruct2>>(comparisonFilter);
+        var result = list.Where(exp.Compile()).ToList();
+        Assert.Equal(number, result.Count);
+    }
+
     [Fact]
     public void TestNullEnumNotEqual1()
     {

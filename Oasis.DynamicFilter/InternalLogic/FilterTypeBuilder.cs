@@ -39,6 +39,7 @@ internal sealed class FilterTypeBuilder
 
 internal record struct CompareData<TFilter>(
     PropertyInfo entityProperty,
+    bool entityPropertyCanBeNull,
     Type? entityPropertyConvertTo,
     FilterByPropertyType type,
     PropertyInfo filterProperty,
@@ -63,6 +64,7 @@ internal record struct ContainData<TFilter>(
 
 internal record struct InData<TFilter>(
     PropertyInfo entityProperty,
+    bool entityPropertyCanBeNull,
     Type? entityPropertyConvertTo,
     FilterByPropertyType type,
     PropertyInfo filterProperty,
@@ -236,7 +238,7 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
                     var c = comparison.Value;
                     var ignoreIf = filterPropertyType.IsClass || filterPropertyType.IsNullable(out _)
                         ? TypeUtilities.BuildFilterPropertyIsDefaultFunction<TFilter>(filterProperty) : null;
-                    compareList.Add(new CompareData<TFilter>(entityProperty, c.leftConvertTo, FilterByPropertyType.Equality, filterProperty, c.rightConvertTo, null, null, ignoreIf));
+                    compareList.Add(new CompareData<TFilter>(entityProperty, entityPropertyType.CanBeNull(), c.leftConvertTo, FilterByPropertyType.Equality, filterProperty, c.rightConvertTo, null, null, ignoreIf));
                     continue;
                 }
 
@@ -254,7 +256,7 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
                 if (isIn != null)
                 {
                     var value = isIn.Value;
-                    inList.Add(new InData<TFilter>(entityProperty, value.itemConvertTo, FilterByPropertyType.In, filterProperty, isIn.Value.containerItemType, value.isCollection, value.nullValueNotCovered, null, null, null));
+                    inList.Add(new InData<TFilter>(entityProperty, entityPropertyType.CanBeNull(), value.itemConvertTo, FilterByPropertyType.In, filterProperty, isIn.Value.containerItemType, value.isCollection, value.nullValueNotCovered, null, null, null));
                     continue;
                 }
             }
@@ -313,7 +315,7 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
         foreach (var c in compare)
         {
             var fields = PrepareMethodFields(c.entityProperty.Name, c.filterProperty.Name, c.includeNull, c.ignoreIf, c.reverseIf, includeNullFields, ignoreIfFields, reverseIfFields);
-            compareDictionary.Add(c.entityProperty.Name, c.filterProperty.Name, new (c.entityPropertyConvertTo, c.filterPropertyConvertTo, c.type));
+            compareDictionary.Add(c.entityProperty.Name, c.filterProperty.Name, new (c.entityPropertyConvertTo, c.filterPropertyConvertTo, c.type, c.entityPropertyCanBeNull));
             void CallBuildExpressionMethod() => _generator.Emit(OpCodes.Call, BuildCompareExpressionMethod.MakeGenericMethod(c.entityProperty.PropertyType, c.filterProperty.PropertyType));
             GenerateFieldFilterCode(
                 compareDictionaryField,
@@ -380,7 +382,7 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
         foreach (var i in isIn)
         {
             var fields = PrepareMethodFields(i.entityProperty.Name, i.filterProperty.Name, i.includeNull, i.ignoreIf, i.reverseIf, includeNullFields, ignoreIfFields, reverseIfFields);
-            inDictionary.Add(i.entityProperty.Name, i.filterProperty.Name, new (i.entityPropertyConvertTo, i.type, i.nullValueNotCovered));
+            inDictionary.Add(i.entityProperty.Name, i.filterProperty.Name, new (i.entityPropertyConvertTo, i.type, i.nullValueNotCovered, i.entityPropertyCanBeNull));
             void CallBuildExpressionMethod()
             {
                 if (i.isCollection)
@@ -457,7 +459,7 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
                 f.entityProperty.Name,
                 f.filterMinProperty.Name,
                 f.filterMaxProperty.Name,
-                new (new (f.entityMinPropertyConvertTo, f.filterMinPropertyConvertTo, Opposite(f.filterMinType)), new (f.entityMaxPropertyConvertTo, f.filterMaxPropertyConvertTo, Convert(f.filterMaxType))));
+                new (new (f.entityMinPropertyConvertTo, f.filterMinPropertyConvertTo, Opposite(f.filterMinType), f.entityPropertyCanBeNull), new (f.entityMaxPropertyConvertTo, f.filterMaxPropertyConvertTo, Convert(f.filterMaxType), f.entityPropertyCanBeNull)));
 
             GenerateFilterRangeFilterCode(
                 filterRangeDictionaryField,
@@ -522,7 +524,7 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
                 e.entityMinProperty.Name,
                 e.entityMaxProperty.Name,
                 e.filterProperty.Name,
-                new (new (e.entityMinPropertyConvertTo, e.filterMinPropertyConvertTo, Convert(e.entityMinType)), new (e.entityMaxPropertyConvertTo, e.filterMaxPropertyConvertTo, Opposite(e.entityMaxType))));
+                new (new (e.entityMinPropertyConvertTo, e.filterMinPropertyConvertTo, Convert(e.entityMinType), e.entityMinPropertyCanBeNull), new (e.entityMaxPropertyConvertTo, e.filterMaxPropertyConvertTo, Opposite(e.entityMaxType), e.entityMaxPropertyCanBeNull)));
 
             GenerateEntityRangeFilterCode(
                 entityRangeDictionaryField,

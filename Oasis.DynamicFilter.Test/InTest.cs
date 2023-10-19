@@ -67,6 +67,71 @@ public sealed class InTest
         Assert.Empty(result);
     }
 
+    [Theory]
+    [InlineData(FilterByPropertyType.In, true, 2)]
+    [InlineData(FilterByPropertyType.In, false, 3)]
+    [InlineData(FilterByPropertyType.NotIn, true, 3)]
+    [InlineData(FilterByPropertyType.NotIn, false, 2)]
+    public void TestReverseIn(FilterByPropertyType type, bool reverse, int number)
+    {
+        var filter = new FilterBuilder()
+            .Configure<InEntity<int>, InCollectionFilter<int?>>()
+                .FilterByProperty(e => e.Value, type, f => f.Value, null, f => reverse)
+                .Finish()
+            .Build();
+        var list = new List<int> { 1, 2, 3, 4, 5 }.Select(v => new InEntity<int>(v));
+        var inFilter = new InCollectionFilter<int?>(new List<int?> { 1, 2, 4, 7 });
+        var exp = filter.GetExpression<InEntity<int>, InCollectionFilter<int?>>(inFilter);
+        var result = list.Where(exp.Compile()).ToList();
+        Assert.Equal(number, result.Count);
+    }
+
+    [Theory]
+    [InlineData(FilterByPropertyType.In, true, false, 2)]
+    [InlineData(FilterByPropertyType.In, false, false, 1)]
+    [InlineData(FilterByPropertyType.NotIn, true, false, 1)]
+    [InlineData(FilterByPropertyType.NotIn, false, false, 2)]
+    [InlineData(FilterByPropertyType.In, true, true, 2)]
+    [InlineData(FilterByPropertyType.In, false, true, 2)]
+    [InlineData(FilterByPropertyType.NotIn, true, true, 2)]
+    [InlineData(FilterByPropertyType.NotIn, false, true, 2)]
+    public void TestEnumReverseInCollection(FilterByPropertyType type, bool reverse, bool includeNull, int number)
+    {
+        var filter = new FilterBuilder()
+            .Configure<InEntity<TestEnum?>, InCollectionFilter<TestEnum>>()
+                .FilterByProperty(e => e.Value, type, f => f.Value, f => includeNull, f => reverse)
+                .Finish()
+            .Build();
+        var list = new List<TestEnum?> { null, TestEnum.Value1, TestEnum.Value3 }.Select(v => new InEntity<TestEnum?>(v));
+        var inFilter = new InCollectionFilter<TestEnum>(new List<TestEnum> { TestEnum.Value2, TestEnum.Value3 });
+        var exp = filter.GetExpression<InEntity<TestEnum?>, InCollectionFilter<TestEnum>>(inFilter);
+        var result = list.Where(exp.Compile()).ToList();
+        Assert.Equal(number, result.Count);
+    }
+
+    [Theory]
+    [InlineData(FilterByPropertyType.In, true, false, 2)]
+    [InlineData(FilterByPropertyType.In, false, false, 1)]
+    [InlineData(FilterByPropertyType.NotIn, true, false, 1)]
+    [InlineData(FilterByPropertyType.NotIn, false, false, 2)]
+    [InlineData(FilterByPropertyType.In, true, true, 2)]
+    [InlineData(FilterByPropertyType.In, false, true, 2)]
+    [InlineData(FilterByPropertyType.NotIn, true, true, 2)]
+    [InlineData(FilterByPropertyType.NotIn, false, true, 2)]
+    public void TestStructReverseInArray(FilterByPropertyType type, bool reverse, bool includeNull, int number)
+    {
+        var filter = new FilterBuilder()
+            .Configure<InEntity<TestStruct2?>, InArrayFilter<TestStruct2>>()
+                .FilterByProperty(e => e.Value, type, f => f.Value, f => includeNull, f => reverse)
+                .Finish()
+            .Build();
+        var list = new List<TestStruct2?> { null, new TestStruct2 { X = 1 }, new TestStruct2 { X = 2 } }.Select(v => new InEntity<TestStruct2?>(v));
+        var inFilter = new InArrayFilter<TestStruct2>(new TestStruct2[] { new TestStruct2 { X = 2 }, new TestStruct2 { X = 3 } });
+        var exp = filter.GetExpression<InEntity<TestStruct2?>, InArrayFilter<TestStruct2>>(inFilter);
+        var result = list.Where(exp.Compile()).ToList();
+        Assert.Equal(number, result.Count);
+    }
+
     private TEntityProperty TestInCollection<TEntityProperty, TFilterPropertyItem>(ICollection<TEntityProperty> entityValues, List<TFilterPropertyItem> filterValue)
     {
         var filter = new FilterBuilder().Register<InEntity<TEntityProperty>, InCollectionFilter<TFilterPropertyItem>>().Build();

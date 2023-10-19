@@ -541,15 +541,15 @@ internal static class TypeUtilities
 
     private static readonly IReadOnlyDictionary<Type, ISet<Type>> _convertForContainDictionary = new Dictionary<Type, ISet<Type>>
     {
-        { typeof(short), new HashSet<Type> { typeof(sbyte), typeof(byte) } },
-        { typeof(int), new HashSet<Type> { typeof(sbyte), typeof(byte), typeof(short), typeof(ushort) } },
-        { typeof(long), new HashSet<Type> { typeof(sbyte), typeof(byte), typeof(short), typeof(ushort), typeof(int), typeof(uint) } },
-        { typeof(ushort), new HashSet<Type> { typeof(byte) } },
-        { typeof(uint), new HashSet<Type> { typeof(byte), typeof(ushort) } },
-        { typeof(ulong), new HashSet<Type> { typeof(byte), typeof(ushort), typeof(uint) } },
-        { typeof(float), new HashSet<Type> { typeof(sbyte), typeof(byte), typeof(short), typeof(ushort), typeof(int), typeof(uint), typeof(long), typeof(ulong) } },
-        { typeof(double), new HashSet<Type> { typeof(sbyte), typeof(byte), typeof(short), typeof(ushort), typeof(int), typeof(uint), typeof(long), typeof(ulong), typeof(float) } },
-        { typeof(decimal), new HashSet<Type> { typeof(sbyte), typeof(byte), typeof(short), typeof(ushort), typeof(int), typeof(uint), typeof(long), typeof(ulong) } },
+        { typeof(short), new HashSet<Type> { typeof(sbyte), typeof(byte), typeof(short) } },
+        { typeof(int), new HashSet<Type> { typeof(sbyte), typeof(byte), typeof(short), typeof(ushort), typeof(int) } },
+        { typeof(long), new HashSet<Type> { typeof(sbyte), typeof(byte), typeof(short), typeof(ushort), typeof(int), typeof(uint), typeof(long) } },
+        { typeof(ushort), new HashSet<Type> { typeof(byte), typeof(ushort) } },
+        { typeof(uint), new HashSet<Type> { typeof(byte), typeof(ushort), typeof(uint) } },
+        { typeof(ulong), new HashSet<Type> { typeof(byte), typeof(ushort), typeof(uint), typeof(ulong) } },
+        { typeof(float), new HashSet<Type> { typeof(sbyte), typeof(byte), typeof(short), typeof(ushort), typeof(float) } },
+        { typeof(double), new HashSet<Type> { typeof(sbyte), typeof(byte), typeof(short), typeof(ushort), typeof(int), typeof(uint), typeof(long), typeof(ulong), typeof(float), typeof(double) } },
+        { typeof(decimal), new HashSet<Type> { typeof(sbyte), typeof(byte), typeof(short), typeof(ushort), typeof(int), typeof(uint), typeof(long), typeof(ulong), typeof(decimal) } },
     };
 
     private static readonly Type StringType = typeof(string);
@@ -598,7 +598,8 @@ internal static class TypeUtilities
             var itemTypeIsNullable = itemType.IsNullable(out var itemArgumentType);
             var containerItemUnderlyingType = containerItemTypeIsNullable ? containerItemArgumentType : containerItemType;
             var itemUnderlyingType = itemTypeIsNullable ? itemArgumentType : itemType;
-            if (_convertForContainDictionary.Contains(containerItemUnderlyingType!, itemUnderlyingType!))
+            if (_convertForContainDictionary.Contains(containerItemUnderlyingType!, itemUnderlyingType!)
+                || (containerItemUnderlyingType == itemUnderlyingType && (itemUnderlyingType!.IsEnum || itemUnderlyingType.HasOperator(FilterByPropertyType.Equality))))
             {
                 return new (containerItemType, containerItemType, data.Value.isCollection, itemTypeIsNullable && !containerItemTypeIsNullable);
             }
