@@ -170,6 +170,37 @@ public sealed class ComparisonTests
         Assert.Null(result[0].Value);
     }
 
+    [Fact]
+    public void TestNotIncludeNull()
+    {
+        var filter = new FilterBuilder()
+            .Configure<ComparisonEntity<TestStruct2?>, ComparisonFilter<TestStruct2?>>()
+                .FilterByProperty(e => e.Value, FilterByPropertyType.Equality, f => f.Value, f => false, null, f => false)
+                .Finish()
+            .Build();
+        var list = new List<TestStruct2?> { null, new TestStruct2 { X = 2 }, new TestStruct2 { X = 3 } }.Select(v => new ComparisonEntity<TestStruct2?>(v));
+        var comparisonFilter = new ComparisonFilter<TestStruct2?>(null);
+        var exp = filter.GetExpression<ComparisonEntity<TestStruct2?>, ComparisonFilter<TestStruct2?>>(comparisonFilter);
+        var result = list.Where(exp.Compile()).ToList();
+        Assert.Empty(result);
+    }
+
+    [Fact]
+    public void TestNotIncludeNullWithoutSpecification()
+    {
+        var filter = new FilterBuilder()
+            .Configure<ComparisonEntity<TestStruct2?>, ComparisonFilter<TestStruct2?>>()
+                .FilterByProperty(e => e.Value, FilterByPropertyType.Equality, f => f.Value, null, null, f => false)
+                .Finish()
+            .Build();
+        var list = new List<TestStruct2?> { null, new TestStruct2 { X = 2 }, new TestStruct2 { X = 3 } }.Select(v => new ComparisonEntity<TestStruct2?>(v));
+        var comparisonFilter = new ComparisonFilter<TestStruct2?>(null);
+        var exp = filter.GetExpression<ComparisonEntity<TestStruct2?>, ComparisonFilter<TestStruct2?>>(comparisonFilter);
+        var result = list.Where(exp.Compile()).ToList();
+        Assert.Single(result);
+        Assert.Null(result[0].Value);
+    }
+
     [Theory]
     [InlineData(true, true, 1, 3)]
     [InlineData(true, true, 2, 2)]
