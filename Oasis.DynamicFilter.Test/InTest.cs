@@ -95,11 +95,28 @@ public sealed class InTest
     [InlineData(FilterByPropertyType.In, true, false, 1, false)]
     [InlineData(FilterByPropertyType.In, false, true, 1, true)]
     [InlineData(FilterByPropertyType.In, false, false, 1, true)]
-    public void NullInTest(FilterByPropertyType type, bool reverse, bool includeNull, int? entityValue, bool isIn)
+    public void NullInTestWithIncludeNull(FilterByPropertyType type, bool reverse, bool includeNull, int? entityValue, bool isIn)
     {
         var filter = new FilterBuilder()
             .Configure<InEntity<int?>, InCollectionFilter<int?>>()
                 .FilterByProperty(e => e.Value, type, f => f.Value, f => includeNull, f => reverse)
+                .Finish()
+            .Build();
+        var inFilter = new InCollectionFilter<int?>(new List<int?> { 1, 2, 4, 7, null });
+        var exp = filter.GetExpression<InEntity<int?>, InCollectionFilter<int?>>(inFilter);
+        Assert.Equal(isIn, exp.Compile()(new InEntity<int?>(entityValue)));
+    }
+
+    [Theory]
+    [InlineData(FilterByPropertyType.In, true, null, false)]
+    [InlineData(FilterByPropertyType.In, false, null, true)]
+    [InlineData(FilterByPropertyType.In, true, 1, false)]
+    [InlineData(FilterByPropertyType.In, false, 1, true)]
+    public void NullInTestWithoutIncludeNull(FilterByPropertyType type, bool reverse, int? entityValue, bool isIn)
+    {
+        var filter = new FilterBuilder()
+            .Configure<InEntity<int?>, InCollectionFilter<int?>>()
+                .FilterByProperty(e => e.Value, type, f => f.Value, null, f => reverse)
                 .Finish()
             .Build();
         var inFilter = new InCollectionFilter<int?>(new List<int?> { 1, 2, 4, 7, null });
@@ -116,11 +133,28 @@ public sealed class InTest
     [InlineData(FilterByPropertyType.In, true, false, 1, true)]
     [InlineData(FilterByPropertyType.In, false, true, 1, false)]
     [InlineData(FilterByPropertyType.In, false, false, 1, false)]
-    public void InNullTest(FilterByPropertyType type, bool reverse, bool includeNull, int? entityValue, bool isIn)
+    public void InNullTestWithIncludeNull(FilterByPropertyType type, bool reverse, bool includeNull, int? entityValue, bool isIn)
     {
         var filter = new FilterBuilder()
             .Configure<InEntity<int?>, InCollectionFilter<int?>>()
                 .FilterByProperty(e => e.Value, type, f => f.Value, f => includeNull, f => reverse)
+                .Finish()
+            .Build();
+        var inFilter = new InCollectionFilter<int?>(null);
+        var exp = filter.GetExpression<InEntity<int?>, InCollectionFilter<int?>>(inFilter);
+        Assert.Equal(isIn, exp.Compile()(new InEntity<int?>(entityValue)));
+    }
+
+    [Theory]
+    [InlineData(FilterByPropertyType.In, true, null, true)]
+    [InlineData(FilterByPropertyType.In, false, null, false)]
+    [InlineData(FilterByPropertyType.In, true, 1, true)]
+    [InlineData(FilterByPropertyType.In, false, 1, false)]
+    public void InNullTestWithoutIncludeNull(FilterByPropertyType type, bool reverse, int? entityValue, bool isIn)
+    {
+        var filter = new FilterBuilder()
+            .Configure<InEntity<int?>, InCollectionFilter<int?>>()
+                .FilterByProperty(e => e.Value, type, f => f.Value, null, f => reverse)
                 .Finish()
             .Build();
         var inFilter = new InCollectionFilter<int?>(null);
