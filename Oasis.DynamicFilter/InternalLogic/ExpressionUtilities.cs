@@ -40,7 +40,7 @@ public static class ExpressionUtilities
         result = result == null ? exp : Expression.AndAlso(result, exp);
     }
 
-    public static void BuildCollectionContainsExpression<TEntityPropertyItem, TFilterProperty>(ParameterExpression parameter, string entityPropertyName, TFilterProperty value, ContainData data, bool? includeNull, bool reverse, ref Expression? result)
+    public static void BuildCollectionContainsExpression<TEntityPropertyItem, TFilterProperty>(ParameterExpression parameter, string entityPropertyName, TFilterProperty value, ContainData data, bool includeNull, bool reverse, ref Expression? result)
     {
         var collectionType = typeof(ICollection<TEntityPropertyItem>);
         var notContains = (data.filterType == FilterByPropertyType.NotContains) ^ reverse;
@@ -55,7 +55,7 @@ public static class ExpressionUtilities
             exp = Expression.Not(exp);
         }
 
-        exp = includeNull.HasValue && includeNull.Value
+        exp = includeNull
             ? data.nullValueNotCovered && value == null
                 ? Expression.OrElse(Expression.Equal(Expression.Property(parameter, entityPropertyName), Expression.Constant(null, collectionType)), Expression.Constant(notContains))
                 : Expression.OrElse(Expression.Equal(Expression.Property(parameter, entityPropertyName), Expression.Constant(null, collectionType)), exp)
@@ -66,7 +66,7 @@ public static class ExpressionUtilities
         result = result == null ? exp : Expression.AndAlso(result, exp);
     }
 
-    public static void BuildArrayContainsExpression<TEntityPropertyItem, TFilterProperty>(ParameterExpression parameter, string entityPropertyName, TFilterProperty value, ContainData data, bool? includeNull, bool reverse, ref Expression? result)
+    public static void BuildArrayContainsExpression<TEntityPropertyItem, TFilterProperty>(ParameterExpression parameter, string entityPropertyName, TFilterProperty value, ContainData data, bool includeNull, bool reverse, ref Expression? result)
     {
         var arrayType = typeof(TEntityPropertyItem[]);
         var notContains = (data.filterType == FilterByPropertyType.NotContains) ^ reverse;
@@ -82,7 +82,7 @@ public static class ExpressionUtilities
             exp = Expression.Not(exp);
         }
 
-        exp = includeNull.HasValue && includeNull.Value
+        exp = includeNull
             ? data.nullValueNotCovered && value == null
                 ? Expression.OrElse(Expression.Equal(Expression.Property(parameter, entityPropertyName), Expression.Constant(null, arrayType)), Expression.Constant(notContains))
                 : Expression.OrElse(Expression.Equal(Expression.Property(parameter, entityPropertyName), Expression.Constant(null, arrayType)), exp)

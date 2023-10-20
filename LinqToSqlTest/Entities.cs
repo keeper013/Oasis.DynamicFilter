@@ -11,7 +11,7 @@ public sealed class Entity1
 
 public sealed class EntityFilter<T>
 {
-    public T Number { get; set; }
+    public T Number { get; set; } = default!;
 
     public string? Name { get; set; }
 }
