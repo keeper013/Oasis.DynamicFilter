@@ -158,13 +158,13 @@ public sealed class ContainTest
 
     [Theory]
     [InlineData(FilterByPropertyType.Contains, true, true, null, 3)]
-    [InlineData(FilterByPropertyType.Contains, true, false, null, 2)]
+    [InlineData(FilterByPropertyType.Contains, true, false, null, 3)]
     [InlineData(FilterByPropertyType.Contains, false, true, null, 1)]
     [InlineData(FilterByPropertyType.Contains, false, false, null, 0)]
     [InlineData(FilterByPropertyType.NotContains, true, true, null, 1)]
     [InlineData(FilterByPropertyType.NotContains, true, false, null, 0)]
     [InlineData(FilterByPropertyType.NotContains, false, true, null, 3)]
-    [InlineData(FilterByPropertyType.NotContains, false, false, null, 2)]
+    [InlineData(FilterByPropertyType.NotContains, false, false, null, 3)]
     [InlineData(FilterByPropertyType.Contains, true, true, TestEnum.Value1, 2)]
     [InlineData(FilterByPropertyType.Contains, true, false, TestEnum.Value1, 1)]
     [InlineData(FilterByPropertyType.Contains, false, true, TestEnum.Value1, 2)]
@@ -173,7 +173,7 @@ public sealed class ContainTest
     [InlineData(FilterByPropertyType.NotContains, true, false, TestEnum.Value1, 1)]
     [InlineData(FilterByPropertyType.NotContains, false, true, TestEnum.Value1, 2)]
     [InlineData(FilterByPropertyType.NotContains, false, false, TestEnum.Value1, 1)]
-    public void TestEnumReverseCollectionContains(FilterByPropertyType type, bool reverse, bool includeNull, TestEnum? value, int number)
+    public void TestEnumReverseCollectionContainsWithIncludeNull(FilterByPropertyType type, bool reverse, bool includeNull, TestEnum? value, int number)
     {
         var filter = new FilterBuilder()
             .Configure<CollectionEntity<TestEnum>, ContainFilter<TestEnum?>>()
@@ -193,24 +193,130 @@ public sealed class ContainTest
     }
 
     [Theory]
-    [InlineData(FilterByPropertyType.In, true, false, 2)]
-    [InlineData(FilterByPropertyType.In, false, false, 1)]
-    [InlineData(FilterByPropertyType.NotIn, true, false, 1)]
-    [InlineData(FilterByPropertyType.NotIn, false, false, 2)]
-    [InlineData(FilterByPropertyType.In, true, true, 2)]
-    [InlineData(FilterByPropertyType.In, false, true, 2)]
-    [InlineData(FilterByPropertyType.NotIn, true, true, 2)]
-    [InlineData(FilterByPropertyType.NotIn, false, true, 2)]
-    public void TestStructReverseArrayContains(FilterByPropertyType type, bool reverse, bool includeNull, int number)
+    [InlineData(FilterByPropertyType.Contains, true, true, null, 2)]
+    [InlineData(FilterByPropertyType.Contains, true, false, null, 1)]
+    [InlineData(FilterByPropertyType.Contains, false, true, null, 3)]
+    [InlineData(FilterByPropertyType.Contains, false, false, null, 2)]
+    [InlineData(FilterByPropertyType.NotContains, true, true, null, 3)]
+    [InlineData(FilterByPropertyType.NotContains, true, false, null, 2)]
+    [InlineData(FilterByPropertyType.NotContains, false, true, null, 2)]
+    [InlineData(FilterByPropertyType.NotContains, false, false, null, 1)]
+    [InlineData(FilterByPropertyType.Contains, true, true, TestEnum.Value1, 3)]
+    [InlineData(FilterByPropertyType.Contains, true, false, TestEnum.Value1, 2)]
+    [InlineData(FilterByPropertyType.Contains, false, true, TestEnum.Value1, 2)]
+    [InlineData(FilterByPropertyType.Contains, false, false, TestEnum.Value1, 1)]
+    [InlineData(FilterByPropertyType.NotContains, true, true, TestEnum.Value1, 2)]
+    [InlineData(FilterByPropertyType.NotContains, true, false, TestEnum.Value1, 1)]
+    [InlineData(FilterByPropertyType.NotContains, false, true, TestEnum.Value1, 3)]
+    [InlineData(FilterByPropertyType.NotContains, false, false, TestEnum.Value1, 2)]
+    public void TestEnumReverseCollectionContainsNull(FilterByPropertyType type, bool reverse, bool includeNull, TestEnum? value, int number)
     {
         var filter = new FilterBuilder()
-            .Configure<InEntity<TestStruct2?>, InArrayFilter<TestStruct2>>()
+            .Configure<CollectionEntity<TestEnum?>, ContainFilter<TestEnum?>>()
+                .FilterByProperty(e => e.Value, type, f => f.Value, f => includeNull, f => reverse, f => false)
+                .Finish()
+            .Build();
+        var list = new List<List<TestEnum?>?>
+        {
+            null,
+            new List<TestEnum?> { TestEnum.Value1, null },
+            new List<TestEnum?> { TestEnum.Value2, null },
+            new List<TestEnum?> { TestEnum.Value2, TestEnum.Value3 },
+        }.Select(v => new CollectionEntity<TestEnum?>(v));
+        var containFilter = new ContainFilter<TestEnum?>(value);
+        var exp = filter.GetExpression<CollectionEntity<TestEnum?>, ContainFilter<TestEnum?>>(containFilter);
+        var result = list.Where(exp.Compile()).ToList();
+        Assert.Equal(number, result.Count);
+    }
+
+    [Theory]
+    [InlineData(FilterByPropertyType.Contains, true, null, 3)]
+    [InlineData(FilterByPropertyType.Contains, false, null, 0)]
+    [InlineData(FilterByPropertyType.NotContains, true, null, 0)]
+    [InlineData(FilterByPropertyType.NotContains, false, null, 3)]
+    [InlineData(FilterByPropertyType.Contains, true, TestEnum.Value1, 1)]
+    [InlineData(FilterByPropertyType.Contains, false, TestEnum.Value1, 1)]
+    [InlineData(FilterByPropertyType.NotContains, true, TestEnum.Value1, 1)]
+    [InlineData(FilterByPropertyType.NotContains, false, TestEnum.Value1, 1)]
+    public void TestEnumReverseCollectionContainsWithoutIncludeNull(FilterByPropertyType type, bool reverse, TestEnum? value, int number)
+    {
+        var filter = new FilterBuilder()
+            .Configure<CollectionEntity<TestEnum>, ContainFilter<TestEnum?>>()
+                .FilterByProperty(e => e.Value, type, f => f.Value, null, f => reverse, f => false)
+                .Finish()
+            .Build();
+        var list = new List<List<TestEnum>?>
+        {
+            null,
+            new List<TestEnum> { TestEnum.Value1, TestEnum.Value2 },
+            new List<TestEnum> { TestEnum.Value2, TestEnum.Value3 },
+        }.Select(v => new CollectionEntity<TestEnum>(v));
+        var containFilter = new ContainFilter<TestEnum?>(value);
+        var exp = filter.GetExpression<CollectionEntity<TestEnum>, ContainFilter<TestEnum?>>(containFilter);
+        var result = list.Where(exp.Compile()).ToList();
+        Assert.Equal(number, result.Count);
+    }
+
+    [Theory]
+    [InlineData(FilterByPropertyType.Contains, true, false, 2, 0)]
+    [InlineData(FilterByPropertyType.Contains, true, false, 3, 1)]
+    [InlineData(FilterByPropertyType.Contains, false, false, 2, 2)]
+    [InlineData(FilterByPropertyType.Contains, false, false, 3, 1)]
+    [InlineData(FilterByPropertyType.NotContains, true, false, 2, 2)]
+    [InlineData(FilterByPropertyType.NotContains, true, false, 3, 1)]
+    [InlineData(FilterByPropertyType.NotContains, false, false, 2, 0)]
+    [InlineData(FilterByPropertyType.NotContains, false, false, 3, 1)]
+    [InlineData(FilterByPropertyType.Contains, true, true, 2, 1)]
+    [InlineData(FilterByPropertyType.Contains, true, true, 3, 2)]
+    [InlineData(FilterByPropertyType.Contains, false, true, 2, 3)]
+    [InlineData(FilterByPropertyType.Contains, false, true, 3, 2)]
+    [InlineData(FilterByPropertyType.NotContains, true, true, 2, 3)]
+    [InlineData(FilterByPropertyType.NotContains, true, true, 3, 2)]
+    [InlineData(FilterByPropertyType.NotContains, false, true, 2, 1)]
+    [InlineData(FilterByPropertyType.NotContains, false, true, 3, 2)]
+    public void TestStructReverseArrayContainsWithIncludeNull(FilterByPropertyType type, bool reverse, bool includeNull, int value, int number)
+    {
+        var filter = new FilterBuilder()
+            .Configure<ArrayEntity<TestStruct2?>, ContainFilter<TestStruct2>>()
                 .FilterByProperty(e => e.Value, type, f => f.Value, f => includeNull, f => reverse)
                 .Finish()
             .Build();
-        var list = new List<TestStruct2?> { null, new TestStruct2 { X = 1 }, new TestStruct2 { X = 2 } }.Select(v => new InEntity<TestStruct2?>(v));
-        var inFilter = new InArrayFilter<TestStruct2>(new TestStruct2[] { new TestStruct2 { X = 2 }, new TestStruct2 { X = 3 } });
-        var exp = filter.GetExpression<InEntity<TestStruct2?>, InArrayFilter<TestStruct2>>(inFilter);
+        var list = new List<TestStruct2?[]?>
+        {
+            null,
+            new TestStruct2?[] { new TestStruct2 { X = 1 }, new TestStruct2 { X = 2 }, null },
+            new TestStruct2?[] { new TestStruct2 { X = 2 }, new TestStruct2 { X = 3 } },
+        }.Select(v => new ArrayEntity<TestStruct2?>(v));
+        var containFilter = new ContainFilter<TestStruct2>(new TestStruct2 { X = value });
+        var exp = filter.GetExpression<ArrayEntity<TestStruct2?>, ContainFilter<TestStruct2>>(containFilter);
+        var result = list.Where(exp.Compile()).ToList();
+        Assert.Equal(number, result.Count);
+    }
+
+    [Theory]
+    [InlineData(FilterByPropertyType.Contains, true, 2, 0)]
+    [InlineData(FilterByPropertyType.Contains, true, 3, 1)]
+    [InlineData(FilterByPropertyType.Contains, false, 2, 2)]
+    [InlineData(FilterByPropertyType.Contains, false, 3, 1)]
+    [InlineData(FilterByPropertyType.NotContains, true, 2, 2)]
+    [InlineData(FilterByPropertyType.NotContains, true, 3, 1)]
+    [InlineData(FilterByPropertyType.NotContains, false, 2, 0)]
+    [InlineData(FilterByPropertyType.NotContains, false, 3, 1)]
+    public void TestStructReverseArrayContainsWithoutIncludeNull(FilterByPropertyType type, bool reverse, int value, int number)
+    {
+        var filter = new FilterBuilder()
+            .Configure<ArrayEntity<TestStruct2?>, ContainFilter<TestStruct2>>()
+                .FilterByProperty(e => e.Value, type, f => f.Value, null, f => reverse)
+                .Finish()
+            .Build();
+        var list = new List<TestStruct2?[]?>
+        {
+            null,
+            new TestStruct2?[] { new TestStruct2 { X = 1 }, new TestStruct2 { X = 2 }, null },
+            new TestStruct2?[] { new TestStruct2 { X = 2 }, new TestStruct2 { X = 3 } },
+        }.Select(v => new ArrayEntity<TestStruct2?>(v));
+        var containFilter = new ContainFilter<TestStruct2>(new TestStruct2 { X = value });
+        var exp = filter.GetExpression<ArrayEntity<TestStruct2?>, ContainFilter<TestStruct2>>(containFilter);
         var result = list.Where(exp.Compile()).ToList();
         Assert.Equal(number, result.Count);
     }

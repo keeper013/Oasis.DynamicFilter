@@ -13,7 +13,6 @@ internal record struct FilterRangeData<TFilter>(
     FilterByRangeType filterMinType,
     Type? entityMinPropertyConvertTo,
     PropertyInfo entityProperty,
-    bool entityPropertyCanBeNull,
     Type? entityMaxPropertyConvertTo,
     FilterByRangeType filterMaxType,
     Type? filterMaxPropertyConvertTo,
@@ -26,7 +25,6 @@ internal record struct FilterRangeData<TFilter>(
 
 internal record struct EntityRangeData<TFilter>(
     PropertyInfo entityMinProperty,
-    bool entityMinPropertyCanBeNull,
     Type? entityMinPropertyConvertTo,
     FilterByRangeType entityMinType,
     Type? filterMinPropertyConvertTo,
@@ -35,7 +33,6 @@ internal record struct EntityRangeData<TFilter>(
     FilterByRangeType entityMaxType,
     Type? entityMaxPropertyConvertTo,
     PropertyInfo entityMaxProperty,
-    bool entityMaxPropertyCanBeNull,
     Func<TFilter, bool>? includeNullMin,
     Func<TFilter, bool>? includeNullMax,
     Func<TFilter, bool>? reverseIf,
@@ -96,7 +93,7 @@ internal sealed class FilterConfiguration<TEntity, TFilter> : IFilterConfigurati
                 _inDictionary.Add(
                     entityPropertyName,
                     filterPropertyName,
-                    new InData<TFilter>(entityProperty, entityPropertyType.CanBeNull(), inData.itemConvertTo, type, filterProperty, inData.containerItemType, inData.isCollection, inData.nullValueNotCovered, includeNull, reverseIf, ignoreIf));
+                    new InData<TFilter>(entityProperty, inData.itemConvertTo, type, filterProperty, inData.containerItemType, inData.isCollection, inData.nullValueNotCovered, includeNull, reverseIf, ignoreIf));
                 break;
             case FilterByPropertyType.Contains:
             case FilterByPropertyType.NotContains:
@@ -118,7 +115,7 @@ internal sealed class FilterConfiguration<TEntity, TFilter> : IFilterConfigurati
                     ignoreIf = TypeUtilities.BuildFilterPropertyIsDefaultFunction<TFilter>(filterProperty);
                 }
 
-                _compareDictionary.Add(entityPropertyName, filterPropertyName, new CompareData<TFilter>(entityProperty, entityPropertyType.CanBeNull(), conversion.leftConvertTo, type, filterProperty, conversion.rightConvertTo, includeNull, reverseIf, ignoreIf));
+                _compareDictionary.Add(entityPropertyName, filterPropertyName, new CompareData<TFilter>(entityProperty, conversion.leftConvertTo, type, filterProperty, conversion.rightConvertTo, includeNull, reverseIf, ignoreIf));
                 break;
         }
 
@@ -171,7 +168,7 @@ internal sealed class FilterConfiguration<TEntity, TFilter> : IFilterConfigurati
             minFilterProperty.Name,
             entityProperty.Name,
             maxFilterProperty.Name,
-            new FilterRangeData<TFilter>(minFilterProperty, minConversion.leftConvertTo, minFilteringType, minConversion.rightConvertTo, entityProperty, entityPropertyType.CanBeNull(), maxConversion.leftConvertTo, maxFilteringType, maxConversion.rightConvertTo, maxFilterProperty, includeNull, reverseIf, ignoreMinIf, ignoreMaxIf));
+            new FilterRangeData<TFilter>(minFilterProperty, minConversion.leftConvertTo, minFilteringType, minConversion.rightConvertTo, entityProperty, maxConversion.leftConvertTo, maxFilteringType, maxConversion.rightConvertTo, maxFilterProperty, includeNull, reverseIf, ignoreMinIf, ignoreMaxIf));
         _configuredEntityProperties.Add(entityProperty.Name);
         _configuredFilterProperties.Add(minFilterProperty.Name);
         _configuredFilterProperties.Add(maxFilterProperty.Name);
@@ -223,7 +220,7 @@ internal sealed class FilterConfiguration<TEntity, TFilter> : IFilterConfigurati
             minEntityProperty.Name,
             filterProperty.Name,
             maxEntityProperty.Name,
-            new EntityRangeData<TFilter>(minEntityProperty, minEntityPropertyType.CanBeNull(), minConversion.leftConvertTo, minFilteringType, minConversion.rightConvertTo, filterProperty, maxConversion.leftConvertTo, maxFilteringType, maxConversion.rightConvertTo, maxEntityProperty, maxEntityPropertyType.CanBeNull(), includeNullMin, includeNullMax, reverseIf, ignoreIf));
+            new EntityRangeData<TFilter>(minEntityProperty, minConversion.leftConvertTo, minFilteringType, minConversion.rightConvertTo, filterProperty, maxConversion.leftConvertTo, maxFilteringType, maxConversion.rightConvertTo, maxEntityProperty, includeNullMin, includeNullMax, reverseIf, ignoreIf));
         _configuredEntityProperties.Add(minEntityProperty.Name);
         _configuredEntityProperties.Add(maxEntityProperty.Name);
         _configuredFilterProperties.Add(filterProperty.Name);

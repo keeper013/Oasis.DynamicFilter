@@ -36,8 +36,6 @@ internal static class Utilities
         return false;
     }
 
-    public static bool CanBeNull(this Type type) => type.IsInterface || type.IsClass || type.IsNullable(out _);
-
     public static ContainerElementTypeData? GetContainerElementType(this Type type)
     {
         if (type.IsArray)

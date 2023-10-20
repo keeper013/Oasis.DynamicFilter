@@ -39,7 +39,6 @@ internal sealed class FilterTypeBuilder
 
 internal record struct CompareData<TFilter>(
     PropertyInfo entityProperty,
-    bool entityPropertyCanBeNull,
     Type? entityPropertyConvertTo,
     FilterByPropertyType type,
     PropertyInfo filterProperty,
@@ -64,7 +63,6 @@ internal record struct ContainData<TFilter>(
 
 internal record struct InData<TFilter>(
     PropertyInfo entityProperty,
-    bool entityPropertyCanBeNull,
     Type? entityPropertyConvertTo,
     FilterByPropertyType type,
     PropertyInfo filterProperty,
@@ -104,6 +102,8 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
     private static readonly MethodInfo RangeFieldLevel3GetItem = typeof(Dictionary<Type, RangeData>).GetMethod(DictionaryItemMethodName, Utilities.PublicInstance)!;
     private static readonly Type EntityType = typeof(TEntity);
     private static readonly Type BooleanType = typeof(bool);
+    private static readonly Type NullableBooleanType = typeof(bool?);
+    private static readonly ConstructorInfo NullableBooleanConstructor = NullableBooleanType.GetConstructor(new[] { typeof(bool) });
     private static readonly Type ParameterExpressionType = typeof(ParameterExpression);
     private static readonly MethodInfo TypeOfMethod = typeof(Type).GetMethod(nameof(Type.GetTypeFromHandle), Utilities.PublicStatic)!;
     private static readonly MethodInfo ParameterMethod = typeof(Expression).GetMethods(Utilities.PublicStatic).First(m => m.Name == nameof(Expression.Parameter) && m.GetParameters().Length == 2)!;
@@ -154,6 +154,8 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
         // generate starting code
         var expressionLocal = _generator.DeclareLocal(typeof(Expression));
         _ = _generator.DeclareLocal(ParameterExpressionType);
+        var includeNullLocal1 = _generator.DeclareLocal(NullableBooleanType);
+        var includeNullLocal2 = _generator.DeclareLocal(NullableBooleanType);
         _generator.Emit(OpCodes.Ldnull);
         _generator.Emit(OpCodes.Stloc_0);
         _generator.Emit(OpCodes.Ldtoken, EntityType);
@@ -162,20 +164,20 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
         _generator.Emit(OpCodes.Call, ParameterMethod);
         _generator.Emit(OpCodes.Stloc_1);
 
-        var compareFields = GenerateCompareCode(compare, expressionLocal);
-        var containFields = GenerateContainCode(contain, expressionLocal);
-        var inFields = GenerateInCode(isIn, expressionLocal);
+        var compareFields = GenerateCompareCode(compare, includeNullLocal1, expressionLocal);
+        var containFields = GenerateContainCode(contain, includeNullLocal1, expressionLocal);
+        var inFields = GenerateInCode(isIn, includeNullLocal1, expressionLocal);
 
         GeneratedFilterFields<TFilter, Dictionary<string, Dictionary<string, Dictionary<string, RangeData>>>> filterRangeFields = default;
         if (filterRangeList != null)
         {
-            filterRangeFields = GenerateFilterRangeCode(filterRangeList, expressionLocal);
+            filterRangeFields = GenerateFilterRangeCode(filterRangeList, includeNullLocal1, expressionLocal);
         }
 
         GeneratedFilterFields<TFilter, Dictionary<string, Dictionary<string, Dictionary<string, RangeData>>>> entityRangeFields = default;
         if (entityRangeList != null)
         {
-            entityRangeFields = GenerateEntityRangeCode(entityRangeList, expressionLocal);
+            entityRangeFields = GenerateEntityRangeCode(entityRangeList, includeNullLocal1, includeNullLocal2, expressionLocal);
         }
 
         // Generate ending code
@@ -238,7 +240,7 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
                     var c = comparison.Value;
                     var ignoreIf = filterPropertyType.IsClass || filterPropertyType.IsNullable(out _)
                         ? TypeUtilities.BuildFilterPropertyIsDefaultFunction<TFilter>(filterProperty) : null;
-                    compareList.Add(new CompareData<TFilter>(entityProperty, entityPropertyType.CanBeNull(), c.leftConvertTo, FilterByPropertyType.Equality, filterProperty, c.rightConvertTo, null, null, ignoreIf));
+                    compareList.Add(new CompareData<TFilter>(entityProperty, c.leftConvertTo, FilterByPropertyType.Equality, filterProperty, c.rightConvertTo, null, null, ignoreIf));
                     continue;
                 }
 
@@ -256,7 +258,7 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
                 if (isIn != null)
                 {
                     var value = isIn.Value;
-                    inList.Add(new InData<TFilter>(entityProperty, entityPropertyType.CanBeNull(), value.itemConvertTo, FilterByPropertyType.In, filterProperty, isIn.Value.containerItemType, value.isCollection, value.nullValueNotCovered, null, null, null));
+                    inList.Add(new InData<TFilter>(entityProperty, value.itemConvertTo, FilterByPropertyType.In, filterProperty, isIn.Value.containerItemType, value.isCollection, value.nullValueNotCovered, null, null, null));
                     continue;
                 }
             }
@@ -305,7 +307,7 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
         };
     }
 
-    private GeneratedFilterFields<TFilter, Dictionary<string, Dictionary<string, CompareData>>> GenerateCompareCode(IList<CompareData<TFilter>> compare, LocalBuilder expressionLocal)
+    private GeneratedFilterFields<TFilter, Dictionary<string, Dictionary<string, CompareData>>> GenerateCompareCode(IList<CompareData<TFilter>> compare, LocalBuilder includeNullLocal, LocalBuilder expressionLocal)
     {
         var compareDictionaryField = _typeBuilder.DefineField(CompareDictionaryFieldName, typeof(Dictionary<string, Dictionary<string, CompareData>>), FieldAttributes.Private | FieldAttributes.Static);
         var compareDictionary = new Dictionary<string, Dictionary<string, CompareData>>();
@@ -315,7 +317,7 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
         foreach (var c in compare)
         {
             var fields = PrepareMethodFields(c.entityProperty.Name, c.filterProperty.Name, c.includeNull, c.ignoreIf, c.reverseIf, includeNullFields, ignoreIfFields, reverseIfFields);
-            compareDictionary.Add(c.entityProperty.Name, c.filterProperty.Name, new (c.entityPropertyConvertTo, c.filterPropertyConvertTo, c.type, c.entityPropertyCanBeNull));
+            compareDictionary.Add(c.entityProperty.Name, c.filterProperty.Name, new (c.entityPropertyConvertTo, c.filterPropertyConvertTo, c.type));
             void CallBuildExpressionMethod() => _generator.Emit(OpCodes.Call, BuildCompareExpressionMethod.MakeGenericMethod(c.entityProperty.PropertyType, c.filterProperty.PropertyType));
             GenerateFieldFilterCode(
                 compareDictionaryField,
@@ -324,6 +326,7 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
                 fields.Item3,
                 c.entityProperty,
                 c.filterProperty,
+                includeNullLocal,
                 expressionLocal,
                 CompareFieldOuterGetItem,
                 CompareFieldInnerGetItem,
@@ -333,7 +336,7 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
         return new (compareDictionary, includeNullFields, ignoreIfFields, reverseIfFields);
     }
 
-    private GeneratedFilterFields<TFilter, Dictionary<string, Dictionary<string, ContainData>>> GenerateContainCode(IList<ContainData<TFilter>> contain, LocalBuilder expressionLocal)
+    private GeneratedFilterFields<TFilter, Dictionary<string, Dictionary<string, ContainData>>> GenerateContainCode(IList<ContainData<TFilter>> contain, LocalBuilder includeNullLocal, LocalBuilder expressionLocal)
     {
         var containDictionaryField = _typeBuilder.DefineField(ContainDictionaryFieldName, typeof(Dictionary<string, Dictionary<string, ContainData>>), FieldAttributes.Private | FieldAttributes.Static);
         var containDictionary = new Dictionary<string, Dictionary<string, ContainData>>();
@@ -363,6 +366,7 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
                 fields.Item3,
                 c.entityProperty,
                 c.filterProperty,
+                includeNullLocal,
                 expressionLocal,
                 ContainFieldOuterGetItem,
                 ContainFieldInnerGetItem,
@@ -372,7 +376,7 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
         return new (containDictionary, includeNullFields, ignoreIfFields, reverseIfFields);
     }
 
-    private GeneratedFilterFields<TFilter, Dictionary<string, Dictionary<string, InData>>> GenerateInCode(IList<InData<TFilter>> isIn, LocalBuilder expressionLocal)
+    private GeneratedFilterFields<TFilter, Dictionary<string, Dictionary<string, InData>>> GenerateInCode(IList<InData<TFilter>> isIn, LocalBuilder includeNullLocal, LocalBuilder expressionLocal)
     {
         var inDictionaryField = _typeBuilder.DefineField(InDictionaryFieldName, typeof(Dictionary<string, Dictionary<string, InData>>), FieldAttributes.Private | FieldAttributes.Static);
         var inDictionary = new Dictionary<string, Dictionary<string, InData>>();
@@ -382,7 +386,7 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
         foreach (var i in isIn)
         {
             var fields = PrepareMethodFields(i.entityProperty.Name, i.filterProperty.Name, i.includeNull, i.ignoreIf, i.reverseIf, includeNullFields, ignoreIfFields, reverseIfFields);
-            inDictionary.Add(i.entityProperty.Name, i.filterProperty.Name, new (i.entityPropertyConvertTo, i.type, i.nullValueNotCovered, i.entityPropertyCanBeNull));
+            inDictionary.Add(i.entityProperty.Name, i.filterProperty.Name, new (i.entityPropertyConvertTo, i.type, i.nullValueNotCovered));
             void CallBuildExpressionMethod()
             {
                 if (i.isCollection)
@@ -402,6 +406,7 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
                 fields.Item3,
                 i.entityProperty,
                 i.filterProperty,
+                includeNullLocal,
                 expressionLocal,
                 InFieldOuterGetItem,
                 InFieldInnerGetItem,
@@ -411,7 +416,7 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
         return new (inDictionary, includeNullFields, ignoreIfFields, reverseIfFields);
     }
 
-    private GeneratedFilterFields<TFilter, Dictionary<string, Dictionary<string, Dictionary<string, RangeData>>>> GenerateFilterRangeCode(IReadOnlyList<FilterRangeData<TFilter>> range, LocalBuilder expressionLocal)
+    private GeneratedFilterFields<TFilter, Dictionary<string, Dictionary<string, Dictionary<string, RangeData>>>> GenerateFilterRangeCode(IReadOnlyList<FilterRangeData<TFilter>> range, LocalBuilder includeNullLocal, LocalBuilder expressionLocal)
     {
         var filterRangeDictionaryField = _typeBuilder.DefineField(FilterRangeDictionaryFieldName, typeof(Dictionary<string, Dictionary<string, Dictionary<string, RangeData>>>), FieldAttributes.Private | FieldAttributes.Static);
         var filterRangeDictionary = new Dictionary<string, Dictionary<string, Dictionary<string, RangeData>>>();
@@ -430,28 +435,28 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
             if (f.includeNull != null)
             {
                 var fieldName = $"_includeNull_{filterName}";
-                includeNullField = _typeBuilder.DefineField(fieldName, typeof(Func<,>).MakeGenericType(typeof(TFilter), typeof(bool)), FieldAttributes.Private | FieldAttributes.Static);
+                includeNullField = _typeBuilder.DefineField(fieldName, typeof(Func<,>).MakeGenericType(typeof(TFilter), BooleanType), FieldAttributes.Private | FieldAttributes.Static);
                 includeNullFields.Add(fieldName, f.includeNull);
             }
 
             if (f.ignoreMinIf != null)
             {
                 var fieldName = $"_ignore_{filterName}_Min";
-                ignoreMinIfField = _typeBuilder.DefineField(fieldName, typeof(Func<,>).MakeGenericType(typeof(TFilter), typeof(bool)), FieldAttributes.Private | FieldAttributes.Static);
+                ignoreMinIfField = _typeBuilder.DefineField(fieldName, typeof(Func<,>).MakeGenericType(typeof(TFilter), BooleanType), FieldAttributes.Private | FieldAttributes.Static);
                 ignoreIfFields.Add(fieldName, f.ignoreMinIf);
             }
 
             if (f.ignoreMaxIf != null)
             {
                 var fieldName = $"_ignore_{filterName}_Max";
-                ignoreMaxIfField = _typeBuilder.DefineField(fieldName, typeof(Func<,>).MakeGenericType(typeof(TFilter), typeof(bool)), FieldAttributes.Private | FieldAttributes.Static);
+                ignoreMaxIfField = _typeBuilder.DefineField(fieldName, typeof(Func<,>).MakeGenericType(typeof(TFilter), BooleanType), FieldAttributes.Private | FieldAttributes.Static);
                 ignoreIfFields.Add(fieldName, f.ignoreMaxIf);
             }
 
             if (f.reverseIf != null)
             {
                 var fieldName = $"_reverse_{filterName}_If";
-                reverseIfField = _typeBuilder.DefineField(fieldName, typeof(Func<,>).MakeGenericType(typeof(TFilter), typeof(bool)), FieldAttributes.Private | FieldAttributes.Static);
+                reverseIfField = _typeBuilder.DefineField(fieldName, typeof(Func<,>).MakeGenericType(typeof(TFilter), BooleanType), FieldAttributes.Private | FieldAttributes.Static);
                 reverseIfFields.Add(fieldName, f.reverseIf);
             }
 
@@ -459,7 +464,7 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
                 f.entityProperty.Name,
                 f.filterMinProperty.Name,
                 f.filterMaxProperty.Name,
-                new (new (f.entityMinPropertyConvertTo, f.filterMinPropertyConvertTo, Opposite(f.filterMinType), f.entityPropertyCanBeNull), new (f.entityMaxPropertyConvertTo, f.filterMaxPropertyConvertTo, Convert(f.filterMaxType), f.entityPropertyCanBeNull)));
+                new (new (f.entityMinPropertyConvertTo, f.filterMinPropertyConvertTo, Opposite(f.filterMinType)), new (f.entityMaxPropertyConvertTo, f.filterMaxPropertyConvertTo, Convert(f.filterMaxType))));
 
             GenerateFilterRangeFilterCode(
                 filterRangeDictionaryField,
@@ -470,13 +475,14 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
                 f.entityProperty,
                 f.filterMinProperty,
                 f.filterMaxProperty,
+                includeNullLocal,
                 expressionLocal);
         }
 
         return new (filterRangeDictionary, includeNullFields, ignoreIfFields, reverseIfFields);
     }
 
-    private GeneratedFilterFields<TFilter, Dictionary<string, Dictionary<string, Dictionary<string, RangeData>>>> GenerateEntityRangeCode(IReadOnlyList<EntityRangeData<TFilter>> range, LocalBuilder expressionLocal)
+    private GeneratedFilterFields<TFilter, Dictionary<string, Dictionary<string, Dictionary<string, RangeData>>>> GenerateEntityRangeCode(IReadOnlyList<EntityRangeData<TFilter>> range, LocalBuilder includeNullLocal1, LocalBuilder includeNullLocal2, LocalBuilder expressionLocal)
     {
         var entityRangeDictionaryField = _typeBuilder.DefineField(EntityRangeDictionaryFieldName, typeof(Dictionary<string, Dictionary<string, Dictionary<string, RangeData>>>), FieldAttributes.Private | FieldAttributes.Static);
         var entityRangeDictionary = new Dictionary<string, Dictionary<string, Dictionary<string, RangeData>>>();
@@ -495,28 +501,28 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
             if (e.includeNullMin != null)
             {
                 var fieldName = $"_includeNull_{filterName}_Min";
-                includeNullMinField = _typeBuilder.DefineField(fieldName, typeof(Func<,>).MakeGenericType(typeof(TFilter), typeof(bool)), FieldAttributes.Private | FieldAttributes.Static);
+                includeNullMinField = _typeBuilder.DefineField(fieldName, typeof(Func<,>).MakeGenericType(typeof(TFilter), BooleanType), FieldAttributes.Private | FieldAttributes.Static);
                 includeNullFields.Add(fieldName, e.includeNullMin);
             }
 
             if (e.includeNullMax != null)
             {
                 var fieldName = $"_includeNull_{filterName}_Max";
-                includeNullMaxField = _typeBuilder.DefineField(fieldName, typeof(Func<,>).MakeGenericType(typeof(TFilter), typeof(bool)), FieldAttributes.Private | FieldAttributes.Static);
+                includeNullMaxField = _typeBuilder.DefineField(fieldName, typeof(Func<,>).MakeGenericType(typeof(TFilter), BooleanType), FieldAttributes.Private | FieldAttributes.Static);
                 includeNullFields.Add(fieldName, e.includeNullMax);
             }
 
             if (e.ignoreIf != null)
             {
                 var fieldName = $"_ignore_{filterName}";
-                ignoreIfField = _typeBuilder.DefineField(fieldName, typeof(Func<,>).MakeGenericType(typeof(TFilter), typeof(bool)), FieldAttributes.Private | FieldAttributes.Static);
+                ignoreIfField = _typeBuilder.DefineField(fieldName, typeof(Func<,>).MakeGenericType(typeof(TFilter), BooleanType), FieldAttributes.Private | FieldAttributes.Static);
                 ignoreIfFields.Add(fieldName, e.ignoreIf);
             }
 
             if (e.reverseIf != null)
             {
                 var fieldName = $"_reverse_{filterName}_If";
-                reverseIfField = _typeBuilder.DefineField(fieldName, typeof(Func<,>).MakeGenericType(typeof(TFilter), typeof(bool)), FieldAttributes.Private | FieldAttributes.Static);
+                reverseIfField = _typeBuilder.DefineField(fieldName, typeof(Func<,>).MakeGenericType(typeof(TFilter), BooleanType), FieldAttributes.Private | FieldAttributes.Static);
                 reverseIfFields.Add(fieldName, e.reverseIf);
             }
 
@@ -524,7 +530,7 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
                 e.entityMinProperty.Name,
                 e.entityMaxProperty.Name,
                 e.filterProperty.Name,
-                new (new (e.entityMinPropertyConvertTo, e.filterMinPropertyConvertTo, Convert(e.entityMinType), e.entityMinPropertyCanBeNull), new (e.entityMaxPropertyConvertTo, e.filterMaxPropertyConvertTo, Opposite(e.entityMaxType), e.entityMaxPropertyCanBeNull)));
+                new (new (e.entityMinPropertyConvertTo, e.filterMinPropertyConvertTo, Convert(e.entityMinType)), new (e.entityMaxPropertyConvertTo, e.filterMaxPropertyConvertTo, Opposite(e.entityMaxType))));
 
             GenerateEntityRangeFilterCode(
                 entityRangeDictionaryField,
@@ -535,6 +541,8 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
                 e.entityMinProperty,
                 e.entityMaxProperty,
                 e.filterProperty,
+                includeNullLocal1,
+                includeNullLocal2,
                 expressionLocal);
         }
 
@@ -559,21 +567,21 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
         if (includeNull != null)
         {
             var fieldName = $"_includeNull_{filterName}";
-            includeNullField = _typeBuilder.DefineField(fieldName, typeof(Func<,>).MakeGenericType(typeof(TFilter), typeof(bool)), FieldAttributes.Private | FieldAttributes.Static);
+            includeNullField = _typeBuilder.DefineField(fieldName, typeof(Func<,>).MakeGenericType(typeof(TFilter), BooleanType), FieldAttributes.Private | FieldAttributes.Static);
             includeNullFields.Add(fieldName, includeNull);
         }
 
         if (ignoreIf != null)
         {
             var fieldName = $"_ignore_{filterName}_If";
-            ignoreIfField = _typeBuilder.DefineField(fieldName, typeof(Func<,>).MakeGenericType(typeof(TFilter), typeof(bool)), FieldAttributes.Private | FieldAttributes.Static);
+            ignoreIfField = _typeBuilder.DefineField(fieldName, typeof(Func<,>).MakeGenericType(typeof(TFilter), BooleanType), FieldAttributes.Private | FieldAttributes.Static);
             ignoreIfFields.Add(fieldName, ignoreIf);
         }
 
         if (reverseIf != null)
         {
             var fieldName = $"_reverse_{filterName}_If";
-            reverseIfField = _typeBuilder.DefineField(fieldName, typeof(Func<,>).MakeGenericType(typeof(TFilter), typeof(bool)), FieldAttributes.Private | FieldAttributes.Static);
+            reverseIfField = _typeBuilder.DefineField(fieldName, typeof(Func<,>).MakeGenericType(typeof(TFilter), BooleanType), FieldAttributes.Private | FieldAttributes.Static);
             reverseIfFields.Add(fieldName, reverseIf);
         }
 
@@ -587,6 +595,7 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
         FieldInfo? reverseIfField,
         PropertyInfo entityProperty,
         PropertyInfo filterProperty,
+        LocalBuilder includeNullLocal,
         LocalBuilder expressionLocal,
         MethodInfo outterGetItem,
         MethodInfo innerGetItem,
@@ -616,10 +625,13 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
             _generator.Emit(OpCodes.Ldsfld, includeNullField);
             _generator.Emit(OpCodes.Ldarg_0);
             _generator.Emit(OpCodes.Callvirt, FilterConditionInvoke);
+            _generator.Emit(OpCodes.Newobj, NullableBooleanConstructor);
         }
         else
         {
-            _generator.Emit(OpCodes.Ldc_I4_0);
+            _generator.Emit(OpCodes.Ldloca_S, includeNullLocal);
+            _generator.Emit(OpCodes.Initobj, NullableBooleanType);
+            _generator.Emit(OpCodes.Ldloc_2);
         }
 
         if (reverseIfField != null)
@@ -651,6 +663,7 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
         PropertyInfo entityProperty,
         PropertyInfo filterMinProperty,
         PropertyInfo filterMaxProperty,
+        LocalBuilder includeNullLocal,
         LocalBuilder expressionLocal)
     {
         _generator.Emit(OpCodes.Ldloc_1);
@@ -693,10 +706,13 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
             _generator.Emit(OpCodes.Ldsfld, includeNullField);
             _generator.Emit(OpCodes.Ldarg_0);
             _generator.Emit(OpCodes.Callvirt, FilterConditionInvoke);
+            _generator.Emit(OpCodes.Newobj, NullableBooleanConstructor);
         }
         else
         {
-            _generator.Emit(OpCodes.Ldc_I4_0);
+            _generator.Emit(OpCodes.Ldloca_S, includeNullLocal);
+            _generator.Emit(OpCodes.Initobj, NullableBooleanType);
+            _generator.Emit(OpCodes.Ldloc_2);
         }
 
         if (reverseIfField != null)
@@ -723,6 +739,8 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
         PropertyInfo entityMinProperty,
         PropertyInfo entityMaxProperty,
         PropertyInfo filterProperty,
+        LocalBuilder includeNullLocal1,
+        LocalBuilder includeNullLocal2,
         LocalBuilder expressionLocal)
     {
         Label endIfIgnore = default;
@@ -752,10 +770,13 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
             _generator.Emit(OpCodes.Ldsfld, includeNullMinField);
             _generator.Emit(OpCodes.Ldarg_0);
             _generator.Emit(OpCodes.Callvirt, FilterConditionInvoke);
+            _generator.Emit(OpCodes.Newobj, NullableBooleanConstructor);
         }
         else
         {
-            _generator.Emit(OpCodes.Ldc_I4_0);
+            _generator.Emit(OpCodes.Ldloca_S, includeNullLocal1);
+            _generator.Emit(OpCodes.Initobj, NullableBooleanType);
+            _generator.Emit(OpCodes.Ldloc_2);
         }
 
         if (includeNullMaxField != null)
@@ -763,10 +784,13 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
             _generator.Emit(OpCodes.Ldsfld, includeNullMaxField);
             _generator.Emit(OpCodes.Ldarg_0);
             _generator.Emit(OpCodes.Callvirt, FilterConditionInvoke);
+            _generator.Emit(OpCodes.Newobj, NullableBooleanConstructor);
         }
         else
         {
-            _generator.Emit(OpCodes.Ldc_I4_0);
+            _generator.Emit(OpCodes.Ldloca_S, includeNullLocal2);
+            _generator.Emit(OpCodes.Initobj, NullableBooleanType);
+            _generator.Emit(OpCodes.Ldloc_3);
         }
 
         if (reverseIfField != null)
