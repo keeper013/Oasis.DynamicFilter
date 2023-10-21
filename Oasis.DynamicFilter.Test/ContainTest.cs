@@ -438,7 +438,7 @@ public sealed class ContainTest
         TestNullContainsWithoutIncludeNull<int?, int?>(type, filterValue, reverse, result);
     }
 
-    private IList<TEntityPropertyItem>? TestCollectionContain<TEntityPropertyItem, TFilterProperty>(ICollection<List<TEntityPropertyItem>> entityValues, TFilterProperty filterValue)
+    private static IList<TEntityPropertyItem>? TestCollectionContain<TEntityPropertyItem, TFilterProperty>(ICollection<List<TEntityPropertyItem>> entityValues, TFilterProperty filterValue)
     {
         var filter = new FilterBuilder().Register<CollectionEntity<TEntityPropertyItem>, ContainFilter<TFilterProperty>>().Build();
         var list = entityValues.Select(v => new CollectionEntity<TEntityPropertyItem>(v));
@@ -449,7 +449,7 @@ public sealed class ContainTest
         return result[0].Value;
     }
 
-    private IList<TEntityPropertyItem> TestArrayContain<TEntityPropertyItem, TFilterProperty>(ICollection<TEntityPropertyItem[]> entityValues, TFilterProperty filterValue)
+    private static IList<TEntityPropertyItem> TestArrayContain<TEntityPropertyItem, TFilterProperty>(ICollection<TEntityPropertyItem[]> entityValues, TFilterProperty filterValue)
     {
         var filter = new FilterBuilder().Register<ArrayEntity<TEntityPropertyItem>, ContainFilter<TFilterProperty>>().Build();
         var arr = entityValues.Select(v => new ArrayEntity<TEntityPropertyItem>(v));
@@ -460,7 +460,7 @@ public sealed class ContainTest
         return result[0].Value!;
     }
 
-    private void TestContainsWithIncludeNull<TEntity, TFilter>(TEntity entityValue, FilterByPropertyType type, TFilter filterValue, bool includeNull, bool reverse, bool result)
+    private static void TestContainsWithIncludeNull<TEntity, TFilter>(TEntity entityValue, FilterByPropertyType type, TFilter filterValue, bool includeNull, bool reverse, bool result)
     {
         var expressionBuilder = new FilterBuilder()
             .Configure<ArrayEntity<TEntity>, ContainFilter<TFilter>>()
@@ -472,7 +472,7 @@ public sealed class ContainTest
         Assert.Equal(result, expressionBuilder.GetFunc<ArrayEntity<TEntity>, ContainFilter<TFilter>>(filter)(entity));
     }
 
-    private void TestContainsWithoutIncludeNull<TEntity, TFilter>(TEntity entityValue, FilterByPropertyType type, TFilter filterValue, bool reverse, bool result)
+    private static void TestContainsWithoutIncludeNull<TEntity, TFilter>(TEntity entityValue, FilterByPropertyType type, TFilter filterValue, bool reverse, bool result)
     {
         var expressionBuilder = new FilterBuilder()
             .Configure<CollectionEntity<TEntity>, ContainFilter<TFilter>>()
@@ -484,7 +484,7 @@ public sealed class ContainTest
         Assert.Equal(result, expressionBuilder.GetFunc<CollectionEntity<TEntity>, ContainFilter<TFilter>>(filter)(entity));
     }
 
-    private void TestNullContainsWithIncludeNull<TEntity, TFilter>(FilterByPropertyType type, TFilter filterValue, bool includeNull, bool reverse, bool result)
+    private static void TestNullContainsWithIncludeNull<TEntity, TFilter>(FilterByPropertyType type, TFilter filterValue, bool includeNull, bool reverse, bool result)
     {
         var expressionBuilder = new FilterBuilder()
             .Configure<ArrayEntity<TEntity>, ContainFilter<TFilter>>()
@@ -496,7 +496,7 @@ public sealed class ContainTest
         Assert.Equal(result, expressionBuilder.GetFunc<ArrayEntity<TEntity>, ContainFilter<TFilter>>(filter)(entity));
     }
 
-    private void TestNullContainsWithoutIncludeNull<TEntity, TFilter>(FilterByPropertyType type, TFilter filterValue, bool reverse, bool result)
+    private static void TestNullContainsWithoutIncludeNull<TEntity, TFilter>(FilterByPropertyType type, TFilter filterValue, bool reverse, bool result)
     {
         var expressionBuilder = new FilterBuilder()
             .Configure<ArrayEntity<TEntity>, ContainFilter<TFilter>>()

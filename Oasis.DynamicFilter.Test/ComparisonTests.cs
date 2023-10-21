@@ -438,7 +438,7 @@ public sealed class ComparisonTests
         TestCompareToWithoutIncludeNull(entityValue, type, filterValue, reverse, result);
     }
 
-    private TEntityProperty TestEqual<TEntityProperty, TFilterProperty>(List<TEntityProperty> entityValues, TFilterProperty filterValue)
+    private static TEntityProperty TestEqual<TEntityProperty, TFilterProperty>(List<TEntityProperty> entityValues, TFilterProperty filterValue)
     {
         var filter = new FilterBuilder().Register<ComparisonEntity<TEntityProperty>, ComparisonFilter<TFilterProperty>>().Build();
         var list = entityValues.Select(v => new ComparisonEntity<TEntityProperty>(v));
@@ -449,7 +449,7 @@ public sealed class ComparisonTests
         return result[0].Value;
     }
 
-    private void TestCompareToWithIncludeNull<TEntity, TFilter>(TEntity entityValue, FilterByPropertyType type, TFilter filterValue, bool includeNull, bool reverse, bool result)
+    private static void TestCompareToWithIncludeNull<TEntity, TFilter>(TEntity entityValue, FilterByPropertyType type, TFilter filterValue, bool includeNull, bool reverse, bool result)
     {
         var filter = new FilterBuilder()
             .Configure<ComparisonEntity<TEntity>, ComparisonFilter<TFilter>>()
@@ -462,7 +462,7 @@ public sealed class ComparisonTests
         Assert.Equal(result, exp.Compile()(entity));
     }
 
-    private void TestCompareToWithoutIncludeNull<TEntity, TFilter>(TEntity entityValue, FilterByPropertyType type, TFilter filterValue, bool reverse, bool result)
+    private static void TestCompareToWithoutIncludeNull<TEntity, TFilter>(TEntity entityValue, FilterByPropertyType type, TFilter filterValue, bool reverse, bool result)
     {
         var filter = new FilterBuilder()
             .Configure<ComparisonEntity<TEntity>, ComparisonFilter<TFilter>>()

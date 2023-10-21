@@ -35,7 +35,91 @@ public sealed class EntityRangeTests
         Assert.Equal(1.1m, result.Item2);
     }
 
-    private (TEntityMinProperty, TEntityMaxProperty) Test<TEntityMinProperty, TEntityMaxProperty, TFilterProperty>(List<(TEntityMinProperty, TEntityMaxProperty)> entityValues, TFilterProperty value)
+    [Theory]
+    [InlineData(3, 1L, 2, true, true)]
+    [InlineData(3, 1L, 2, false, false)]
+    [InlineData(2, 1L, 3, true, false)]
+    [InlineData(2, 1L, 3, false, true)]
+    [InlineData(2, null, 3, false, false)]
+    [InlineData(2, null, 3, true, true)]
+    [InlineData(2, 1L, null, false, false)]
+    [InlineData(2, 1L, null, true, true)]
+    [InlineData(null, 1L, 3, false, false)]
+    [InlineData(null, 1L, 3, true, true)]
+    public void TestWithoutIncludeNull(int? value, long? min, int? max, bool reverse, bool result)
+    {
+        var expressionMaker = new FilterBuilder()
+            .Configure<EntityRangeEntity<long?, int?>, EntityRangeFilter<int?>>()
+                .FilterByRangedEntity(e => e.Min, FilterByRangeType.LessThan, f => f.Value, FilterByRangeType.LessThan, e => e.Max, null, null, f => reverse, f => false)
+                .Finish()
+            .Build();
+        var entity = new EntityRangeEntity<long?, int?>(min, max);
+        var filter = new EntityRangeFilter<int?>(value);
+        Assert.Equal(result, expressionMaker.GetFunc<EntityRangeEntity<long?, int?>, EntityRangeFilter<int?>>(filter)(entity));
+    }
+
+    [Theory]
+    [InlineData(3, 1L, 2, true, true, true, true)]
+    [InlineData(3, 1L, 2, true, true, false, false)]
+    [InlineData(2, 1L, 3, true, true, true, false)]
+    [InlineData(2, 1L, 3, true, true, false, true)]
+    [InlineData(2, null, 3, true, true, false, true)]
+    [InlineData(2, null, 3, true, true, true, false)]
+    [InlineData(2, 1L, null, true, true, false, true)]
+    [InlineData(2, 1L, null, true, true, true, false)]
+    [InlineData(null, 1L, 3, true, true, false, false)]
+    [InlineData(null, 1L, 3, true, true, true, true)]
+    [InlineData(2, null, null, true, true, false, true)]
+    [InlineData(2, null, null, true, true, true, false)]
+    [InlineData(3, 1L, 2, true, false, true, true)]
+    [InlineData(3, 1L, 2, true, false, false, false)]
+    [InlineData(2, 1L, 3, true, false, true, false)]
+    [InlineData(2, 1L, 3, true, false, false, true)]
+    [InlineData(2, null, 3, true, false, false, true)]
+    [InlineData(2, null, 3, true, false, true, false)]
+    [InlineData(2, 1L, null, true, false, false, false)]
+    [InlineData(2, 1L, null, true, false, true, true)]
+    [InlineData(null, 1L, 3, true, false, false, false)]
+    [InlineData(null, 1L, 3, true, false, true, true)]
+    [InlineData(2, null, null, true, false, false, false)]
+    [InlineData(2, null, null, true, false, true, true)]
+    [InlineData(3, 1L, 2, false, true, true, true)]
+    [InlineData(3, 1L, 2, false, true, false, false)]
+    [InlineData(2, 1L, 3, false, true, true, false)]
+    [InlineData(2, 1L, 3, false, true, false, true)]
+    [InlineData(2, null, 3, false, true, false, false)]
+    [InlineData(2, null, 3, false, true, true, true)]
+    [InlineData(2, 1L, null, false, true, false, true)]
+    [InlineData(2, 1L, null, false, true, true, false)]
+    [InlineData(null, 1L, 3, false, true, false, false)]
+    [InlineData(null, 1L, 3, false, true, true, true)]
+    [InlineData(2, null, null, false, true, false, false)]
+    [InlineData(2, null, null, false, true, true, true)]
+    [InlineData(3, 1L, 2, false, false, true, true)]
+    [InlineData(3, 1L, 2, false, false, false, false)]
+    [InlineData(2, 1L, 3, false, false, true, false)]
+    [InlineData(2, 1L, 3, false, false, false, true)]
+    [InlineData(2, null, 3, false, false, false, false)]
+    [InlineData(2, null, 3, false, false, true, true)]
+    [InlineData(2, 1L, null, false, false, false, false)]
+    [InlineData(2, 1L, null, false, false, true, true)]
+    [InlineData(null, 1L, 3, false, false, false, false)]
+    [InlineData(null, 1L, 3, false, false, true, true)]
+    [InlineData(2, null, null, false, false, false, false)]
+    [InlineData(2, null, null, false, false, true, true)]
+    public void TestWithIncludeNull(int? value, long? min, int? max, bool includeNullMin, bool includeNullMax, bool reverse, bool result)
+    {
+        var expressionMaker = new FilterBuilder()
+            .Configure<EntityRangeEntity<long?, int?>, EntityRangeFilter<int?>>()
+                .FilterByRangedEntity(e => e.Min, FilterByRangeType.LessThan, f => f.Value, FilterByRangeType.LessThan, e => e.Max, f => includeNullMin, f => includeNullMax, f => reverse, f => false)
+                .Finish()
+            .Build();
+        var entity = new EntityRangeEntity<long?, int?>(min, max);
+        var filter = new EntityRangeFilter<int?>(value);
+        Assert.Equal(result, expressionMaker.GetFunc<EntityRangeEntity<long?, int?>, EntityRangeFilter<int?>>(filter)(entity));
+    }
+
+    private static (TEntityMinProperty, TEntityMaxProperty) Test<TEntityMinProperty, TEntityMaxProperty, TFilterProperty>(List<(TEntityMinProperty, TEntityMaxProperty)> entityValues, TFilterProperty value)
     {
         var filter = new FilterBuilder()
             .Configure<EntityRangeEntity<TEntityMinProperty, TEntityMaxProperty>, EntityRangeFilter<TFilterProperty>>()

@@ -312,7 +312,7 @@ public sealed class InTest
         TestInNullWithIncludeNull<int?, int?>(entityValue, type, includeNull, reverse, result);
     }
 
-    private TEntityProperty TestInCollection<TEntityProperty, TFilterPropertyItem>(ICollection<TEntityProperty> entityValues, List<TFilterPropertyItem> filterValue)
+    private static TEntityProperty TestInCollection<TEntityProperty, TFilterPropertyItem>(ICollection<TEntityProperty> entityValues, List<TFilterPropertyItem> filterValue)
     {
         var filter = new FilterBuilder().Register<InEntity<TEntityProperty>, InCollectionFilter<TFilterPropertyItem>>().Build();
         var list = entityValues.Select(v => new InEntity<TEntityProperty>(v));
@@ -323,7 +323,7 @@ public sealed class InTest
         return result[0].Value;
     }
 
-    private TEntityProperty TestInArray<TEntityProperty, TFilterPropertyItem>(ICollection<TEntityProperty> entityValues, TFilterPropertyItem[] filterValue)
+    private static TEntityProperty TestInArray<TEntityProperty, TFilterPropertyItem>(ICollection<TEntityProperty> entityValues, TFilterPropertyItem[] filterValue)
     {
         var filter = new FilterBuilder().Register<InEntity<TEntityProperty>, InArrayFilter<TFilterPropertyItem>>().Build();
         var list = entityValues.Select(v => new InEntity<TEntityProperty>(v));
@@ -334,7 +334,7 @@ public sealed class InTest
         return result[0].Value;
     }
 
-    private void TestInWithIncludeNull<TEntity, TFilter>(TEntity entityValue, FilterByPropertyType type, TFilter filterValue, bool includeNull, bool reverse, bool result)
+    private static void TestInWithIncludeNull<TEntity, TFilter>(TEntity entityValue, FilterByPropertyType type, TFilter filterValue, bool includeNull, bool reverse, bool result)
     {
         var expressionBuilder = new FilterBuilder()
             .Configure<InEntity<TEntity>, InArrayFilter<TFilter>>()
@@ -346,7 +346,7 @@ public sealed class InTest
         Assert.Equal(result, expressionBuilder.GetFunc<InEntity<TEntity>, InArrayFilter<TFilter>>(filter)(entity));
     }
 
-    private void TestInWithoutIncludeNull<TEntity, TFilter>(TEntity entityValue, FilterByPropertyType type, TFilter filterValue, bool reverse, bool result)
+    private static void TestInWithoutIncludeNull<TEntity, TFilter>(TEntity entityValue, FilterByPropertyType type, TFilter filterValue, bool reverse, bool result)
     {
         var expressionBuilder = new FilterBuilder()
             .Configure<InEntity<TEntity>, InCollectionFilter<TFilter>>()
@@ -358,7 +358,7 @@ public sealed class InTest
         Assert.Equal(result, expressionBuilder.GetFunc<InEntity<TEntity>, InCollectionFilter<TFilter>>(filter)(entity));
     }
 
-    private void TestInNullWithIncludeNull<TEntity, TFilter>(TEntity entityValue, FilterByPropertyType type, bool includeNull, bool reverse, bool result)
+    private static void TestInNullWithIncludeNull<TEntity, TFilter>(TEntity entityValue, FilterByPropertyType type, bool includeNull, bool reverse, bool result)
     {
         var expressionBuilder = new FilterBuilder()
             .Configure<InEntity<TEntity>, InArrayFilter<TFilter>>()
@@ -370,7 +370,7 @@ public sealed class InTest
         Assert.Equal(result, expressionBuilder.GetFunc<InEntity<TEntity>, InArrayFilter<TFilter>>(filter)(entity));
     }
 
-    private void TestInNullWithoutIncludeNull<TEntity, TFilter>(TEntity entityValue, FilterByPropertyType type, bool reverse, bool result)
+    private static void TestInNullWithoutIncludeNull<TEntity, TFilter>(TEntity entityValue, FilterByPropertyType type, bool reverse, bool result)
     {
         var expressionBuilder = new FilterBuilder()
             .Configure<InEntity<TEntity>, InCollectionFilter<TFilter>>()
