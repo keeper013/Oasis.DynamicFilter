@@ -52,24 +52,24 @@ internal static class Utilities
         return types.Count == 1 ? new (types[0].GenericTypeArguments[0], true) : null;
     }
 
-    internal static bool HasOperator(this Type type, FilterByPropertyType filterType)
+    internal static bool HasOperator(this Type type, FilterBy filterType)
     {
         string methodName = null!;
         switch (filterType)
         {
-            case FilterByPropertyType.Equality:
+            case FilterBy.Equality:
                 methodName = EqualityOperatorMethodName;
                 break;
-            case FilterByPropertyType.GreaterThan:
+            case FilterBy.GreaterThan:
                 methodName = GreaterThanOperatorMethodName;
                 break;
-            case FilterByPropertyType.GreaterThanOrEqual:
+            case FilterBy.GreaterThanOrEqual:
                 methodName = GreaterThanOrEqualOperatorMethodName;
                 break;
-            case FilterByPropertyType.LessThan:
+            case FilterBy.LessThan:
                 methodName = LessThanOperatorMethodName;
                 break;
-            case FilterByPropertyType.LessThanOrEqual:
+            case FilterBy.LessThanOrEqual:
                 methodName = LessThanOrEqualOperatorMethodName;
                 break;
             default:

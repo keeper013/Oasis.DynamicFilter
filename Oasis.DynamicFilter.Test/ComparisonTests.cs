@@ -57,7 +57,7 @@ public sealed class ComparisonTests
     {
         var filter = new FilterBuilder()
             .Configure<ComparisonEntity<TestStruct2?>, ComparisonFilter<TestStruct2?>>()
-                .FilterByProperty(e => e.Value, FilterByPropertyType.Equality, f => f.Value, null, null, f => false)
+                .FilterByProperty(e => e.Value, FilterBy.Equality, f => f.Value, null, null, f => false)
                 .Finish()
             .Build();
         var list = new List<TestStruct2?> { null, new TestStruct2 { X = 2 }, new TestStruct2 { X = 3 } }.Select(v => new ComparisonEntity<TestStruct2?>(v));
@@ -91,7 +91,7 @@ public sealed class ComparisonTests
     {
         var filter = new FilterBuilder()
             .Configure<ComparisonEntity<int>, ComparisonFilter1<byte?>>()
-                .FilterByProperty(e => e.Value, FilterByPropertyType.Equality, f => f.Value1)
+                .FilterByProperty(e => e.Value, FilterBy.Equality, f => f.Value1)
                 .Finish()
             .Build();
         var list = new List<int> { 1, 2, 3, 4, 5 }.Select(v => new ComparisonEntity<int>(v));
@@ -118,7 +118,7 @@ public sealed class ComparisonTests
     {
         var filter = new FilterBuilder()
             .Configure<ComparisonEntity<int>, ComparisonFilter<byte?>>()
-                .FilterByProperty(e => e.Value, FilterByPropertyType.Equality, f => f.Value, null, null, f => f.Value == 2)
+                .FilterByProperty(e => e.Value, FilterBy.Equality, f => f.Value, null, null, f => f.Value == 2)
                 .Finish()
             .Build();
         var list = new List<int> { 1, 2, 3, 4, 5 }.Select(v => new ComparisonEntity<int>(v));
@@ -133,7 +133,7 @@ public sealed class ComparisonTests
     {
         var filter = new FilterBuilder()
             .Configure<ComparisonEntity<TestStruct2?>, ComparisonFilter<TestStruct2?>>()
-                .FilterByProperty(e => e.Value, FilterByPropertyType.Equality, f => f.Value, null, null, f => false)
+                .FilterByProperty(e => e.Value, FilterBy.Equality, f => f.Value, null, null, f => false)
                 .Finish()
             .Build();
         var list = new List<TestStruct2?> { new TestStruct2 { X = 1 }, new TestStruct2 { X = 2 }, new TestStruct2 { X = 3 } }.Select(v => new ComparisonEntity<TestStruct2?>(v));
@@ -159,7 +159,7 @@ public sealed class ComparisonTests
     {
         var filter = new FilterBuilder()
             .Configure<ComparisonEntity<TestStruct2?>, ComparisonFilter<TestStruct2>>()
-                .FilterByProperty(e => e.Value, FilterByPropertyType.Equality, f => f.Value, f => true, null, null)
+                .FilterByProperty(e => e.Value, FilterBy.Equality, f => f.Value, f => true, null, null)
                 .Finish()
             .Build();
         var list = new List<TestStruct2?> { null, new TestStruct2 { X = 2 }, new TestStruct2 { X = 3 } }.Select(v => new ComparisonEntity<TestStruct2?>(v));
@@ -175,7 +175,7 @@ public sealed class ComparisonTests
     {
         var filter = new FilterBuilder()
             .Configure<ComparisonEntity<TestStruct2?>, ComparisonFilter<TestStruct2?>>()
-                .FilterByProperty(e => e.Value, FilterByPropertyType.Equality, f => f.Value, f => false, null, f => false)
+                .FilterByProperty(e => e.Value, FilterBy.Equality, f => f.Value, f => false, null, f => false)
                 .Finish()
             .Build();
         var list = new List<TestStruct2?> { null, new TestStruct2 { X = 2 }, new TestStruct2 { X = 3 } }.Select(v => new ComparisonEntity<TestStruct2?>(v));
@@ -190,7 +190,7 @@ public sealed class ComparisonTests
     {
         var filter = new FilterBuilder()
             .Configure<ComparisonEntity<TestStruct2?>, ComparisonFilter<TestStruct2?>>()
-                .FilterByProperty(e => e.Value, FilterByPropertyType.Equality, f => f.Value, null, null, f => false)
+                .FilterByProperty(e => e.Value, FilterBy.Equality, f => f.Value, null, null, f => false)
                 .Finish()
             .Build();
         var list = new List<TestStruct2?> { null, new TestStruct2 { X = 2 }, new TestStruct2 { X = 3 } }.Select(v => new ComparisonEntity<TestStruct2?>(v));
@@ -206,7 +206,7 @@ public sealed class ComparisonTests
     {
         var filter = new FilterBuilder()
             .Configure<ComparisonEntity<TestEnum?>, ComparisonFilter<TestEnum?>>()
-                .FilterByProperty(e => e.Value, FilterByPropertyType.Equality, f => f.Value, null, null, f => false)
+                .FilterByProperty(e => e.Value, FilterBy.Equality, f => f.Value, null, null, f => false)
                 .Finish()
             .Build();
         var list = new List<TestEnum?> { TestEnum.Value1, TestEnum.Value2, TestEnum.Value3 }.Select(v => new ComparisonEntity<TestEnum?>(v));
@@ -245,13 +245,13 @@ public sealed class ComparisonTests
     }
 
     [Theory]
-    [InlineData(FilterByPropertyType.Equality, 1)]
-    [InlineData(FilterByPropertyType.GreaterThan, 3)]
-    [InlineData(FilterByPropertyType.GreaterThanOrEqual, 4)]
-    [InlineData(FilterByPropertyType.InEquality, 4)]
-    [InlineData(FilterByPropertyType.LessThan, 1)]
-    [InlineData(FilterByPropertyType.LessThanOrEqual, 2)]
-    public void TestComparison(FilterByPropertyType type, int number)
+    [InlineData(FilterBy.Equality, 1)]
+    [InlineData(FilterBy.GreaterThan, 3)]
+    [InlineData(FilterBy.GreaterThanOrEqual, 4)]
+    [InlineData(FilterBy.InEquality, 4)]
+    [InlineData(FilterBy.LessThan, 1)]
+    [InlineData(FilterBy.LessThanOrEqual, 2)]
+    public void TestComparison(FilterBy type, int number)
     {
         var filter = new FilterBuilder()
             .Configure<ComparisonEntity<int>, ComparisonFilter<byte?>>()
@@ -266,13 +266,13 @@ public sealed class ComparisonTests
     }
 
     [Theory]
-    [InlineData(FilterByPropertyType.Equality, 4)]
-    [InlineData(FilterByPropertyType.GreaterThan, 2)]
-    [InlineData(FilterByPropertyType.GreaterThanOrEqual, 1)]
-    [InlineData(FilterByPropertyType.InEquality, 1)]
-    [InlineData(FilterByPropertyType.LessThan, 4)]
-    [InlineData(FilterByPropertyType.LessThanOrEqual, 3)]
-    public void TestReverseComparison(FilterByPropertyType type, int number)
+    [InlineData(FilterBy.Equality, 4)]
+    [InlineData(FilterBy.GreaterThan, 2)]
+    [InlineData(FilterBy.GreaterThanOrEqual, 1)]
+    [InlineData(FilterBy.InEquality, 1)]
+    [InlineData(FilterBy.LessThan, 4)]
+    [InlineData(FilterBy.LessThanOrEqual, 3)]
+    public void TestReverseComparison(FilterBy type, int number)
     {
         var filter = new FilterBuilder()
             .Configure<ComparisonEntity<int>, ComparisonFilter<byte?>>()
@@ -287,153 +287,153 @@ public sealed class ComparisonTests
     }
 
     [Theory]
-    [InlineData(1, FilterByPropertyType.Equality, 1, true, false)]
-    [InlineData(1, FilterByPropertyType.Equality, 1, false, true)]
-    [InlineData(2, FilterByPropertyType.Equality, 1, true, true)]
-    [InlineData(2, FilterByPropertyType.Equality, 1, false, false)]
-    [InlineData(1, FilterByPropertyType.InEquality, 1, true, true)]
-    [InlineData(1, FilterByPropertyType.InEquality, 1, false, false)]
-    [InlineData(2, FilterByPropertyType.InEquality, 1, true, false)]
-    [InlineData(2, FilterByPropertyType.InEquality, 1, false, true)]
-    public void TestIntCompareToIntWithoutIncludeNull(int entityValue, FilterByPropertyType type, int filterValue, bool reverse, bool result)
+    [InlineData(1, FilterBy.Equality, 1, true, false)]
+    [InlineData(1, FilterBy.Equality, 1, false, true)]
+    [InlineData(2, FilterBy.Equality, 1, true, true)]
+    [InlineData(2, FilterBy.Equality, 1, false, false)]
+    [InlineData(1, FilterBy.InEquality, 1, true, true)]
+    [InlineData(1, FilterBy.InEquality, 1, false, false)]
+    [InlineData(2, FilterBy.InEquality, 1, true, false)]
+    [InlineData(2, FilterBy.InEquality, 1, false, true)]
+    public void TestIntCompareToIntWithoutIncludeNull(int entityValue, FilterBy type, int filterValue, bool reverse, bool result)
     {
         TestCompareToWithoutIncludeNull(entityValue, type, filterValue, reverse, result);
     }
 
     [Theory]
-    [InlineData(1, FilterByPropertyType.Equality, 1, true, false)]
-    [InlineData(1, FilterByPropertyType.Equality, 1, false, true)]
-    [InlineData(2, FilterByPropertyType.Equality, 1, true, true)]
-    [InlineData(2, FilterByPropertyType.Equality, 1, false, false)]
-    [InlineData(1, FilterByPropertyType.Equality, null, true, true)]
-    [InlineData(1, FilterByPropertyType.Equality, null, false, false)]
-    [InlineData(1, FilterByPropertyType.InEquality, 1, true, true)]
-    [InlineData(1, FilterByPropertyType.InEquality, 1, false, false)]
-    [InlineData(2, FilterByPropertyType.InEquality, 1, true, false)]
-    [InlineData(2, FilterByPropertyType.InEquality, 1, false, true)]
-    [InlineData(1, FilterByPropertyType.InEquality, null, true, false)]
-    [InlineData(1, FilterByPropertyType.InEquality, null, false, true)]
-    public void TestIntCompareToNullableIntWithoutIncludeNull(int entityValue, FilterByPropertyType type, int? filterValue, bool reverse, bool result)
+    [InlineData(1, FilterBy.Equality, 1, true, false)]
+    [InlineData(1, FilterBy.Equality, 1, false, true)]
+    [InlineData(2, FilterBy.Equality, 1, true, true)]
+    [InlineData(2, FilterBy.Equality, 1, false, false)]
+    [InlineData(1, FilterBy.Equality, null, true, true)]
+    [InlineData(1, FilterBy.Equality, null, false, false)]
+    [InlineData(1, FilterBy.InEquality, 1, true, true)]
+    [InlineData(1, FilterBy.InEquality, 1, false, false)]
+    [InlineData(2, FilterBy.InEquality, 1, true, false)]
+    [InlineData(2, FilterBy.InEquality, 1, false, true)]
+    [InlineData(1, FilterBy.InEquality, null, true, false)]
+    [InlineData(1, FilterBy.InEquality, null, false, true)]
+    public void TestIntCompareToNullableIntWithoutIncludeNull(int entityValue, FilterBy type, int? filterValue, bool reverse, bool result)
     {
         TestCompareToWithoutIncludeNull(entityValue, type, filterValue, reverse, result);
     }
 
     [Theory]
-    [InlineData(1, FilterByPropertyType.Equality, 1, true, true, false)]
-    [InlineData(1, FilterByPropertyType.Equality, 1, true, false, true)]
-    [InlineData(1, FilterByPropertyType.Equality, 1, false, true, false)]
-    [InlineData(1, FilterByPropertyType.Equality, 1, false, false, true)]
-    [InlineData(null, FilterByPropertyType.Equality, 1, true, true, false)]
-    [InlineData(null, FilterByPropertyType.Equality, 1, true, false, true)]
-    [InlineData(null, FilterByPropertyType.Equality, 1, false, true, true)]
-    [InlineData(null, FilterByPropertyType.Equality, 1, false, false, false)]
-    [InlineData(2, FilterByPropertyType.Equality, 1, true, true, true)]
-    [InlineData(2, FilterByPropertyType.Equality, 1, true, false, false)]
-    [InlineData(2, FilterByPropertyType.Equality, 1, false, true, true)]
-    [InlineData(2, FilterByPropertyType.Equality, 1, false, false, false)]
-    [InlineData(1, FilterByPropertyType.InEquality, 1, true, true, true)]
-    [InlineData(1, FilterByPropertyType.InEquality, 1, true, false, false)]
-    [InlineData(1, FilterByPropertyType.InEquality, 1, false, true, true)]
-    [InlineData(1, FilterByPropertyType.InEquality, 1, false, false, false)]
-    [InlineData(null, FilterByPropertyType.InEquality, 1, true, true, false)]
-    [InlineData(null, FilterByPropertyType.InEquality, 1, true, false, true)]
-    [InlineData(null, FilterByPropertyType.InEquality, 1, false, true, true)]
-    [InlineData(null, FilterByPropertyType.InEquality, 1, false, false, false)]
-    [InlineData(2, FilterByPropertyType.InEquality, 1, true, true, false)]
-    [InlineData(2, FilterByPropertyType.InEquality, 1, true, false, true)]
-    [InlineData(2, FilterByPropertyType.InEquality, 1, false, true, false)]
-    [InlineData(2, FilterByPropertyType.InEquality, 1, false, false, true)]
-    public void TestNullableIntCompareToIntWithIncludeNull(int? entityValue, FilterByPropertyType type, int filterValue, bool includeNull, bool reverse, bool result)
+    [InlineData(1, FilterBy.Equality, 1, true, true, false)]
+    [InlineData(1, FilterBy.Equality, 1, true, false, true)]
+    [InlineData(1, FilterBy.Equality, 1, false, true, false)]
+    [InlineData(1, FilterBy.Equality, 1, false, false, true)]
+    [InlineData(null, FilterBy.Equality, 1, true, true, false)]
+    [InlineData(null, FilterBy.Equality, 1, true, false, true)]
+    [InlineData(null, FilterBy.Equality, 1, false, true, true)]
+    [InlineData(null, FilterBy.Equality, 1, false, false, false)]
+    [InlineData(2, FilterBy.Equality, 1, true, true, true)]
+    [InlineData(2, FilterBy.Equality, 1, true, false, false)]
+    [InlineData(2, FilterBy.Equality, 1, false, true, true)]
+    [InlineData(2, FilterBy.Equality, 1, false, false, false)]
+    [InlineData(1, FilterBy.InEquality, 1, true, true, true)]
+    [InlineData(1, FilterBy.InEquality, 1, true, false, false)]
+    [InlineData(1, FilterBy.InEquality, 1, false, true, true)]
+    [InlineData(1, FilterBy.InEquality, 1, false, false, false)]
+    [InlineData(null, FilterBy.InEquality, 1, true, true, false)]
+    [InlineData(null, FilterBy.InEquality, 1, true, false, true)]
+    [InlineData(null, FilterBy.InEquality, 1, false, true, true)]
+    [InlineData(null, FilterBy.InEquality, 1, false, false, false)]
+    [InlineData(2, FilterBy.InEquality, 1, true, true, false)]
+    [InlineData(2, FilterBy.InEquality, 1, true, false, true)]
+    [InlineData(2, FilterBy.InEquality, 1, false, true, false)]
+    [InlineData(2, FilterBy.InEquality, 1, false, false, true)]
+    public void TestNullableIntCompareToIntWithIncludeNull(int? entityValue, FilterBy type, int filterValue, bool includeNull, bool reverse, bool result)
     {
         TestCompareToWithIncludeNull(entityValue, type, filterValue, includeNull, reverse, result);
     }
 
     [Theory]
-    [InlineData(1, FilterByPropertyType.Equality, 1, true, false)]
-    [InlineData(1, FilterByPropertyType.Equality, 1, false, true)]
-    [InlineData(null, FilterByPropertyType.Equality, 1, true, true)]
-    [InlineData(null, FilterByPropertyType.Equality, 1, false, false)]
-    [InlineData(2, FilterByPropertyType.Equality, 1, true, true)]
-    [InlineData(2, FilterByPropertyType.Equality, 1, false, false)]
-    [InlineData(1, FilterByPropertyType.InEquality, 1, true, true)]
-    [InlineData(1, FilterByPropertyType.InEquality, 1, false, false)]
-    [InlineData(null, FilterByPropertyType.InEquality, 1, true, false)]
-    [InlineData(null, FilterByPropertyType.InEquality, 1, false, true)]
-    [InlineData(2, FilterByPropertyType.InEquality, 1, true, false)]
-    [InlineData(2, FilterByPropertyType.InEquality, 1, false, true)]
-    public void TestNullableIntCompareToIntWithoutIncludeNull(int? entityValue, FilterByPropertyType type, int filterValue, bool reverse, bool result)
+    [InlineData(1, FilterBy.Equality, 1, true, false)]
+    [InlineData(1, FilterBy.Equality, 1, false, true)]
+    [InlineData(null, FilterBy.Equality, 1, true, true)]
+    [InlineData(null, FilterBy.Equality, 1, false, false)]
+    [InlineData(2, FilterBy.Equality, 1, true, true)]
+    [InlineData(2, FilterBy.Equality, 1, false, false)]
+    [InlineData(1, FilterBy.InEquality, 1, true, true)]
+    [InlineData(1, FilterBy.InEquality, 1, false, false)]
+    [InlineData(null, FilterBy.InEquality, 1, true, false)]
+    [InlineData(null, FilterBy.InEquality, 1, false, true)]
+    [InlineData(2, FilterBy.InEquality, 1, true, false)]
+    [InlineData(2, FilterBy.InEquality, 1, false, true)]
+    public void TestNullableIntCompareToIntWithoutIncludeNull(int? entityValue, FilterBy type, int filterValue, bool reverse, bool result)
     {
         TestCompareToWithoutIncludeNull(entityValue, type, filterValue, reverse, result);
     }
 
     [Theory]
-    [InlineData(1, FilterByPropertyType.Equality, 1, true, true, false)]
-    [InlineData(1, FilterByPropertyType.Equality, 1, true, false, true)]
-    [InlineData(1, FilterByPropertyType.Equality, 1, false, true, false)]
-    [InlineData(1, FilterByPropertyType.Equality, 1, false, false, true)]
-    [InlineData(null, FilterByPropertyType.Equality, 1, true, true, false)]
-    [InlineData(null, FilterByPropertyType.Equality, 1, true, false, true)]
-    [InlineData(null, FilterByPropertyType.Equality, 1, false, true, true)]
-    [InlineData(null, FilterByPropertyType.Equality, 1, false, false, false)]
-    [InlineData(2, FilterByPropertyType.Equality, 1, true, true, true)]
-    [InlineData(2, FilterByPropertyType.Equality, 1, true, false, false)]
-    [InlineData(2, FilterByPropertyType.Equality, 1, false, true, true)]
-    [InlineData(2, FilterByPropertyType.Equality, 1, false, false, false)]
-    [InlineData(1, FilterByPropertyType.Equality, null, true, true, true)]
-    [InlineData(1, FilterByPropertyType.Equality, null, true, false, false)]
-    [InlineData(1, FilterByPropertyType.Equality, null, false, true, true)]
-    [InlineData(1, FilterByPropertyType.Equality, null, false, false, false)]
-    [InlineData(null, FilterByPropertyType.Equality, null, true, true, false)]
-    [InlineData(null, FilterByPropertyType.Equality, null, true, false, true)]
-    [InlineData(null, FilterByPropertyType.Equality, null, false, true, true)]
-    [InlineData(null, FilterByPropertyType.Equality, null, false, false, false)]
-    [InlineData(1, FilterByPropertyType.InEquality, 1, true, true, true)]
-    [InlineData(1, FilterByPropertyType.InEquality, 1, true, false, false)]
-    [InlineData(1, FilterByPropertyType.InEquality, 1, false, true, true)]
-    [InlineData(1, FilterByPropertyType.InEquality, 1, false, false, false)]
-    [InlineData(null, FilterByPropertyType.InEquality, 1, true, true, false)]
-    [InlineData(null, FilterByPropertyType.InEquality, 1, true, false, true)]
-    [InlineData(null, FilterByPropertyType.InEquality, 1, false, true, true)]
-    [InlineData(null, FilterByPropertyType.InEquality, 1, false, false, false)]
-    [InlineData(2, FilterByPropertyType.InEquality, 1, true, true, false)]
-    [InlineData(2, FilterByPropertyType.InEquality, 1, true, false, true)]
-    [InlineData(2, FilterByPropertyType.InEquality, 1, false, true, false)]
-    [InlineData(2, FilterByPropertyType.InEquality, 1, false, false, true)]
-    [InlineData(1, FilterByPropertyType.InEquality, null, true, true, false)]
-    [InlineData(1, FilterByPropertyType.InEquality, null, true, false, true)]
-    [InlineData(1, FilterByPropertyType.InEquality, null, false, true, false)]
-    [InlineData(1, FilterByPropertyType.InEquality, null, false, false, true)]
-    [InlineData(null, FilterByPropertyType.InEquality, null, true, true, false)]
-    [InlineData(null, FilterByPropertyType.InEquality, null, true, false, true)]
-    [InlineData(null, FilterByPropertyType.InEquality, null, false, true, true)]
-    [InlineData(null, FilterByPropertyType.InEquality, null, false, false, false)]
-    public void TestNullableIntCompareToNullableIntWithIncludeNull(int? entityValue, FilterByPropertyType type, int? filterValue, bool includeNull, bool reverse, bool result)
+    [InlineData(1, FilterBy.Equality, 1, true, true, false)]
+    [InlineData(1, FilterBy.Equality, 1, true, false, true)]
+    [InlineData(1, FilterBy.Equality, 1, false, true, false)]
+    [InlineData(1, FilterBy.Equality, 1, false, false, true)]
+    [InlineData(null, FilterBy.Equality, 1, true, true, false)]
+    [InlineData(null, FilterBy.Equality, 1, true, false, true)]
+    [InlineData(null, FilterBy.Equality, 1, false, true, true)]
+    [InlineData(null, FilterBy.Equality, 1, false, false, false)]
+    [InlineData(2, FilterBy.Equality, 1, true, true, true)]
+    [InlineData(2, FilterBy.Equality, 1, true, false, false)]
+    [InlineData(2, FilterBy.Equality, 1, false, true, true)]
+    [InlineData(2, FilterBy.Equality, 1, false, false, false)]
+    [InlineData(1, FilterBy.Equality, null, true, true, true)]
+    [InlineData(1, FilterBy.Equality, null, true, false, false)]
+    [InlineData(1, FilterBy.Equality, null, false, true, true)]
+    [InlineData(1, FilterBy.Equality, null, false, false, false)]
+    [InlineData(null, FilterBy.Equality, null, true, true, false)]
+    [InlineData(null, FilterBy.Equality, null, true, false, true)]
+    [InlineData(null, FilterBy.Equality, null, false, true, true)]
+    [InlineData(null, FilterBy.Equality, null, false, false, false)]
+    [InlineData(1, FilterBy.InEquality, 1, true, true, true)]
+    [InlineData(1, FilterBy.InEquality, 1, true, false, false)]
+    [InlineData(1, FilterBy.InEquality, 1, false, true, true)]
+    [InlineData(1, FilterBy.InEquality, 1, false, false, false)]
+    [InlineData(null, FilterBy.InEquality, 1, true, true, false)]
+    [InlineData(null, FilterBy.InEquality, 1, true, false, true)]
+    [InlineData(null, FilterBy.InEquality, 1, false, true, true)]
+    [InlineData(null, FilterBy.InEquality, 1, false, false, false)]
+    [InlineData(2, FilterBy.InEquality, 1, true, true, false)]
+    [InlineData(2, FilterBy.InEquality, 1, true, false, true)]
+    [InlineData(2, FilterBy.InEquality, 1, false, true, false)]
+    [InlineData(2, FilterBy.InEquality, 1, false, false, true)]
+    [InlineData(1, FilterBy.InEquality, null, true, true, false)]
+    [InlineData(1, FilterBy.InEquality, null, true, false, true)]
+    [InlineData(1, FilterBy.InEquality, null, false, true, false)]
+    [InlineData(1, FilterBy.InEquality, null, false, false, true)]
+    [InlineData(null, FilterBy.InEquality, null, true, true, false)]
+    [InlineData(null, FilterBy.InEquality, null, true, false, true)]
+    [InlineData(null, FilterBy.InEquality, null, false, true, true)]
+    [InlineData(null, FilterBy.InEquality, null, false, false, false)]
+    public void TestNullableIntCompareToNullableIntWithIncludeNull(int? entityValue, FilterBy type, int? filterValue, bool includeNull, bool reverse, bool result)
     {
         TestCompareToWithIncludeNull(entityValue, type, filterValue, includeNull, reverse, result);
     }
 
     [Theory]
-    [InlineData(1, FilterByPropertyType.Equality, 1, true, false)]
-    [InlineData(1, FilterByPropertyType.Equality, 1, false, true)]
-    [InlineData(null, FilterByPropertyType.Equality, 1, true, true)]
-    [InlineData(null, FilterByPropertyType.Equality, 1, false, false)]
-    [InlineData(2, FilterByPropertyType.Equality, 1, true, true)]
-    [InlineData(2, FilterByPropertyType.Equality, 1, false, false)]
-    [InlineData(1, FilterByPropertyType.Equality, null, true, true)]
-    [InlineData(1, FilterByPropertyType.Equality, null, false, false)]
-    [InlineData(null, FilterByPropertyType.Equality, null, true, false)]
-    [InlineData(null, FilterByPropertyType.Equality, null, false, true)]
-    [InlineData(1, FilterByPropertyType.InEquality, 1, true, true)]
-    [InlineData(1, FilterByPropertyType.InEquality, 1, false, false)]
-    [InlineData(null, FilterByPropertyType.InEquality, 1, true, false)]
-    [InlineData(null, FilterByPropertyType.InEquality, 1, false, true)]
-    [InlineData(2, FilterByPropertyType.InEquality, 1, true, false)]
-    [InlineData(2, FilterByPropertyType.InEquality, 1, false, true)]
-    [InlineData(1, FilterByPropertyType.InEquality, null, true, false)]
-    [InlineData(1, FilterByPropertyType.InEquality, null, false, true)]
-    [InlineData(null, FilterByPropertyType.InEquality, null, true, true)]
-    [InlineData(null, FilterByPropertyType.InEquality, null, false, false)]
-    public void TestNullableIntCompareToNullableIntWithoutIncludeNull(int? entityValue, FilterByPropertyType type, int? filterValue, bool reverse, bool result)
+    [InlineData(1, FilterBy.Equality, 1, true, false)]
+    [InlineData(1, FilterBy.Equality, 1, false, true)]
+    [InlineData(null, FilterBy.Equality, 1, true, true)]
+    [InlineData(null, FilterBy.Equality, 1, false, false)]
+    [InlineData(2, FilterBy.Equality, 1, true, true)]
+    [InlineData(2, FilterBy.Equality, 1, false, false)]
+    [InlineData(1, FilterBy.Equality, null, true, true)]
+    [InlineData(1, FilterBy.Equality, null, false, false)]
+    [InlineData(null, FilterBy.Equality, null, true, false)]
+    [InlineData(null, FilterBy.Equality, null, false, true)]
+    [InlineData(1, FilterBy.InEquality, 1, true, true)]
+    [InlineData(1, FilterBy.InEquality, 1, false, false)]
+    [InlineData(null, FilterBy.InEquality, 1, true, false)]
+    [InlineData(null, FilterBy.InEquality, 1, false, true)]
+    [InlineData(2, FilterBy.InEquality, 1, true, false)]
+    [InlineData(2, FilterBy.InEquality, 1, false, true)]
+    [InlineData(1, FilterBy.InEquality, null, true, false)]
+    [InlineData(1, FilterBy.InEquality, null, false, true)]
+    [InlineData(null, FilterBy.InEquality, null, true, true)]
+    [InlineData(null, FilterBy.InEquality, null, false, false)]
+    public void TestNullableIntCompareToNullableIntWithoutIncludeNull(int? entityValue, FilterBy type, int? filterValue, bool reverse, bool result)
     {
         TestCompareToWithoutIncludeNull(entityValue, type, filterValue, reverse, result);
     }
@@ -449,7 +449,7 @@ public sealed class ComparisonTests
         return result[0].Value;
     }
 
-    private static void TestCompareToWithIncludeNull<TEntity, TFilter>(TEntity entityValue, FilterByPropertyType type, TFilter filterValue, bool includeNull, bool reverse, bool result)
+    private static void TestCompareToWithIncludeNull<TEntity, TFilter>(TEntity entityValue, FilterBy type, TFilter filterValue, bool includeNull, bool reverse, bool result)
     {
         var filter = new FilterBuilder()
             .Configure<ComparisonEntity<TEntity>, ComparisonFilter<TFilter>>()
@@ -462,7 +462,7 @@ public sealed class ComparisonTests
         Assert.Equal(result, exp.Compile()(entity));
     }
 
-    private static void TestCompareToWithoutIncludeNull<TEntity, TFilter>(TEntity entityValue, FilterByPropertyType type, TFilter filterValue, bool reverse, bool result)
+    private static void TestCompareToWithoutIncludeNull<TEntity, TFilter>(TEntity entityValue, FilterBy type, TFilter filterValue, bool reverse, bool result)
     {
         var filter = new FilterBuilder()
             .Configure<ComparisonEntity<TEntity>, ComparisonFilter<TFilter>>()

@@ -6,22 +6,22 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 
-public record struct CompareData(Type? entityPropertyConvertTo, Type? filterPropertyConvertTo, FilterByPropertyType filterType);
-public record struct ContainData(Type? filterPropertyConvertTo, FilterByPropertyType filterType, bool nullValueNotCovered);
-public record struct InData(Type? entityPropertyConvertTo, FilterByPropertyType filterType, bool nullValueNotCovered);
+public record struct CompareData(Type? entityPropertyConvertTo, Type? filterPropertyConvertTo, FilterBy filterType);
+public record struct ContainData(Type? filterPropertyConvertTo, FilterBy filterType, bool nullValueNotCovered);
+public record struct InData(Type? entityPropertyConvertTo, FilterBy filterType, bool nullValueNotCovered);
 public record struct RangeData(CompareData minData, CompareData maxData);
 
 public static class ExpressionUtilities
 {
     private static readonly MethodInfo EnumerableContains = typeof(Enumerable).GetMethods(BindingFlags.Public | BindingFlags.Static).First(m => string.Equals(m.Name, nameof(Enumerable.Contains)) && m.GetParameters().Length == 2);
-    private static readonly IReadOnlyDictionary<FilterByPropertyType, Func<Expression, Expression, BinaryExpression>> _compareFunctions = new Dictionary<FilterByPropertyType, Func<Expression, Expression, BinaryExpression>>
+    private static readonly IReadOnlyDictionary<FilterBy, Func<Expression, Expression, BinaryExpression>> _compareFunctions = new Dictionary<FilterBy, Func<Expression, Expression, BinaryExpression>>
     {
-        { FilterByPropertyType.Equality, Expression.Equal },
-        { FilterByPropertyType.GreaterThan, Expression.GreaterThan },
-        { FilterByPropertyType.GreaterThanOrEqual, Expression.GreaterThanOrEqual },
-        { FilterByPropertyType.InEquality, Expression.NotEqual },
-        { FilterByPropertyType.LessThan, Expression.LessThan },
-        { FilterByPropertyType.LessThanOrEqual, Expression.LessThanOrEqual },
+        { FilterBy.Equality, Expression.Equal },
+        { FilterBy.GreaterThan, Expression.GreaterThan },
+        { FilterBy.GreaterThanOrEqual, Expression.GreaterThanOrEqual },
+        { FilterBy.InEquality, Expression.NotEqual },
+        { FilterBy.LessThan, Expression.LessThan },
+        { FilterBy.LessThanOrEqual, Expression.LessThanOrEqual },
     };
 
     public static void BuildCompareExpression<TEntityProperty, TFilterProperty>(ParameterExpression parameter, string entityPropertyName, TFilterProperty value, CompareData data, bool? includeNull, bool reverse, ref Expression? result)
@@ -218,7 +218,7 @@ public static class ExpressionUtilities
         ref Expression? result)
     {
         Expression exp;
-        var notContains = data.filterType == FilterByPropertyType.NotContains;
+        var notContains = data.filterType == FilterBy.NotContains;
 
         // can't call contains, if entity property isn't null then not contains
         if (data.nullValueNotCovered && value == null)
@@ -263,7 +263,7 @@ public static class ExpressionUtilities
         Func<Expression> makeContainsExpression,
         ref Expression? result)
     {
-        var notIn = data.filterType == FilterByPropertyType.NotIn;
+        var notIn = data.filterType == FilterBy.NotIn;
         Expression exp;
         if (value == null)
         {
@@ -308,20 +308,20 @@ public static class ExpressionUtilities
         result = result == null ? exp : Expression.AndAlso(result, exp);
     }
 
-    private static FilterByPropertyType GetReversed(this FilterByPropertyType filterType)
+    private static FilterBy GetReversed(this FilterBy filterType)
     {
         return filterType switch
         {
-            FilterByPropertyType.Contains => FilterByPropertyType.NotContains,
-            FilterByPropertyType.Equality => FilterByPropertyType.InEquality,
-            FilterByPropertyType.GreaterThan => FilterByPropertyType.LessThanOrEqual,
-            FilterByPropertyType.GreaterThanOrEqual => FilterByPropertyType.LessThan,
-            FilterByPropertyType.In => FilterByPropertyType.NotIn,
-            FilterByPropertyType.InEquality => FilterByPropertyType.Equality,
-            FilterByPropertyType.LessThan => FilterByPropertyType.GreaterThanOrEqual,
-            FilterByPropertyType.LessThanOrEqual => FilterByPropertyType.GreaterThan,
-            FilterByPropertyType.NotContains => FilterByPropertyType.Contains,
-            _ => FilterByPropertyType.In,
+            FilterBy.Contains => FilterBy.NotContains,
+            FilterBy.Equality => FilterBy.InEquality,
+            FilterBy.GreaterThan => FilterBy.LessThanOrEqual,
+            FilterBy.GreaterThanOrEqual => FilterBy.LessThan,
+            FilterBy.In => FilterBy.NotIn,
+            FilterBy.InEquality => FilterBy.Equality,
+            FilterBy.LessThan => FilterBy.GreaterThanOrEqual,
+            FilterBy.LessThanOrEqual => FilterBy.GreaterThan,
+            FilterBy.NotContains => FilterBy.Contains,
+            _ => FilterBy.In,
         };
     }
 }

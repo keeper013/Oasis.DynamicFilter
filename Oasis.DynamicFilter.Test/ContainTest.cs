@@ -84,7 +84,7 @@ public sealed class ContainTest
 
         var filter = new FilterBuilder()
             .Configure<ArrayEntity<int?>, ContainFilter<byte?>>()
-                .FilterByProperty(e => e.Value, FilterByPropertyType.Contains, f => f.Value, null, null, f => false)
+                .FilterByProperty(e => e.Value, FilterBy.Contains, f => f.Value, null, null, f => false)
                 .Finish()
             .Build();
         var arr = ints.Select(v => new ArrayEntity<int?>(v));
@@ -115,325 +115,325 @@ public sealed class ContainTest
     }
 
     [Theory]
-    [InlineData(1, FilterByPropertyType.Contains, 1, true, true, false)]
-    [InlineData(1, FilterByPropertyType.Contains, 1, true, false, true)]
-    [InlineData(2, FilterByPropertyType.Contains, 1, true, true, true)]
-    [InlineData(2, FilterByPropertyType.Contains, 1, true, false, false)]
-    [InlineData(1, FilterByPropertyType.NotContains, 1, true, true, true)]
-    [InlineData(1, FilterByPropertyType.NotContains, 1, true, false, false)]
-    [InlineData(2, FilterByPropertyType.NotContains, 1, true, true, false)]
-    [InlineData(2, FilterByPropertyType.NotContains, 1, true, false, true)]
-    [InlineData(1, FilterByPropertyType.Contains, 1, false, true, false)]
-    [InlineData(1, FilterByPropertyType.Contains, 1, false, false, true)]
-    [InlineData(2, FilterByPropertyType.Contains, 1, false, true, true)]
-    [InlineData(2, FilterByPropertyType.Contains, 1, false, false, false)]
-    [InlineData(1, FilterByPropertyType.NotContains, 1, false, true, true)]
-    [InlineData(1, FilterByPropertyType.NotContains, 1, false, false, false)]
-    [InlineData(2, FilterByPropertyType.NotContains, 1, false, true, false)]
-    [InlineData(2, FilterByPropertyType.NotContains, 1, false, false, true)]
-    public void TestIntContainsIntWithIncludeNull(int entityValue, FilterByPropertyType type, int filterValue, bool includeNull, bool reverse, bool result)
+    [InlineData(1, FilterBy.Contains, 1, true, true, false)]
+    [InlineData(1, FilterBy.Contains, 1, true, false, true)]
+    [InlineData(2, FilterBy.Contains, 1, true, true, true)]
+    [InlineData(2, FilterBy.Contains, 1, true, false, false)]
+    [InlineData(1, FilterBy.NotContains, 1, true, true, true)]
+    [InlineData(1, FilterBy.NotContains, 1, true, false, false)]
+    [InlineData(2, FilterBy.NotContains, 1, true, true, false)]
+    [InlineData(2, FilterBy.NotContains, 1, true, false, true)]
+    [InlineData(1, FilterBy.Contains, 1, false, true, false)]
+    [InlineData(1, FilterBy.Contains, 1, false, false, true)]
+    [InlineData(2, FilterBy.Contains, 1, false, true, true)]
+    [InlineData(2, FilterBy.Contains, 1, false, false, false)]
+    [InlineData(1, FilterBy.NotContains, 1, false, true, true)]
+    [InlineData(1, FilterBy.NotContains, 1, false, false, false)]
+    [InlineData(2, FilterBy.NotContains, 1, false, true, false)]
+    [InlineData(2, FilterBy.NotContains, 1, false, false, true)]
+    public void TestIntContainsIntWithIncludeNull(int entityValue, FilterBy type, int filterValue, bool includeNull, bool reverse, bool result)
     {
         TestContainsWithIncludeNull(entityValue, type, filterValue, includeNull, reverse, result);
     }
 
     [Theory]
-    [InlineData(1, FilterByPropertyType.Contains, 1, true, false)]
-    [InlineData(1, FilterByPropertyType.Contains, 1, false, true)]
-    [InlineData(2, FilterByPropertyType.Contains, 1, true, true)]
-    [InlineData(2, FilterByPropertyType.Contains, 1, false, false)]
-    [InlineData(1, FilterByPropertyType.NotContains, 1, true, true)]
-    [InlineData(1, FilterByPropertyType.NotContains, 1, false, false)]
-    [InlineData(2, FilterByPropertyType.NotContains, 1, true, false)]
-    [InlineData(2, FilterByPropertyType.NotContains, 1, false, true)]
-    public void TestIntContainsIntWithoutIncludeNull(int entityValue, FilterByPropertyType type, int filterValue, bool reverse, bool result)
+    [InlineData(1, FilterBy.Contains, 1, true, false)]
+    [InlineData(1, FilterBy.Contains, 1, false, true)]
+    [InlineData(2, FilterBy.Contains, 1, true, true)]
+    [InlineData(2, FilterBy.Contains, 1, false, false)]
+    [InlineData(1, FilterBy.NotContains, 1, true, true)]
+    [InlineData(1, FilterBy.NotContains, 1, false, false)]
+    [InlineData(2, FilterBy.NotContains, 1, true, false)]
+    [InlineData(2, FilterBy.NotContains, 1, false, true)]
+    public void TestIntContainsIntWithoutIncludeNull(int entityValue, FilterBy type, int filterValue, bool reverse, bool result)
     {
         TestContainsWithoutIncludeNull(entityValue, type, filterValue, reverse, result);
     }
 
     [Theory]
-    [InlineData(FilterByPropertyType.Contains, 1, true, true, false)]
-    [InlineData(FilterByPropertyType.Contains, 1, true, false, true)]
-    [InlineData(FilterByPropertyType.Contains, 1, false, true, true)]
-    [InlineData(FilterByPropertyType.Contains, 1, false, false, false)]
-    [InlineData(FilterByPropertyType.NotContains, 1, true, true, false)]
-    [InlineData(FilterByPropertyType.NotContains, 1, true, false, true)]
-    [InlineData(FilterByPropertyType.NotContains, 1, false, true, true)]
-    [InlineData(FilterByPropertyType.NotContains, 1, false, false, false)]
-    public void TestIntNullContainsIntWithIncludeNull(FilterByPropertyType type, int filterValue, bool includeNull, bool reverse, bool result)
+    [InlineData(FilterBy.Contains, 1, true, true, false)]
+    [InlineData(FilterBy.Contains, 1, true, false, true)]
+    [InlineData(FilterBy.Contains, 1, false, true, true)]
+    [InlineData(FilterBy.Contains, 1, false, false, false)]
+    [InlineData(FilterBy.NotContains, 1, true, true, false)]
+    [InlineData(FilterBy.NotContains, 1, true, false, true)]
+    [InlineData(FilterBy.NotContains, 1, false, true, true)]
+    [InlineData(FilterBy.NotContains, 1, false, false, false)]
+    public void TestIntNullContainsIntWithIncludeNull(FilterBy type, int filterValue, bool includeNull, bool reverse, bool result)
     {
         TestNullContainsWithIncludeNull<int, int>(type, filterValue, includeNull, reverse, result);
     }
 
     [Theory]
-    [InlineData(FilterByPropertyType.Contains, 1, true, true)]
-    [InlineData(FilterByPropertyType.Contains, 1, false, false)]
-    [InlineData(FilterByPropertyType.NotContains, 1, true, false)]
-    [InlineData(FilterByPropertyType.NotContains, 1, false, true)]
-    public void TestIntNullContainsIntWithoutIncludeNull(FilterByPropertyType type, int filterValue, bool reverse, bool result)
+    [InlineData(FilterBy.Contains, 1, true, true)]
+    [InlineData(FilterBy.Contains, 1, false, false)]
+    [InlineData(FilterBy.NotContains, 1, true, false)]
+    [InlineData(FilterBy.NotContains, 1, false, true)]
+    public void TestIntNullContainsIntWithoutIncludeNull(FilterBy type, int filterValue, bool reverse, bool result)
     {
         TestNullContainsWithoutIncludeNull<int, int>(type, filterValue, reverse, result);
     }
 
     [Theory]
-    [InlineData(1, FilterByPropertyType.Contains, 1, true, true, false)]
-    [InlineData(1, FilterByPropertyType.Contains, 1, true, false, true)]
-    [InlineData(2, FilterByPropertyType.Contains, 1, true, true, true)]
-    [InlineData(2, FilterByPropertyType.Contains, 1, true, false, false)]
-    [InlineData(1, FilterByPropertyType.NotContains, 1, true, true, true)]
-    [InlineData(1, FilterByPropertyType.NotContains, 1, true, false, false)]
-    [InlineData(2, FilterByPropertyType.NotContains, 1, true, true, false)]
-    [InlineData(2, FilterByPropertyType.NotContains, 1, true, false, true)]
-    [InlineData(null, FilterByPropertyType.Contains, 1, true, true, true)]
-    [InlineData(null, FilterByPropertyType.Contains, 1, true, false, false)]
-    [InlineData(null, FilterByPropertyType.NotContains, 1, true, true, false)]
-    [InlineData(null, FilterByPropertyType.NotContains, 1, true, false, true)]
-    [InlineData(1, FilterByPropertyType.Contains, 1, false, true, false)]
-    [InlineData(1, FilterByPropertyType.Contains, 1, false, false, true)]
-    [InlineData(2, FilterByPropertyType.Contains, 1, false, true, true)]
-    [InlineData(2, FilterByPropertyType.Contains, 1, false, false, false)]
-    [InlineData(1, FilterByPropertyType.NotContains, 1, false, true, true)]
-    [InlineData(1, FilterByPropertyType.NotContains, 1, false, false, false)]
-    [InlineData(2, FilterByPropertyType.NotContains, 1, false, true, false)]
-    [InlineData(2, FilterByPropertyType.NotContains, 1, false, false, true)]
-    [InlineData(null, FilterByPropertyType.Contains, 1, false, true, true)]
-    [InlineData(null, FilterByPropertyType.Contains, 1, false, false, false)]
-    [InlineData(null, FilterByPropertyType.NotContains, 1, false, true, false)]
-    [InlineData(null, FilterByPropertyType.NotContains, 1, false, false, true)]
-    public void TestNullableIntContainsIntWithIncludeNull(int? entityValue, FilterByPropertyType type, int filterValue, bool includeNull, bool reverse, bool result)
+    [InlineData(1, FilterBy.Contains, 1, true, true, false)]
+    [InlineData(1, FilterBy.Contains, 1, true, false, true)]
+    [InlineData(2, FilterBy.Contains, 1, true, true, true)]
+    [InlineData(2, FilterBy.Contains, 1, true, false, false)]
+    [InlineData(1, FilterBy.NotContains, 1, true, true, true)]
+    [InlineData(1, FilterBy.NotContains, 1, true, false, false)]
+    [InlineData(2, FilterBy.NotContains, 1, true, true, false)]
+    [InlineData(2, FilterBy.NotContains, 1, true, false, true)]
+    [InlineData(null, FilterBy.Contains, 1, true, true, true)]
+    [InlineData(null, FilterBy.Contains, 1, true, false, false)]
+    [InlineData(null, FilterBy.NotContains, 1, true, true, false)]
+    [InlineData(null, FilterBy.NotContains, 1, true, false, true)]
+    [InlineData(1, FilterBy.Contains, 1, false, true, false)]
+    [InlineData(1, FilterBy.Contains, 1, false, false, true)]
+    [InlineData(2, FilterBy.Contains, 1, false, true, true)]
+    [InlineData(2, FilterBy.Contains, 1, false, false, false)]
+    [InlineData(1, FilterBy.NotContains, 1, false, true, true)]
+    [InlineData(1, FilterBy.NotContains, 1, false, false, false)]
+    [InlineData(2, FilterBy.NotContains, 1, false, true, false)]
+    [InlineData(2, FilterBy.NotContains, 1, false, false, true)]
+    [InlineData(null, FilterBy.Contains, 1, false, true, true)]
+    [InlineData(null, FilterBy.Contains, 1, false, false, false)]
+    [InlineData(null, FilterBy.NotContains, 1, false, true, false)]
+    [InlineData(null, FilterBy.NotContains, 1, false, false, true)]
+    public void TestNullableIntContainsIntWithIncludeNull(int? entityValue, FilterBy type, int filterValue, bool includeNull, bool reverse, bool result)
     {
         TestContainsWithIncludeNull(entityValue, type, filterValue, includeNull, reverse, result);
     }
 
     [Theory]
-    [InlineData(1, FilterByPropertyType.Contains, 1, true, false)]
-    [InlineData(1, FilterByPropertyType.Contains, 1, false, true)]
-    [InlineData(2, FilterByPropertyType.Contains, 1, true, true)]
-    [InlineData(2, FilterByPropertyType.Contains, 1, false, false)]
-    [InlineData(1, FilterByPropertyType.NotContains, 1, true, true)]
-    [InlineData(1, FilterByPropertyType.NotContains, 1, false, false)]
-    [InlineData(2, FilterByPropertyType.NotContains, 1, true, false)]
-    [InlineData(2, FilterByPropertyType.NotContains, 1, false, true)]
-    [InlineData(null, FilterByPropertyType.Contains, 1, true, true)]
-    [InlineData(null, FilterByPropertyType.Contains, 1, false, false)]
-    [InlineData(null, FilterByPropertyType.NotContains, 1, true, false)]
-    [InlineData(null, FilterByPropertyType.NotContains, 1, false, true)]
-    public void TestNullableIntContainsIntWithoutIncludeNull(int? entityValue, FilterByPropertyType type, int filterValue, bool reverse, bool result)
+    [InlineData(1, FilterBy.Contains, 1, true, false)]
+    [InlineData(1, FilterBy.Contains, 1, false, true)]
+    [InlineData(2, FilterBy.Contains, 1, true, true)]
+    [InlineData(2, FilterBy.Contains, 1, false, false)]
+    [InlineData(1, FilterBy.NotContains, 1, true, true)]
+    [InlineData(1, FilterBy.NotContains, 1, false, false)]
+    [InlineData(2, FilterBy.NotContains, 1, true, false)]
+    [InlineData(2, FilterBy.NotContains, 1, false, true)]
+    [InlineData(null, FilterBy.Contains, 1, true, true)]
+    [InlineData(null, FilterBy.Contains, 1, false, false)]
+    [InlineData(null, FilterBy.NotContains, 1, true, false)]
+    [InlineData(null, FilterBy.NotContains, 1, false, true)]
+    public void TestNullableIntContainsIntWithoutIncludeNull(int? entityValue, FilterBy type, int filterValue, bool reverse, bool result)
     {
         TestContainsWithoutIncludeNull(entityValue, type, filterValue, reverse, result);
     }
 
     [Theory]
-    [InlineData(FilterByPropertyType.Contains, 1, true, true, false)]
-    [InlineData(FilterByPropertyType.Contains, 1, true, false, true)]
-    [InlineData(FilterByPropertyType.Contains, 1, false, true, true)]
-    [InlineData(FilterByPropertyType.Contains, 1, false, false, false)]
-    [InlineData(FilterByPropertyType.NotContains, 1, true, true, false)]
-    [InlineData(FilterByPropertyType.NotContains, 1, true, false, true)]
-    [InlineData(FilterByPropertyType.NotContains, 1, false, true, true)]
-    [InlineData(FilterByPropertyType.NotContains, 1, false, false, false)]
-    public void TestNullableIntNullContainsIntWithIncludeNull(FilterByPropertyType type, int filterValue, bool includeNull, bool reverse, bool result)
+    [InlineData(FilterBy.Contains, 1, true, true, false)]
+    [InlineData(FilterBy.Contains, 1, true, false, true)]
+    [InlineData(FilterBy.Contains, 1, false, true, true)]
+    [InlineData(FilterBy.Contains, 1, false, false, false)]
+    [InlineData(FilterBy.NotContains, 1, true, true, false)]
+    [InlineData(FilterBy.NotContains, 1, true, false, true)]
+    [InlineData(FilterBy.NotContains, 1, false, true, true)]
+    [InlineData(FilterBy.NotContains, 1, false, false, false)]
+    public void TestNullableIntNullContainsIntWithIncludeNull(FilterBy type, int filterValue, bool includeNull, bool reverse, bool result)
     {
         TestNullContainsWithIncludeNull<int?, int>(type, filterValue, includeNull, reverse, result);
     }
 
     [Theory]
-    [InlineData(FilterByPropertyType.Contains, 1, true, true)]
-    [InlineData(FilterByPropertyType.Contains, 1, false, false)]
-    [InlineData(FilterByPropertyType.NotContains, 1, true, false)]
-    [InlineData(FilterByPropertyType.NotContains, 1, false, true)]
-    public void TestNullableIntNullContainsIntWithoutIncludeNull(FilterByPropertyType type, int filterValue, bool reverse, bool result)
+    [InlineData(FilterBy.Contains, 1, true, true)]
+    [InlineData(FilterBy.Contains, 1, false, false)]
+    [InlineData(FilterBy.NotContains, 1, true, false)]
+    [InlineData(FilterBy.NotContains, 1, false, true)]
+    public void TestNullableIntNullContainsIntWithoutIncludeNull(FilterBy type, int filterValue, bool reverse, bool result)
     {
         TestNullContainsWithoutIncludeNull<int?, int>(type, filterValue, reverse, result);
     }
 
     [Theory]
-    [InlineData(1, FilterByPropertyType.Contains, 1, true, true, false)]
-    [InlineData(1, FilterByPropertyType.Contains, 1, true, false, true)]
-    [InlineData(2, FilterByPropertyType.Contains, 1, true, true, true)]
-    [InlineData(2, FilterByPropertyType.Contains, 1, true, false, false)]
-    [InlineData(1, FilterByPropertyType.NotContains, 1, true, true, true)]
-    [InlineData(1, FilterByPropertyType.NotContains, 1, true, false, false)]
-    [InlineData(2, FilterByPropertyType.NotContains, 1, true, true, false)]
-    [InlineData(2, FilterByPropertyType.NotContains, 1, true, false, true)]
-    [InlineData(1, FilterByPropertyType.Contains, null, true, true, true)]
-    [InlineData(1, FilterByPropertyType.Contains, null, true, false, false)]
-    [InlineData(1, FilterByPropertyType.NotContains, null, true, true, false)]
-    [InlineData(1, FilterByPropertyType.NotContains, null, true, false, true)]
-    [InlineData(1, FilterByPropertyType.Contains, 1, false, true, false)]
-    [InlineData(1, FilterByPropertyType.Contains, 1, false, false, true)]
-    [InlineData(2, FilterByPropertyType.Contains, 1, false, true, true)]
-    [InlineData(2, FilterByPropertyType.Contains, 1, false, false, false)]
-    [InlineData(1, FilterByPropertyType.NotContains, 1, false, true, true)]
-    [InlineData(1, FilterByPropertyType.NotContains, 1, false, false, false)]
-    [InlineData(2, FilterByPropertyType.NotContains, 1, false, true, false)]
-    [InlineData(2, FilterByPropertyType.NotContains, 1, false, false, true)]
-    [InlineData(1, FilterByPropertyType.Contains, null, false, true, true)]
-    [InlineData(1, FilterByPropertyType.Contains, null, false, false, false)]
-    [InlineData(1, FilterByPropertyType.NotContains, null, false, true, false)]
-    [InlineData(1, FilterByPropertyType.NotContains, null, false, false, true)]
-    public void TestIntContainsNullableIntWithIncludeNull(int entityValue, FilterByPropertyType type, int? filterValue, bool includeNull, bool reverse, bool result)
+    [InlineData(1, FilterBy.Contains, 1, true, true, false)]
+    [InlineData(1, FilterBy.Contains, 1, true, false, true)]
+    [InlineData(2, FilterBy.Contains, 1, true, true, true)]
+    [InlineData(2, FilterBy.Contains, 1, true, false, false)]
+    [InlineData(1, FilterBy.NotContains, 1, true, true, true)]
+    [InlineData(1, FilterBy.NotContains, 1, true, false, false)]
+    [InlineData(2, FilterBy.NotContains, 1, true, true, false)]
+    [InlineData(2, FilterBy.NotContains, 1, true, false, true)]
+    [InlineData(1, FilterBy.Contains, null, true, true, true)]
+    [InlineData(1, FilterBy.Contains, null, true, false, false)]
+    [InlineData(1, FilterBy.NotContains, null, true, true, false)]
+    [InlineData(1, FilterBy.NotContains, null, true, false, true)]
+    [InlineData(1, FilterBy.Contains, 1, false, true, false)]
+    [InlineData(1, FilterBy.Contains, 1, false, false, true)]
+    [InlineData(2, FilterBy.Contains, 1, false, true, true)]
+    [InlineData(2, FilterBy.Contains, 1, false, false, false)]
+    [InlineData(1, FilterBy.NotContains, 1, false, true, true)]
+    [InlineData(1, FilterBy.NotContains, 1, false, false, false)]
+    [InlineData(2, FilterBy.NotContains, 1, false, true, false)]
+    [InlineData(2, FilterBy.NotContains, 1, false, false, true)]
+    [InlineData(1, FilterBy.Contains, null, false, true, true)]
+    [InlineData(1, FilterBy.Contains, null, false, false, false)]
+    [InlineData(1, FilterBy.NotContains, null, false, true, false)]
+    [InlineData(1, FilterBy.NotContains, null, false, false, true)]
+    public void TestIntContainsNullableIntWithIncludeNull(int entityValue, FilterBy type, int? filterValue, bool includeNull, bool reverse, bool result)
     {
         TestContainsWithIncludeNull(entityValue, type, filterValue, includeNull, reverse, result);
     }
 
     [Theory]
-    [InlineData(1, FilterByPropertyType.Contains, 1, true, false)]
-    [InlineData(1, FilterByPropertyType.Contains, 1, false, true)]
-    [InlineData(2, FilterByPropertyType.Contains, 1, true, true)]
-    [InlineData(2, FilterByPropertyType.Contains, 1, false, false)]
-    [InlineData(1, FilterByPropertyType.NotContains, 1, true, true)]
-    [InlineData(1, FilterByPropertyType.NotContains, 1, false, false)]
-    [InlineData(2, FilterByPropertyType.NotContains, 1, true, false)]
-    [InlineData(2, FilterByPropertyType.NotContains, 1, false, true)]
-    [InlineData(1, FilterByPropertyType.Contains, null, true, true)]
-    [InlineData(1, FilterByPropertyType.Contains, null, false, false)]
-    [InlineData(1, FilterByPropertyType.NotContains, null, true, false)]
-    [InlineData(1, FilterByPropertyType.NotContains, null, false, true)]
-    public void TestIntContainsNullableIntWithoutIncludeNull(int entityValue, FilterByPropertyType type, int? filterValue, bool reverse, bool result)
+    [InlineData(1, FilterBy.Contains, 1, true, false)]
+    [InlineData(1, FilterBy.Contains, 1, false, true)]
+    [InlineData(2, FilterBy.Contains, 1, true, true)]
+    [InlineData(2, FilterBy.Contains, 1, false, false)]
+    [InlineData(1, FilterBy.NotContains, 1, true, true)]
+    [InlineData(1, FilterBy.NotContains, 1, false, false)]
+    [InlineData(2, FilterBy.NotContains, 1, true, false)]
+    [InlineData(2, FilterBy.NotContains, 1, false, true)]
+    [InlineData(1, FilterBy.Contains, null, true, true)]
+    [InlineData(1, FilterBy.Contains, null, false, false)]
+    [InlineData(1, FilterBy.NotContains, null, true, false)]
+    [InlineData(1, FilterBy.NotContains, null, false, true)]
+    public void TestIntContainsNullableIntWithoutIncludeNull(int entityValue, FilterBy type, int? filterValue, bool reverse, bool result)
     {
         TestContainsWithoutIncludeNull(entityValue, type, filterValue, reverse, result);
     }
 
     [Theory]
-    [InlineData(FilterByPropertyType.Contains, 1, true, true, false)]
-    [InlineData(FilterByPropertyType.Contains, 1, true, false, true)]
-    [InlineData(FilterByPropertyType.Contains, 1, false, true, true)]
-    [InlineData(FilterByPropertyType.Contains, 1, false, false, false)]
-    [InlineData(FilterByPropertyType.NotContains, 1, true, true, false)]
-    [InlineData(FilterByPropertyType.NotContains, 1, true, false, true)]
-    [InlineData(FilterByPropertyType.NotContains, 1, false, true, true)]
-    [InlineData(FilterByPropertyType.NotContains, 1, false, false, false)]
-    [InlineData(FilterByPropertyType.Contains, null, true, true, false)]
-    [InlineData(FilterByPropertyType.Contains, null, true, false, true)]
-    [InlineData(FilterByPropertyType.Contains, null, false, true, true)]
-    [InlineData(FilterByPropertyType.Contains, null, false, false, false)]
-    [InlineData(FilterByPropertyType.NotContains, null, true, true, false)]
-    [InlineData(FilterByPropertyType.NotContains, null, true, false, true)]
-    [InlineData(FilterByPropertyType.NotContains, null, false, true, false)]
-    [InlineData(FilterByPropertyType.NotContains, null, false, false, true)]
-    public void TestIntNullContainsNullableIntWithIncludeNull(FilterByPropertyType type, int? filterValue, bool includeNull, bool reverse, bool result)
+    [InlineData(FilterBy.Contains, 1, true, true, false)]
+    [InlineData(FilterBy.Contains, 1, true, false, true)]
+    [InlineData(FilterBy.Contains, 1, false, true, true)]
+    [InlineData(FilterBy.Contains, 1, false, false, false)]
+    [InlineData(FilterBy.NotContains, 1, true, true, false)]
+    [InlineData(FilterBy.NotContains, 1, true, false, true)]
+    [InlineData(FilterBy.NotContains, 1, false, true, true)]
+    [InlineData(FilterBy.NotContains, 1, false, false, false)]
+    [InlineData(FilterBy.Contains, null, true, true, false)]
+    [InlineData(FilterBy.Contains, null, true, false, true)]
+    [InlineData(FilterBy.Contains, null, false, true, true)]
+    [InlineData(FilterBy.Contains, null, false, false, false)]
+    [InlineData(FilterBy.NotContains, null, true, true, false)]
+    [InlineData(FilterBy.NotContains, null, true, false, true)]
+    [InlineData(FilterBy.NotContains, null, false, true, false)]
+    [InlineData(FilterBy.NotContains, null, false, false, true)]
+    public void TestIntNullContainsNullableIntWithIncludeNull(FilterBy type, int? filterValue, bool includeNull, bool reverse, bool result)
     {
         TestNullContainsWithIncludeNull<int, int?>(type, filterValue, includeNull, reverse, result);
     }
 
     [Theory]
-    [InlineData(FilterByPropertyType.Contains, 1, true, true)]
-    [InlineData(FilterByPropertyType.Contains, 1, false, false)]
-    [InlineData(FilterByPropertyType.NotContains, 1, true, false)]
-    [InlineData(FilterByPropertyType.NotContains, 1, false, true)]
-    [InlineData(FilterByPropertyType.Contains, null, true, true)]
-    [InlineData(FilterByPropertyType.Contains, null, false, false)]
-    [InlineData(FilterByPropertyType.NotContains, null, true, false)]
-    [InlineData(FilterByPropertyType.NotContains, null, false, true)]
-    public void TestIntNullContainsNullableIntWithoutIncludeNull(FilterByPropertyType type, int? filterValue, bool reverse, bool result)
+    [InlineData(FilterBy.Contains, 1, true, true)]
+    [InlineData(FilterBy.Contains, 1, false, false)]
+    [InlineData(FilterBy.NotContains, 1, true, false)]
+    [InlineData(FilterBy.NotContains, 1, false, true)]
+    [InlineData(FilterBy.Contains, null, true, true)]
+    [InlineData(FilterBy.Contains, null, false, false)]
+    [InlineData(FilterBy.NotContains, null, true, false)]
+    [InlineData(FilterBy.NotContains, null, false, true)]
+    public void TestIntNullContainsNullableIntWithoutIncludeNull(FilterBy type, int? filterValue, bool reverse, bool result)
     {
         TestNullContainsWithoutIncludeNull<int, int?>(type, filterValue, reverse, result);
     }
 
     [Theory]
-    [InlineData(1, FilterByPropertyType.Contains, 1, true, true, false)]
-    [InlineData(1, FilterByPropertyType.Contains, 1, true, false, true)]
-    [InlineData(2, FilterByPropertyType.Contains, 1, true, true, true)]
-    [InlineData(2, FilterByPropertyType.Contains, 1, true, false, false)]
-    [InlineData(1, FilterByPropertyType.NotContains, 1, true, true, true)]
-    [InlineData(1, FilterByPropertyType.NotContains, 1, true, false, false)]
-    [InlineData(2, FilterByPropertyType.NotContains, 1, true, true, false)]
-    [InlineData(2, FilterByPropertyType.NotContains, 1, true, false, true)]
-    [InlineData(1, FilterByPropertyType.Contains, null, true, true, true)]
-    [InlineData(1, FilterByPropertyType.Contains, null, true, false, false)]
-    [InlineData(1, FilterByPropertyType.NotContains, null, true, true, false)]
-    [InlineData(1, FilterByPropertyType.NotContains, null, true, false, true)]
-    [InlineData(null, FilterByPropertyType.Contains, 1, true, true, true)]
-    [InlineData(null, FilterByPropertyType.Contains, 1, true, false, false)]
-    [InlineData(null, FilterByPropertyType.NotContains, 1, true, true, false)]
-    [InlineData(null, FilterByPropertyType.NotContains, 1, true, false, true)]
-    [InlineData(null, FilterByPropertyType.Contains, null, true, true, false)]
-    [InlineData(null, FilterByPropertyType.Contains, null, true, false, true)]
-    [InlineData(null, FilterByPropertyType.NotContains, null, true, true, true)]
-    [InlineData(null, FilterByPropertyType.NotContains, null, true, false, false)]
-    [InlineData(1, FilterByPropertyType.Contains, 1, false, true, false)]
-    [InlineData(1, FilterByPropertyType.Contains, 1, false, false, true)]
-    [InlineData(2, FilterByPropertyType.Contains, 1, false, true, true)]
-    [InlineData(2, FilterByPropertyType.Contains, 1, false, false, false)]
-    [InlineData(1, FilterByPropertyType.NotContains, 1, false, true, true)]
-    [InlineData(1, FilterByPropertyType.NotContains, 1, false, false, false)]
-    [InlineData(2, FilterByPropertyType.NotContains, 1, false, true, false)]
-    [InlineData(2, FilterByPropertyType.NotContains, 1, false, false, true)]
-    [InlineData(1, FilterByPropertyType.Contains, null, false, true, true)]
-    [InlineData(1, FilterByPropertyType.Contains, null, false, false, false)]
-    [InlineData(1, FilterByPropertyType.NotContains, null, false, true, false)]
-    [InlineData(1, FilterByPropertyType.NotContains, null, false, false, true)]
-    [InlineData(null, FilterByPropertyType.Contains, 1, false, true, true)]
-    [InlineData(null, FilterByPropertyType.Contains, 1, false, false, false)]
-    [InlineData(null, FilterByPropertyType.NotContains, 1, false, true, false)]
-    [InlineData(null, FilterByPropertyType.NotContains, 1, false, false, true)]
-    [InlineData(null, FilterByPropertyType.Contains, null, false, true, false)]
-    [InlineData(null, FilterByPropertyType.Contains, null, false, false, true)]
-    [InlineData(null, FilterByPropertyType.NotContains, null, false, true, true)]
-    [InlineData(null, FilterByPropertyType.NotContains, null, false, false, false)]
-    public void TestNullableIntContainsNullableIntWithIncludeNull(int? entityValue, FilterByPropertyType type, int? filterValue, bool includeNull, bool reverse, bool result)
+    [InlineData(1, FilterBy.Contains, 1, true, true, false)]
+    [InlineData(1, FilterBy.Contains, 1, true, false, true)]
+    [InlineData(2, FilterBy.Contains, 1, true, true, true)]
+    [InlineData(2, FilterBy.Contains, 1, true, false, false)]
+    [InlineData(1, FilterBy.NotContains, 1, true, true, true)]
+    [InlineData(1, FilterBy.NotContains, 1, true, false, false)]
+    [InlineData(2, FilterBy.NotContains, 1, true, true, false)]
+    [InlineData(2, FilterBy.NotContains, 1, true, false, true)]
+    [InlineData(1, FilterBy.Contains, null, true, true, true)]
+    [InlineData(1, FilterBy.Contains, null, true, false, false)]
+    [InlineData(1, FilterBy.NotContains, null, true, true, false)]
+    [InlineData(1, FilterBy.NotContains, null, true, false, true)]
+    [InlineData(null, FilterBy.Contains, 1, true, true, true)]
+    [InlineData(null, FilterBy.Contains, 1, true, false, false)]
+    [InlineData(null, FilterBy.NotContains, 1, true, true, false)]
+    [InlineData(null, FilterBy.NotContains, 1, true, false, true)]
+    [InlineData(null, FilterBy.Contains, null, true, true, false)]
+    [InlineData(null, FilterBy.Contains, null, true, false, true)]
+    [InlineData(null, FilterBy.NotContains, null, true, true, true)]
+    [InlineData(null, FilterBy.NotContains, null, true, false, false)]
+    [InlineData(1, FilterBy.Contains, 1, false, true, false)]
+    [InlineData(1, FilterBy.Contains, 1, false, false, true)]
+    [InlineData(2, FilterBy.Contains, 1, false, true, true)]
+    [InlineData(2, FilterBy.Contains, 1, false, false, false)]
+    [InlineData(1, FilterBy.NotContains, 1, false, true, true)]
+    [InlineData(1, FilterBy.NotContains, 1, false, false, false)]
+    [InlineData(2, FilterBy.NotContains, 1, false, true, false)]
+    [InlineData(2, FilterBy.NotContains, 1, false, false, true)]
+    [InlineData(1, FilterBy.Contains, null, false, true, true)]
+    [InlineData(1, FilterBy.Contains, null, false, false, false)]
+    [InlineData(1, FilterBy.NotContains, null, false, true, false)]
+    [InlineData(1, FilterBy.NotContains, null, false, false, true)]
+    [InlineData(null, FilterBy.Contains, 1, false, true, true)]
+    [InlineData(null, FilterBy.Contains, 1, false, false, false)]
+    [InlineData(null, FilterBy.NotContains, 1, false, true, false)]
+    [InlineData(null, FilterBy.NotContains, 1, false, false, true)]
+    [InlineData(null, FilterBy.Contains, null, false, true, false)]
+    [InlineData(null, FilterBy.Contains, null, false, false, true)]
+    [InlineData(null, FilterBy.NotContains, null, false, true, true)]
+    [InlineData(null, FilterBy.NotContains, null, false, false, false)]
+    public void TestNullableIntContainsNullableIntWithIncludeNull(int? entityValue, FilterBy type, int? filterValue, bool includeNull, bool reverse, bool result)
     {
         TestContainsWithIncludeNull(entityValue, type, filterValue, includeNull, reverse, result);
     }
 
     [Theory]
-    [InlineData(1, FilterByPropertyType.Contains, 1, true, false)]
-    [InlineData(1, FilterByPropertyType.Contains, 1, false, true)]
-    [InlineData(2, FilterByPropertyType.Contains, 1, true, true)]
-    [InlineData(2, FilterByPropertyType.Contains, 1, false, false)]
-    [InlineData(1, FilterByPropertyType.NotContains, 1, true, true)]
-    [InlineData(1, FilterByPropertyType.NotContains, 1, false, false)]
-    [InlineData(2, FilterByPropertyType.NotContains, 1, true, false)]
-    [InlineData(2, FilterByPropertyType.NotContains, 1, false, true)]
-    [InlineData(1, FilterByPropertyType.Contains, null, true, true)]
-    [InlineData(1, FilterByPropertyType.Contains, null, false, false)]
-    [InlineData(1, FilterByPropertyType.NotContains, null, true, false)]
-    [InlineData(1, FilterByPropertyType.NotContains, null, false, true)]
-    [InlineData(null, FilterByPropertyType.Contains, 1, true, true)]
-    [InlineData(null, FilterByPropertyType.Contains, 1, false, false)]
-    [InlineData(null, FilterByPropertyType.NotContains, 1, true, false)]
-    [InlineData(null, FilterByPropertyType.NotContains, 1, false, true)]
-    [InlineData(null, FilterByPropertyType.Contains, null, true, false)]
-    [InlineData(null, FilterByPropertyType.Contains, null, false, true)]
-    [InlineData(null, FilterByPropertyType.NotContains, null, true, true)]
-    [InlineData(null, FilterByPropertyType.NotContains, null, false, false)]
-    public void TestNullableIntContainsNullableIntWithoutIncludeNull(int? entityValue, FilterByPropertyType type, int? filterValue, bool reverse, bool result)
+    [InlineData(1, FilterBy.Contains, 1, true, false)]
+    [InlineData(1, FilterBy.Contains, 1, false, true)]
+    [InlineData(2, FilterBy.Contains, 1, true, true)]
+    [InlineData(2, FilterBy.Contains, 1, false, false)]
+    [InlineData(1, FilterBy.NotContains, 1, true, true)]
+    [InlineData(1, FilterBy.NotContains, 1, false, false)]
+    [InlineData(2, FilterBy.NotContains, 1, true, false)]
+    [InlineData(2, FilterBy.NotContains, 1, false, true)]
+    [InlineData(1, FilterBy.Contains, null, true, true)]
+    [InlineData(1, FilterBy.Contains, null, false, false)]
+    [InlineData(1, FilterBy.NotContains, null, true, false)]
+    [InlineData(1, FilterBy.NotContains, null, false, true)]
+    [InlineData(null, FilterBy.Contains, 1, true, true)]
+    [InlineData(null, FilterBy.Contains, 1, false, false)]
+    [InlineData(null, FilterBy.NotContains, 1, true, false)]
+    [InlineData(null, FilterBy.NotContains, 1, false, true)]
+    [InlineData(null, FilterBy.Contains, null, true, false)]
+    [InlineData(null, FilterBy.Contains, null, false, true)]
+    [InlineData(null, FilterBy.NotContains, null, true, true)]
+    [InlineData(null, FilterBy.NotContains, null, false, false)]
+    public void TestNullableIntContainsNullableIntWithoutIncludeNull(int? entityValue, FilterBy type, int? filterValue, bool reverse, bool result)
     {
         TestContainsWithoutIncludeNull(entityValue, type, filterValue, reverse, result);
     }
 
     [Theory]
-    [InlineData(FilterByPropertyType.Contains, 1, true, true, false)]
-    [InlineData(FilterByPropertyType.Contains, 1, true, false, true)]
-    [InlineData(FilterByPropertyType.Contains, 1, false, true, true)]
-    [InlineData(FilterByPropertyType.Contains, 1, false, false, false)]
-    [InlineData(FilterByPropertyType.NotContains, 1, true, true, false)]
-    [InlineData(FilterByPropertyType.NotContains, 1, true, false, true)]
-    [InlineData(FilterByPropertyType.NotContains, 1, false, true, true)]
-    [InlineData(FilterByPropertyType.NotContains, 1, false, false, false)]
-    [InlineData(FilterByPropertyType.Contains, null, true, true, false)]
-    [InlineData(FilterByPropertyType.Contains, null, true, false, true)]
-    [InlineData(FilterByPropertyType.Contains, null, false, true, true)]
-    [InlineData(FilterByPropertyType.Contains, null, false, false, false)]
-    [InlineData(FilterByPropertyType.NotContains, null, true, true, false)]
-    [InlineData(FilterByPropertyType.NotContains, null, true, false, true)]
-    [InlineData(FilterByPropertyType.NotContains, null, false, true, true)]
-    [InlineData(FilterByPropertyType.NotContains, null, false, false, false)]
-    public void TestNullableIntNullContainsNullableIntWithIncludeNull(FilterByPropertyType type, int? filterValue, bool includeNull, bool reverse, bool result)
+    [InlineData(FilterBy.Contains, 1, true, true, false)]
+    [InlineData(FilterBy.Contains, 1, true, false, true)]
+    [InlineData(FilterBy.Contains, 1, false, true, true)]
+    [InlineData(FilterBy.Contains, 1, false, false, false)]
+    [InlineData(FilterBy.NotContains, 1, true, true, false)]
+    [InlineData(FilterBy.NotContains, 1, true, false, true)]
+    [InlineData(FilterBy.NotContains, 1, false, true, true)]
+    [InlineData(FilterBy.NotContains, 1, false, false, false)]
+    [InlineData(FilterBy.Contains, null, true, true, false)]
+    [InlineData(FilterBy.Contains, null, true, false, true)]
+    [InlineData(FilterBy.Contains, null, false, true, true)]
+    [InlineData(FilterBy.Contains, null, false, false, false)]
+    [InlineData(FilterBy.NotContains, null, true, true, false)]
+    [InlineData(FilterBy.NotContains, null, true, false, true)]
+    [InlineData(FilterBy.NotContains, null, false, true, true)]
+    [InlineData(FilterBy.NotContains, null, false, false, false)]
+    public void TestNullableIntNullContainsNullableIntWithIncludeNull(FilterBy type, int? filterValue, bool includeNull, bool reverse, bool result)
     {
         TestNullContainsWithIncludeNull<int?, int?>(type, filterValue, includeNull, reverse, result);
     }
 
     [Theory]
-    [InlineData(FilterByPropertyType.Contains, 1, true, true)]
-    [InlineData(FilterByPropertyType.Contains, 1, false, false)]
-    [InlineData(FilterByPropertyType.NotContains, 1, true, false)]
-    [InlineData(FilterByPropertyType.NotContains, 1, false, true)]
-    [InlineData(FilterByPropertyType.Contains, null, true, true)]
-    [InlineData(FilterByPropertyType.Contains, null, false, false)]
-    [InlineData(FilterByPropertyType.NotContains, null, true, false)]
-    [InlineData(FilterByPropertyType.NotContains, null, false, true)]
-    public void TestNullableIntNullContainsNullableIntWithoutIncludeNull(FilterByPropertyType type, int? filterValue, bool reverse, bool result)
+    [InlineData(FilterBy.Contains, 1, true, true)]
+    [InlineData(FilterBy.Contains, 1, false, false)]
+    [InlineData(FilterBy.NotContains, 1, true, false)]
+    [InlineData(FilterBy.NotContains, 1, false, true)]
+    [InlineData(FilterBy.Contains, null, true, true)]
+    [InlineData(FilterBy.Contains, null, false, false)]
+    [InlineData(FilterBy.NotContains, null, true, false)]
+    [InlineData(FilterBy.NotContains, null, false, true)]
+    public void TestNullableIntNullContainsNullableIntWithoutIncludeNull(FilterBy type, int? filterValue, bool reverse, bool result)
     {
         TestNullContainsWithoutIncludeNull<int?, int?>(type, filterValue, reverse, result);
     }
@@ -460,7 +460,7 @@ public sealed class ContainTest
         return result[0].Value!;
     }
 
-    private static void TestContainsWithIncludeNull<TEntity, TFilter>(TEntity entityValue, FilterByPropertyType type, TFilter filterValue, bool includeNull, bool reverse, bool result)
+    private static void TestContainsWithIncludeNull<TEntity, TFilter>(TEntity entityValue, FilterBy type, TFilter filterValue, bool includeNull, bool reverse, bool result)
     {
         var expressionBuilder = new FilterBuilder()
             .Configure<ArrayEntity<TEntity>, ContainFilter<TFilter>>()
@@ -472,7 +472,7 @@ public sealed class ContainTest
         Assert.Equal(result, expressionBuilder.GetFunc<ArrayEntity<TEntity>, ContainFilter<TFilter>>(filter)(entity));
     }
 
-    private static void TestContainsWithoutIncludeNull<TEntity, TFilter>(TEntity entityValue, FilterByPropertyType type, TFilter filterValue, bool reverse, bool result)
+    private static void TestContainsWithoutIncludeNull<TEntity, TFilter>(TEntity entityValue, FilterBy type, TFilter filterValue, bool reverse, bool result)
     {
         var expressionBuilder = new FilterBuilder()
             .Configure<CollectionEntity<TEntity>, ContainFilter<TFilter>>()
@@ -484,7 +484,7 @@ public sealed class ContainTest
         Assert.Equal(result, expressionBuilder.GetFunc<CollectionEntity<TEntity>, ContainFilter<TFilter>>(filter)(entity));
     }
 
-    private static void TestNullContainsWithIncludeNull<TEntity, TFilter>(FilterByPropertyType type, TFilter filterValue, bool includeNull, bool reverse, bool result)
+    private static void TestNullContainsWithIncludeNull<TEntity, TFilter>(FilterBy type, TFilter filterValue, bool includeNull, bool reverse, bool result)
     {
         var expressionBuilder = new FilterBuilder()
             .Configure<ArrayEntity<TEntity>, ContainFilter<TFilter>>()
@@ -496,7 +496,7 @@ public sealed class ContainTest
         Assert.Equal(result, expressionBuilder.GetFunc<ArrayEntity<TEntity>, ContainFilter<TFilter>>(filter)(entity));
     }
 
-    private static void TestNullContainsWithoutIncludeNull<TEntity, TFilter>(FilterByPropertyType type, TFilter filterValue, bool reverse, bool result)
+    private static void TestNullContainsWithoutIncludeNull<TEntity, TFilter>(FilterBy type, TFilter filterValue, bool reverse, bool result)
     {
         var expressionBuilder = new FilterBuilder()
             .Configure<ArrayEntity<TEntity>, ContainFilter<TFilter>>()

@@ -51,7 +51,7 @@ public sealed class FilterRangeTests
     {
         var expressionMaker = new FilterBuilder()
             .Configure<FilterRangeEntity<int?>, FilterRangeFilter<long?, int?>>()
-                .FilterByRangedFilter(f => f.Min, FilterByRangeType.LessThan, e => e.Value, FilterByRangeType.LessThan, f => f.Max, null, f => reverse, f => false, f => false)
+                .FilterByRangedFilter(f => f.Min, FilterByRange.LessThan, e => e.Value, FilterByRange.LessThan, f => f.Max, null, f => reverse, f => false, f => false)
                 .Finish()
             .Build();
         var entity = new FilterRangeEntity<int?>(value);
@@ -88,7 +88,7 @@ public sealed class FilterRangeTests
     {
         var expressionMaker = new FilterBuilder()
             .Configure<FilterRangeEntity<int?>, FilterRangeFilter<long?, int?>>()
-                .FilterByRangedFilter(f => f.Min, FilterByRangeType.LessThan, e => e.Value, FilterByRangeType.LessThan, f => f.Max, f => includeNull, f => reverse, f => false, f => false)
+                .FilterByRangedFilter(f => f.Min, FilterByRange.LessThan, e => e.Value, FilterByRange.LessThan, f => f.Max, f => includeNull, f => reverse, f => false, f => false)
                 .Finish()
             .Build();
         var entity = new FilterRangeEntity<int?>(value);
@@ -100,7 +100,7 @@ public sealed class FilterRangeTests
     {
         var filter = new FilterBuilder()
             .Configure<FilterRangeEntity<TEntityProperty>, FilterRangeFilter<TFilterMinProperty, TFilterMaxProperty>>()
-                .FilterByRangedFilter(f => f.Min, FilterByRangeType.LessThan, e => e.Value, FilterByRangeType.LessThan, f => f.Max)
+                .FilterByRangedFilter(f => f.Min, FilterByRange.LessThan, e => e.Value, FilterByRange.LessThan, f => f.Max)
                 .Finish()
             .Build();
         var list = entityValues.Select(v => new FilterRangeEntity<TEntityProperty>(v));

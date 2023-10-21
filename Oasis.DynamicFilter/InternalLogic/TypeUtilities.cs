@@ -554,7 +554,7 @@ internal static class TypeUtilities
 
     private static readonly Type StringType = typeof(string);
 
-    internal static ComparisonConversion? GetComparisonConversion(Type left, Type right, FilterByPropertyType type)
+    internal static ComparisonConversion? GetComparisonConversion(Type left, Type right, FilterBy type)
     {
         var leftIsNullable = left.IsNullable(out var leftArgumentType);
         if (left == right)
@@ -589,7 +589,7 @@ internal static class TypeUtilities
         if (data != null)
         {
             var containerItemType = data.Value.elementType;
-            if (containerItemType == itemType && (itemType == StringType || (itemType.IsValueType && (itemType.IsPrimitive || itemType.IsEnum || itemType.HasOperator(FilterByPropertyType.Equality)))))
+            if (containerItemType == itemType && (itemType == StringType || (itemType.IsValueType && (itemType.IsPrimitive || itemType.IsEnum || itemType.HasOperator(FilterBy.Equality)))))
             {
                 return new (containerItemType, null, data.Value.isCollection, false);
             }
@@ -599,7 +599,7 @@ internal static class TypeUtilities
             var containerItemUnderlyingType = containerItemTypeIsNullable ? containerItemArgumentType : containerItemType;
             var itemUnderlyingType = itemTypeIsNullable ? itemArgumentType : itemType;
             if (_convertForContainDictionary.Contains(containerItemUnderlyingType!, itemUnderlyingType!)
-                || (containerItemUnderlyingType == itemUnderlyingType && (itemUnderlyingType!.IsEnum || itemUnderlyingType.HasOperator(FilterByPropertyType.Equality))))
+                || (containerItemUnderlyingType == itemUnderlyingType && (itemUnderlyingType!.IsEnum || itemUnderlyingType.HasOperator(FilterBy.Equality))))
             {
                 return new (containerItemType, containerItemType, data.Value.isCollection, itemTypeIsNullable && !containerItemTypeIsNullable);
             }
