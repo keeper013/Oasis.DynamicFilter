@@ -151,7 +151,7 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
             isIn.AddRange(inList);
         }
 
-        var includeNullLocalVariableCount = GetIncludeNullLocalVariableCount(compare, isIn, filterRangeList, entityRangeList);
+        var includeNullLocalVariableCount = GetIncludeNullLocalVariableCount(compare, contain, isIn, filterRangeList, entityRangeList);
 
         // generate starting code
         LocalBuilder? includeNullLocal1 = null;
@@ -185,7 +185,7 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
         GeneratedFilterFields<TFilter, Dictionary<string, Dictionary<string, ContainData>>>? containFields = default;
         if (contain.Any())
         {
-            containFields = GenerateContainCode(contain, expressionLocal);
+            containFields = GenerateContainCode(contain, includeNullLocal1!, expressionLocal);
         }
 
         GeneratedFilterFields<TFilter, Dictionary<string, Dictionary<string, InData>>>? inFields = default;
@@ -257,12 +257,13 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
 
     private static int GetIncludeNullLocalVariableCount(
         List<CompareData<TFilter>> compareList,
+        List<ContainData<TFilter>> containList,
         List<InData<TFilter>> inList,
         IReadOnlyList<FilterRangeData<TFilter>>? filterRangeList,
         IReadOnlyList<EntityRangeData<TFilter>>? entityRangeList)
         => entityRangeList != null && entityRangeList.Any()
             ? 2
-            : compareList.Any() || inList.Any() || (filterRangeList != null && filterRangeList.Any())
+            : compareList.Any() || containList.Any() || inList.Any() || (filterRangeList != null && filterRangeList.Any())
                 ? 1
                 : 0;
 
@@ -385,7 +386,7 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
         return new (compareDictionary, includeNullFields, ignoreIfFields, reverseIfFields);
     }
 
-    private GeneratedFilterFields<TFilter, Dictionary<string, Dictionary<string, ContainData>>> GenerateContainCode(IList<ContainData<TFilter>> contain, LocalBuilder expressionLocal)
+    private GeneratedFilterFields<TFilter, Dictionary<string, Dictionary<string, ContainData>>> GenerateContainCode(IList<ContainData<TFilter>> contain, LocalBuilder includeNullLocal, LocalBuilder expressionLocal)
     {
         var containDictionaryField = _typeBuilder.DefineField(ContainDictionaryFieldName, typeof(Dictionary<string, Dictionary<string, ContainData>>), FieldAttributes.Private | FieldAttributes.Static);
         var containDictionary = new Dictionary<string, Dictionary<string, ContainData>>();
@@ -415,7 +416,7 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
                 fields.Item3,
                 c.entityProperty,
                 c.filterProperty,
-                null,
+                includeNullLocal,
                 expressionLocal,
                 ContainFieldOuterGetItem,
                 ContainFieldInnerGetItem,
@@ -644,7 +645,7 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
         FieldInfo? reverseIfField,
         PropertyInfo entityProperty,
         PropertyInfo filterProperty,
-        LocalBuilder? includeNullLocal,
+        LocalBuilder includeNullLocal,
         LocalBuilder expressionLocal,
         MethodInfo outterGetItem,
         MethodInfo innerGetItem,
@@ -674,23 +675,13 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
             _generator.Emit(OpCodes.Ldsfld, includeNullField);
             _generator.Emit(OpCodes.Ldarg_0);
             _generator.Emit(OpCodes.Callvirt, FilterConditionInvoke);
-            if (includeNullLocal != null)
-            {
-                _generator.Emit(OpCodes.Newobj, NullableBooleanConstructor);
-            }
+            _generator.Emit(OpCodes.Newobj, NullableBooleanConstructor);
         }
         else
         {
-            if (includeNullLocal != null)
-            {
-                _generator.Emit(OpCodes.Ldloca_S, includeNullLocal);
-                _generator.Emit(OpCodes.Initobj, NullableBooleanType);
-                _generator.Emit(OpCodes.Ldloc_2);
-            }
-            else
-            {
-                _generator.Emit(OpCodes.Ldc_I4_0);
-            }
+            _generator.Emit(OpCodes.Ldloca_S, includeNullLocal);
+            _generator.Emit(OpCodes.Initobj, NullableBooleanType);
+            _generator.Emit(OpCodes.Ldloc_2);
         }
 
         if (reverseIfField != null)
