@@ -17,7 +17,7 @@ public sealed class FilterBuilder : IFilterBuilder
 
     public FilterBuilder()
     {
-        var name = new AssemblyName($"{GenerateRandomTypeName(16)}.Oasis.DynamicFilter.Generated");
+        var name = new AssemblyName($"{Utilities.GenerateRandomTypeName(16)}.Oasis.DynamicFilter.Generated");
         var assemblyBuilder = AssemblyBuilder.DefineDynamicAssembly(name, AssemblyBuilderAccess.Run);
         var module = assemblyBuilder.DefineDynamicModule($"{name.Name}.dll");
         _filterTypeBuilder = new (module);
@@ -65,14 +65,4 @@ public sealed class FilterBuilder : IFilterBuilder
     }
 
     internal void Add(Type entityType, Type filterType, Delegate filterBuilder) => _filterBuilders.Add(entityType, filterType, filterBuilder);
-
-    private static string GenerateRandomTypeName(int length)
-    {
-        const string AvailableChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
-        const int AvailableCharsCount = 52;
-        var bytes = new byte[length];
-        RandomNumberGenerator.Create().GetBytes(bytes);
-        var str = bytes.Select(b => AvailableChars[b % AvailableCharsCount]);
-        return string.Concat(str);
-    }
 }

@@ -6,6 +6,7 @@ using System.Reflection;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using Oasis.DynamicFilter;
+using System.Security.Cryptography;
 
 internal record struct ContainerElementTypeData(Type elementType, bool isCollection);
 
@@ -50,6 +51,16 @@ internal static class Utilities
 
         var types = type.GetInterfaces().Where(i => IsOfGenericTypeDefinition(i, CollectionType)).ToList();
         return types.Count == 1 ? new (types[0].GenericTypeArguments[0], true) : null;
+    }
+
+    internal static string GenerateRandomTypeName(int length)
+    {
+        const string AvailableChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+        const int AvailableCharsCount = 52;
+        var bytes = new byte[length];
+        RandomNumberGenerator.Create().GetBytes(bytes);
+        var str = bytes.Select(b => AvailableChars[b % AvailableCharsCount]);
+        return string.Concat(str);
     }
 
     internal static bool HasOperator(this Type type, FilterBy filterType)

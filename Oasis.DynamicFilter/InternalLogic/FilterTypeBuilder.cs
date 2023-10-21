@@ -32,7 +32,7 @@ internal sealed class FilterTypeBuilder
         return new FilterMethodBuilder<TEntity, TFilter>(typeBuilder, generator);
     }
 
-    private static string GetDynamicTypeName(Type entityType, Type filterType) => $"Filter_${GetTypeName(entityType)}_${GetTypeName(filterType)}";
+    private static string GetDynamicTypeName(Type entityType, Type filterType) => $"Filter_${entityType.Name}_${filterType.Name}_{Utilities.GenerateRandomTypeName(16)}";
 
     private static string GetTypeName(Type type) => $"{type.Namespace}_{type.Name}".Replace(".", "_").Replace("`", "_");
 }
