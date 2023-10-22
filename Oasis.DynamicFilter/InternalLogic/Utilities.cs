@@ -63,24 +63,24 @@ internal static class Utilities
         return string.Concat(str);
     }
 
-    internal static bool HasOperator(this Type type, FilterBy filterType)
+    internal static bool HasOperator(this Type type, Operator filterType)
     {
         string methodName = null!;
         switch (filterType)
         {
-            case FilterBy.Equality:
+            case Operator.Equality:
                 methodName = EqualityOperatorMethodName;
                 break;
-            case FilterBy.GreaterThan:
+            case Operator.GreaterThan:
                 methodName = GreaterThanOperatorMethodName;
                 break;
-            case FilterBy.GreaterThanOrEqual:
+            case Operator.GreaterThanOrEqual:
                 methodName = GreaterThanOrEqualOperatorMethodName;
                 break;
-            case FilterBy.LessThan:
+            case Operator.LessThan:
                 methodName = LessThanOperatorMethodName;
                 break;
-            case FilterBy.LessThanOrEqual:
+            case Operator.LessThanOrEqual:
                 methodName = LessThanOrEqualOperatorMethodName;
                 break;
             default:

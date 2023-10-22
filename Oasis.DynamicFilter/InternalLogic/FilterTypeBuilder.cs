@@ -38,7 +38,7 @@ internal sealed class FilterTypeBuilder
 internal record struct CompareData<TFilter>(
     PropertyInfo entityProperty,
     Type? entityPropertyConvertTo,
-    FilterBy type,
+    Operator type,
     PropertyInfo filterProperty,
     Type? filterPropertyConvertTo,
     Func<TFilter, bool>? includeNull,
@@ -49,7 +49,7 @@ internal record struct CompareData<TFilter>(
 internal record struct ContainData<TFilter>(
     PropertyInfo entityProperty,
     Type entityPropertyItemType,
-    FilterBy type,
+    Operator type,
     PropertyInfo filterProperty,
     Type? filterPropertyConvertTo,
     bool isCollection,
@@ -62,7 +62,7 @@ internal record struct ContainData<TFilter>(
 internal record struct InData<TFilter>(
     PropertyInfo entityProperty,
     Type? entityPropertyConvertTo,
-    FilterBy type,
+    Operator type,
     PropertyInfo filterProperty,
     Type filterPropertyItemType,
     bool isCollection,
@@ -299,13 +299,13 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
             if (entityProperties.TryGetValue(filterProperty.Name, out var entityProperty))
             {
                 var entityPropertyType = entityProperty.PropertyType;
-                var comparison = TypeUtilities.GetComparisonConversion(entityPropertyType, filterPropertyType, FilterBy.Equality);
+                var comparison = TypeUtilities.GetComparisonConversion(entityPropertyType, filterPropertyType, Operator.Equality);
                 if (comparison != null)
                 {
                     var c = comparison.Value;
                     var ignoreIf = filterPropertyType.IsClass || filterPropertyType.IsNullable(out _)
                         ? TypeUtilities.BuildFilterPropertyIsDefaultFunction<TFilter>(filterProperty) : null;
-                    compareList.Add(new CompareData<TFilter>(entityProperty, c.leftConvertTo, FilterBy.Equality, filterProperty, c.rightConvertTo, null, null, ignoreIf));
+                    compareList.Add(new CompareData<TFilter>(entityProperty, c.leftConvertTo, Operator.Equality, filterProperty, c.rightConvertTo, null, null, ignoreIf));
                     continue;
                 }
 
@@ -315,7 +315,7 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
                     var value = contains.Value;
                     var ignoreIf = filterPropertyType.IsClass || filterPropertyType.IsNullable(out _)
                         ? TypeUtilities.BuildFilterPropertyIsDefaultFunction<TFilter>(filterProperty) : null;
-                    containList.Add(new ContainData<TFilter>(entityProperty, value.containerItemType, FilterBy.Contains, filterProperty, value.itemConvertTo, value.isCollection, value.nullValueNotCovered, null, null, ignoreIf));
+                    containList.Add(new ContainData<TFilter>(entityProperty, value.containerItemType, Operator.Contains, filterProperty, value.itemConvertTo, value.isCollection, value.nullValueNotCovered, null, null, ignoreIf));
                     continue;
                 }
 
@@ -323,7 +323,7 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
                 if (isIn != null)
                 {
                     var value = isIn.Value;
-                    inList.Add(new InData<TFilter>(entityProperty, value.itemConvertTo, FilterBy.In, filterProperty, isIn.Value.containerItemType, value.isCollection, value.nullValueNotCovered, null, null, null));
+                    inList.Add(new InData<TFilter>(entityProperty, value.itemConvertTo, Operator.In, filterProperty, isIn.Value.containerItemType, value.isCollection, value.nullValueNotCovered, null, null, null));
                     continue;
                 }
             }
@@ -354,21 +354,21 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
         }
     }
 
-    private static FilterBy Opposite(FilterByRange type)
+    private static Operator Opposite(RangeOperator type)
     {
         return type switch
         {
-            FilterByRange.LessThan => FilterBy.GreaterThan,
-            _ => FilterBy.GreaterThanOrEqual,
+            RangeOperator.LessThan => Operator.GreaterThan,
+            _ => Operator.GreaterThanOrEqual,
         };
     }
 
-    private static FilterBy Convert(FilterByRange type)
+    private static Operator Convert(RangeOperator type)
     {
         return type switch
         {
-            FilterByRange.LessThan => FilterBy.LessThan,
-            _ => FilterBy.LessThanOrEqual,
+            RangeOperator.LessThan => Operator.LessThan,
+            _ => Operator.LessThanOrEqual,
         };
     }
 

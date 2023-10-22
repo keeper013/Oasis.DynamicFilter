@@ -6,32 +6,32 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 
-public record struct CompareData(Type? entityPropertyConvertTo, Type? filterPropertyConvertTo, FilterBy filterType);
-public record struct ContainData(Type? filterPropertyConvertTo, FilterBy filterType, bool nullValueNotCovered);
-public record struct InData(Type? entityPropertyConvertTo, FilterBy filterType, bool nullValueNotCovered);
+public record struct CompareData(Type? entityPropertyConvertTo, Type? filterPropertyConvertTo, Operator filterType);
+public record struct ContainData(Type? filterPropertyConvertTo, Operator filterType, bool nullValueNotCovered);
+public record struct InData(Type? entityPropertyConvertTo, Operator filterType, bool nullValueNotCovered);
 public record struct RangeData(CompareData minData, CompareData maxData);
-public record struct CompareStringData(FilterStringBy filterType, StringComparison comparison);
+public record struct CompareStringData(StringOperator filterType, StringComparison comparison);
 
 public static class ExpressionUtilities
 {
     private static readonly MethodInfo EnumerableContains = typeof(Enumerable).GetMethods(BindingFlags.Public | BindingFlags.Static).First(m => string.Equals(m.Name, nameof(Enumerable.Contains)) && m.GetParameters().Length == 2);
-    private static readonly IReadOnlyDictionary<FilterBy, Func<Expression, Expression, BinaryExpression>> _compareFunctions = new Dictionary<FilterBy, Func<Expression, Expression, BinaryExpression>>
+    private static readonly IReadOnlyDictionary<Operator, Func<Expression, Expression, BinaryExpression>> _compareFunctions = new Dictionary<Operator, Func<Expression, Expression, BinaryExpression>>
     {
-        { FilterBy.Equality, Expression.Equal },
-        { FilterBy.GreaterThan, Expression.GreaterThan },
-        { FilterBy.GreaterThanOrEqual, Expression.GreaterThanOrEqual },
-        { FilterBy.InEquality, Expression.NotEqual },
-        { FilterBy.LessThan, Expression.LessThan },
-        { FilterBy.LessThanOrEqual, Expression.LessThanOrEqual },
+        { Operator.Equality, Expression.Equal },
+        { Operator.GreaterThan, Expression.GreaterThan },
+        { Operator.GreaterThanOrEqual, Expression.GreaterThanOrEqual },
+        { Operator.InEquality, Expression.NotEqual },
+        { Operator.LessThan, Expression.LessThan },
+        { Operator.LessThanOrEqual, Expression.LessThanOrEqual },
     };
 
-    private static readonly IReadOnlyDictionary<FilterStringBy, MethodInfo> _compareStringMethods = new Dictionary<FilterStringBy, MethodInfo>
+    private static readonly IReadOnlyDictionary<StringOperator, MethodInfo> _compareStringMethods = new Dictionary<StringOperator, MethodInfo>
     {
-        { FilterStringBy.In, typeof(string).GetMethod(nameof(string.Contains), new[] { typeof(string), typeof(StringComparison) }, null) },
-        { FilterStringBy.Contains, typeof(string).GetMethod(nameof(string.Contains), new[] { typeof(string), typeof(StringComparison) }, null) },
-        { FilterStringBy.Equality, typeof(string).GetMethod(nameof(string.Equals), new[] { typeof(string), typeof(StringComparison) }, null) },
-        { FilterStringBy.StartsWith, typeof(string).GetMethod(nameof(string.StartsWith), new[] { typeof(string), typeof(StringComparison) }, null) },
-        { FilterStringBy.EndsWith, typeof(string).GetMethod(nameof(string.EndsWith), new[] { typeof(string), typeof(StringComparison) }, null) },
+        { StringOperator.In, typeof(string).GetMethod(nameof(string.Contains), new[] { typeof(string), typeof(StringComparison) }, null) },
+        { StringOperator.Contains, typeof(string).GetMethod(nameof(string.Contains), new[] { typeof(string), typeof(StringComparison) }, null) },
+        { StringOperator.Equality, typeof(string).GetMethod(nameof(string.Equals), new[] { typeof(string), typeof(StringComparison) }, null) },
+        { StringOperator.StartsWith, typeof(string).GetMethod(nameof(string.StartsWith), new[] { typeof(string), typeof(StringComparison) }, null) },
+        { StringOperator.EndsWith, typeof(string).GetMethod(nameof(string.EndsWith), new[] { typeof(string), typeof(StringComparison) }, null) },
     };
 
     public static void BuildCompareExpression<TEntityProperty, TFilterProperty>(ParameterExpression parameter, string entityPropertyName, TFilterProperty value, CompareData data, bool? includeNull, bool reverse, ref Expression? result)
@@ -65,7 +65,7 @@ public static class ExpressionUtilities
         }
         else
         {
-            Expression compareExpression = compareType == FilterStringBy.In
+            Expression compareExpression = compareType == StringOperator.In
                 ? Expression.Call(Expression.Constant(value, typeof(string)), methodInfo, Expression.Property(parameter, entityPropertyName), Expression.Constant(data.comparison, typeof(StringComparison)))
                 : Expression.Call(Expression.Property(parameter, entityPropertyName), methodInfo, Expression.Constant(value, typeof(string)), Expression.Constant(data.comparison, typeof(StringComparison)));
 
@@ -265,7 +265,7 @@ public static class ExpressionUtilities
         ref Expression? result)
     {
         Expression exp;
-        var notContains = data.filterType == FilterBy.NotContains;
+        var notContains = data.filterType == Operator.NotContains;
 
         // can't call contains, if entity property isn't null then not contains
         if (data.nullValueNotCovered && value == null)
@@ -310,7 +310,7 @@ public static class ExpressionUtilities
         Func<Expression> makeContainsExpression,
         ref Expression? result)
     {
-        var notIn = data.filterType == FilterBy.NotIn;
+        var notIn = data.filterType == Operator.NotIn;
         Expression exp;
         if (value == null)
         {
@@ -355,45 +355,45 @@ public static class ExpressionUtilities
         result = result == null ? exp : Expression.AndAlso(result, exp);
     }
 
-    private static FilterStringBy GetBasicStringCompareType(FilterStringBy type, out bool isReversed)
+    private static StringOperator GetBasicStringCompareType(StringOperator type, out bool isReversed)
     {
         switch (type)
         {
-            case FilterStringBy.NotIn:
+            case StringOperator.NotIn:
                 isReversed = true;
-                return FilterStringBy.In;
-            case FilterStringBy.InEquality:
+                return StringOperator.In;
+            case StringOperator.InEquality:
                 isReversed = true;
-                return FilterStringBy.Equality;
-            case FilterStringBy.NotEndsWith:
+                return StringOperator.Equality;
+            case StringOperator.NotEndsWith:
                 isReversed = true;
-                return FilterStringBy.EndsWith;
-            case FilterStringBy.NotStartsWith:
+                return StringOperator.EndsWith;
+            case StringOperator.NotStartsWith:
                 isReversed = true;
-                return FilterStringBy.StartsWith;
-            case FilterStringBy.NotContains:
+                return StringOperator.StartsWith;
+            case StringOperator.NotContains:
                 isReversed = true;
-                return FilterStringBy.Contains;
+                return StringOperator.Contains;
             default:
                 isReversed = false;
                 return type;
         }
     }
 
-    private static FilterBy GetReversed(this FilterBy filterType)
+    private static Operator GetReversed(this Operator filterType)
     {
         return filterType switch
         {
-            FilterBy.Contains => FilterBy.NotContains,
-            FilterBy.Equality => FilterBy.InEquality,
-            FilterBy.GreaterThan => FilterBy.LessThanOrEqual,
-            FilterBy.GreaterThanOrEqual => FilterBy.LessThan,
-            FilterBy.In => FilterBy.NotIn,
-            FilterBy.InEquality => FilterBy.Equality,
-            FilterBy.LessThan => FilterBy.GreaterThanOrEqual,
-            FilterBy.LessThanOrEqual => FilterBy.GreaterThan,
-            FilterBy.NotContains => FilterBy.Contains,
-            _ => FilterBy.In,
+            Operator.Contains => Operator.NotContains,
+            Operator.Equality => Operator.InEquality,
+            Operator.GreaterThan => Operator.LessThanOrEqual,
+            Operator.GreaterThanOrEqual => Operator.LessThan,
+            Operator.In => Operator.NotIn,
+            Operator.InEquality => Operator.Equality,
+            Operator.LessThan => Operator.GreaterThanOrEqual,
+            Operator.LessThanOrEqual => Operator.GreaterThan,
+            Operator.NotContains => Operator.Contains,
+            _ => Operator.In,
         };
     }
 }

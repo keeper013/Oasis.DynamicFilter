@@ -7,10 +7,10 @@ public sealed class MultipleRegisterTest
     {
         var filter = new FilterBuilder()
             .Configure<ComparisonEntity<TestStruct2?>, ComparisonFilter<TestStruct2?>>()
-                .FilterByProperty(e => e.Value, FilterBy.Equality, f => f.Value, null, null, f => false)
+                .FilterByProperty(e => e.Value, Operator.Equality, f => f.Value, null, null, f => false)
                 .Finish()
             .Configure<ComparisonEntity<TestEnum?>, ComparisonFilter<TestEnum?>>()
-                .FilterByProperty(e => e.Value, FilterBy.Equality, f => f.Value, null, null, f => false)
+                .FilterByProperty(e => e.Value, Operator.Equality, f => f.Value, null, null, f => false)
                 .Finish()
             .Build();
         var list1 = new List<TestStruct2?> { null, new TestStruct2 { X = 2 }, new TestStruct2 { X = 3 } }.Select(v => new ComparisonEntity<TestStruct2?>(v));

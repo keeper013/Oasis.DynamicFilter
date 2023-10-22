@@ -47,7 +47,7 @@ public sealed class RedundantRegisterException : DynamicFilterException
 
 public sealed class InvalidComparisonException : DynamicFilterException
 {
-    public InvalidComparisonException(Type entityType, string entityPropertyName, FilterBy type, Type filterType, string filterPropertyName)
+    public InvalidComparisonException(Type entityType, string entityPropertyName, Operator type, Type filterType, string filterPropertyName)
         : base($"{type} can't be applied to {entityPropertyName} of {entityType.Name} and {filterPropertyName} of {filterType.Name}.")
     {
     }

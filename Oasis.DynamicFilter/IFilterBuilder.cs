@@ -2,9 +2,8 @@
 
 using System.Linq.Expressions;
 using System;
-using Oasis.DynamicFilter.InternalLogic;
 
-public enum FilterBy
+public enum Operator
 {
     /// <summary>
     /// Entity value equals filter value
@@ -57,7 +56,7 @@ public enum FilterBy
     NotIn = 9,
 }
 
-public enum FilterByRange
+public enum RangeOperator
 {
     /// <summary>
     /// Entity value is less than filter.
@@ -70,7 +69,7 @@ public enum FilterByRange
     LessThanOrEqual = 1,
 }
 
-public enum FilterStringBy
+public enum StringOperator
 {
     /// <summary>
     /// Entity value equals filter value
@@ -129,7 +128,7 @@ public interface IFilterConfigurationBuilder<TEntity, TFilter>
 {
     IFilterConfigurationBuilder<TEntity, TFilter> FilterByProperty<TEntityProperty, TFilterProperty>(
         Expression<Func<TEntity, TEntityProperty>> entityPropertyExpression,
-        FilterBy type,
+        Operator type,
         Expression<Func<TFilter, TFilterProperty>> filterPropertyExpression,
         Func<TFilter, bool>? includeNull = null,
         Func<TFilter, bool>? reverseIf = null,
@@ -137,7 +136,7 @@ public interface IFilterConfigurationBuilder<TEntity, TFilter>
 
     IFilterConfigurationBuilder<TEntity, TFilter> FilterByStringProperty(
         Expression<Func<TEntity, string?>> entityPropertyExpression,
-        FilterStringBy type,
+        StringOperator type,
         StringComparison stringComparison,
         Expression<Func<TFilter, string?>> filterPropertyExpression,
         Func<TFilter, bool>? includeNull = null,
@@ -146,9 +145,9 @@ public interface IFilterConfigurationBuilder<TEntity, TFilter>
 
     IFilterConfigurationBuilder<TEntity, TFilter> FilterByRangedFilter<TEntityProperty, TMinFilterProperty, TMaxFilterProperty>(
         Expression<Func<TFilter, TMinFilterProperty>> filterPropertyMinExpression,
-        FilterByRange minFilteringType,
+        RangeOperator minFilteringType,
         Expression<Func<TEntity, TEntityProperty>> entityPropertyExpression,
-        FilterByRange maxFilteringType,
+        RangeOperator maxFilteringType,
         Expression<Func<TFilter, TMaxFilterProperty>> filterPropertyMaxExpression,
         Func<TFilter, bool>? includeNull = null,
         Func<TFilter, bool>? reverseIf = null,
@@ -157,9 +156,9 @@ public interface IFilterConfigurationBuilder<TEntity, TFilter>
 
     IFilterConfigurationBuilder<TEntity, TFilter> FilterByRangedEntity<TMinEntityProperty, TFilterProperty, TMaxEntityProperty>(
         Expression<Func<TEntity, TMinEntityProperty>> entityPropertyMinExpression,
-        FilterByRange minFilteringType,
+        RangeOperator minFilteringType,
         Expression<Func<TFilter, TFilterProperty>> filterPropertyExpression,
-        FilterByRange maxFilteringType,
+        RangeOperator maxFilteringType,
         Expression<Func<TEntity, TMaxEntityProperty>> entityPropertyMaxExpression,
         Func<TFilter, bool>? includeNullMin = null,
         Func<TFilter, bool>? includeNullMax = null,
