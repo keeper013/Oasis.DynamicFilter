@@ -2,6 +2,7 @@
 
 using System.Linq.Expressions;
 using System;
+using Oasis.DynamicFilter.InternalLogic;
 
 public enum FilterBy
 {
@@ -69,6 +70,59 @@ public enum FilterByRange
     LessThanOrEqual = 1,
 }
 
+public enum FilterStringBy
+{
+    /// <summary>
+    /// Entity value equals filter value
+    /// </summary>
+    Equality = 0,
+
+    /// <summary>
+    /// Entity value not equals filter value
+    /// </summary>
+    InEquality = 1,
+
+    /// <summary>
+    /// Entity value contains filter value
+    /// </summary>
+    Contains = 2,
+
+    /// <summary>
+    /// Entity value not contains filter value
+    /// </summary>
+    NotContains = 3,
+
+    /// <summary>
+    /// Filter value contains entity value
+    /// </summary>
+    In = 4,
+
+    /// <summary>
+    /// Filter value not contains entity value
+    /// </summary>
+    NotIn = 5,
+
+    /// <summary>
+    /// Entity value contains filter value
+    /// </summary>
+    StartsWith = 6,
+
+    /// <summary>
+    /// Entity value not contains filter value
+    /// </summary>
+    NotStartsWith = 7,
+
+    /// <summary>
+    /// Entity value contains filter value
+    /// </summary>
+    EndsWith = 8,
+
+    /// <summary>
+    /// Entity value not contains filter value
+    /// </summary>
+    NotEndsWith = 9,
+}
+
 public interface IFilterConfigurationBuilder<TEntity, TFilter>
     where TEntity : class
     where TFilter : class
@@ -77,6 +131,15 @@ public interface IFilterConfigurationBuilder<TEntity, TFilter>
         Expression<Func<TEntity, TEntityProperty>> entityPropertyExpression,
         FilterBy type,
         Expression<Func<TFilter, TFilterProperty>> filterPropertyExpression,
+        Func<TFilter, bool>? includeNull = null,
+        Func<TFilter, bool>? reverseIf = null,
+        Func<TFilter, bool>? ignoreIf = null);
+
+    IFilterConfigurationBuilder<TEntity, TFilter> FilterByStringProperty(
+        Expression<Func<TEntity, string?>> entityPropertyExpression,
+        FilterStringBy type,
+        StringComparison stringComparison,
+        Expression<Func<TFilter, string?>> filterPropertyExpression,
         Func<TFilter, bool>? includeNull = null,
         Func<TFilter, bool>? reverseIf = null,
         Func<TFilter, bool>? ignoreIf = null);

@@ -7,6 +7,16 @@ using System.Reflection;
 using System;
 using System.Linq;
 
+internal record struct CompareStringData<TFilter>(
+    PropertyInfo entityProperty,
+    FilterStringBy type,
+    StringComparison stringComparison,
+    PropertyInfo filterProperty,
+    Func<TFilter, bool>? includeNull,
+    Func<TFilter, bool>? reverseIf,
+    Func<TFilter, bool>? ignoreIf)
+    where TFilter : class;
+
 internal record struct FilterRangeData<TFilter>(
     PropertyInfo filterMinProperty,
     Type? filterMinPropertyConvertTo,
@@ -50,6 +60,7 @@ internal sealed class FilterConfiguration<TEntity, TFilter> : IFilterConfigurati
     private readonly Dictionary<string, Dictionary<string, CompareData<TFilter>>> _compareDictionary = new ();
     private readonly Dictionary<string, Dictionary<string, ContainData<TFilter>>> _containDictionary = new ();
     private readonly Dictionary<string, Dictionary<string, InData<TFilter>>> _inDictionary = new ();
+    private readonly Dictionary<string, Dictionary<string, CompareStringData<TFilter>>> _compareStringDictionary = new ();
     private readonly Dictionary<string, Dictionary<string, Dictionary<string, FilterRangeData<TFilter>>>> _filterRangeDictionary = new ();
     private readonly Dictionary<string, Dictionary<string, Dictionary<string, EntityRangeData<TFilter>>>> _entityRangeDictionary = new ();
 
@@ -119,6 +130,43 @@ internal sealed class FilterConfiguration<TEntity, TFilter> : IFilterConfigurati
                 break;
         }
 
+        _configuredEntityProperties.Add(entityPropertyName);
+        _configuredFilterProperties.Add(filterPropertyName);
+
+        return this;
+    }
+
+    public IFilterConfigurationBuilder<TEntity, TFilter> FilterByStringProperty(
+        Expression<Func<TEntity, string?>> entityPropertyExpression,
+        FilterStringBy type,
+        StringComparison stringComparison,
+        Expression<Func<TFilter, string?>> filterPropertyExpression,
+        Func<TFilter, bool>? includeNull = null,
+        Func<TFilter, bool>? reverseIf = null,
+        Func<TFilter, bool>? ignoreIf = null)
+    {
+        var entityProperty = GetProperty(entityPropertyExpression);
+        var filterProperty = GetProperty(filterPropertyExpression);
+        var entityPropertyName = entityProperty.Name;
+        var filterPropertyName = filterProperty.Name;
+
+        if (_compareDictionary.Contains(entityPropertyName, filterPropertyName) || _containDictionary.Contains(entityPropertyName, filterPropertyName)
+            || _inDictionary.Contains(entityPropertyName, filterPropertyName) || _compareStringDictionary.Contains(entityPropertyName, filterPropertyName))
+        {
+            throw new RedundantMatchingException(typeof(TEntity), entityPropertyName, typeof(TFilter), filterPropertyName);
+        }
+
+        if (entityProperty.PropertyType != typeof(string) || filterProperty.PropertyType != typeof(string))
+        {
+            throw new InvalidStringTypeException(typeof(TEntity), entityPropertyName, typeof(TFilter), filterPropertyName);
+        }
+
+        if (ignoreIf is null)
+        {
+            ignoreIf = TypeUtilities.BuildFilterPropertyIsDefaultFunction<TFilter>(filterProperty);
+        }
+
+        _compareStringDictionary.Add(entityPropertyName, filterPropertyName, new CompareStringData<TFilter>(entityProperty, type, stringComparison, filterProperty, includeNull, reverseIf, ignoreIf));
         _configuredEntityProperties.Add(entityPropertyName);
         _configuredFilterProperties.Add(filterPropertyName);
 
@@ -268,6 +316,7 @@ internal sealed class FilterConfiguration<TEntity, TFilter> : IFilterConfigurati
             _compareDictionary.Values.SelectMany(c => c.Values).ToList(),
             _containDictionary.Values.SelectMany(c => c.Values).ToList(),
             _inDictionary.Values.SelectMany(i => i.Values).ToList(),
+            _compareStringDictionary.Values.SelectMany(c => c.Values).ToList(),
             _filterRangeDictionary.Values.SelectMany(f => f.Values.SelectMany(i => i.Values)).ToList(),
             _entityRangeDictionary.Values.SelectMany(e => e.Values.SelectMany(i => i.Values)).ToList());
         var delegateType = typeof(Func<,>).MakeGenericType(typeof(TFilter), typeof(Expression<>).MakeGenericType(typeof(Func<,>).MakeGenericType(typeof(TEntity), typeof(bool))));

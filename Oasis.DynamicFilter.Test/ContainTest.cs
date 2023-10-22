@@ -2,7 +2,6 @@
 
 using System.Linq;
 using Oasis.DynamicFilter;
-using Oasis.DynamicFilter.Test.BasicTests;
 
 public sealed class CollectionEntity<T>
 {

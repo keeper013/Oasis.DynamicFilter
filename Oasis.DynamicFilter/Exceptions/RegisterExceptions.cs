@@ -1,6 +1,7 @@
 ﻿namespace Oasis.DynamicFilter.Exceptions;
 
 using System;
+using System.Reflection;
 
 public sealed class BadFilterException : DynamicFilterException
 {
@@ -64,6 +65,14 @@ public sealed class UnnecessaryIncludeNullException : DynamicFilterException
 {
     public UnnecessaryIncludeNullException(Type entityType)
         : base($"Type {entityType.Name} isn't suitable to have an includeNull configuration.")
+    {
+    }
+}
+
+public sealed class InvalidStringTypeException : DynamicFilterException
+{
+    public InvalidStringTypeException(Type entityType, string entityPropertyName, Type filterType, string filterPropertyName)
+        : base($"To filter by string, type of both {entityPropertyName} of {entityType} and {filterPropertyName} of {filterType} must both be string.")
     {
     }
 }

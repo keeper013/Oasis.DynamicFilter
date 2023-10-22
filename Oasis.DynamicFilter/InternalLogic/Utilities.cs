@@ -53,7 +53,7 @@ internal static class Utilities
         return types.Count == 1 ? new (types[0].GenericTypeArguments[0], true) : null;
     }
 
-    internal static string GenerateRandomTypeName(int length)
+    internal static string GenerateRandomName(int length)
     {
         const string AvailableChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
         const int AvailableCharsCount = 52;

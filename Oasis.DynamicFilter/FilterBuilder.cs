@@ -17,7 +17,7 @@ public sealed class FilterBuilder : IFilterBuilder
 
     public FilterBuilder()
     {
-        var name = new AssemblyName($"{Utilities.GenerateRandomTypeName(16)}.Oasis.DynamicFilter.Generated");
+        var name = new AssemblyName($"{Utilities.GenerateRandomName(16)}.Oasis.DynamicFilter.Generated");
         var assemblyBuilder = AssemblyBuilder.DefineDynamicAssembly(name, AssemblyBuilderAccess.Run);
         var module = assemblyBuilder.DefineDynamicModule($"{name.Name}.dll");
         _filterTypeBuilder = new (module);
@@ -57,7 +57,7 @@ public sealed class FilterBuilder : IFilterBuilder
             throw new RedundantRegisterException(entityType, filterType);
         }
 
-        var type = _filterTypeBuilder.BuildFilterMethodBuilder<TEntity, TFilter>().Build(null, null, null, null, null, null, null);
+        var type = _filterTypeBuilder.BuildFilterMethodBuilder<TEntity, TFilter>().Build(null, null, null, null, null, null, null, null);
         var delegateType = typeof(Func<,>).MakeGenericType(filterType, typeof(Expression<>).MakeGenericType(typeof(Func<,>).MakeGenericType(entityType, typeof(bool))));
         _filterBuilders.Add(entityType, filterType, Delegate.CreateDelegate(delegateType, type.GetMethod(FilterTypeBuilder.FilterMethodName, Utilities.PublicStatic)));
 

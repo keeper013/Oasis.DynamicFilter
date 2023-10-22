@@ -1,7 +1,5 @@
 ﻿namespace Oasis.DynamicFilter.Test;
 
-using Xunit;
-
 public sealed class MultipleRegisterTest
 {
     [Fact]

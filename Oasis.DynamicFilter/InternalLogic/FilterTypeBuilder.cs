@@ -32,9 +32,7 @@ internal sealed class FilterTypeBuilder
         return new FilterMethodBuilder<TEntity, TFilter>(typeBuilder, generator);
     }
 
-    private static string GetDynamicTypeName(Type entityType, Type filterType) => $"Filter_${entityType.Name}_${filterType.Name}_{Utilities.GenerateRandomTypeName(16)}";
-
-    private static string GetTypeName(Type type) => $"{type.Namespace}_{type.Name}".Replace(".", "_").Replace("`", "_");
+    private static string GetDynamicTypeName(Type entityType, Type filterType) => $"Filter_${entityType.Name}_${filterType.Name}_{Utilities.GenerateRandomName(16)}";
 }
 
 internal record struct CompareData<TFilter>(
@@ -88,6 +86,7 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
     private const string CompareDictionaryFieldName = "_compareDictionary";
     private const string ContainDictionaryFieldName = "_containDictionary";
     private const string InDictionaryFieldName = "_inDictionary";
+    private const string CompareStringDictionaryFieldName = "_compareStringDictionary";
     private const string FilterRangeDictionaryFieldName = "_filterRangeDictionary";
     private const string EntityRangeDictionaryFieldName = "_entityRangeDictionary";
     private const string DictionaryItemMethodName = "get_Item";
@@ -100,6 +99,8 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
     private static readonly MethodInfo RangeFieldLevel1GetItem = typeof(Dictionary<string, Dictionary<string, Dictionary<string, RangeData>>>).GetMethod(DictionaryItemMethodName, Utilities.PublicInstance)!;
     private static readonly MethodInfo RangeFieldLevel2GetItem = typeof(Dictionary<Type, Dictionary<string, RangeData>>).GetMethod(DictionaryItemMethodName, Utilities.PublicInstance)!;
     private static readonly MethodInfo RangeFieldLevel3GetItem = typeof(Dictionary<Type, RangeData>).GetMethod(DictionaryItemMethodName, Utilities.PublicInstance)!;
+    private static readonly MethodInfo CompareStringFieldOuterGetItem = typeof(Dictionary<string, Dictionary<string, CompareStringData>>).GetMethod(DictionaryItemMethodName, Utilities.PublicInstance)!;
+    private static readonly MethodInfo CompareStringFieldInnerGetItem = typeof(Dictionary<Type, CompareStringData>).GetMethod(DictionaryItemMethodName, Utilities.PublicInstance)!;
     private static readonly Type EntityType = typeof(TEntity);
     private static readonly Type BooleanType = typeof(bool);
     private static readonly Type NullableBooleanType = typeof(bool?);
@@ -117,6 +118,7 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
     private static readonly MethodInfo BuildInCollectionExpressionMethod = typeof(ExpressionUtilities).GetMethod(nameof(ExpressionUtilities.BuildInCollectionExpression), Utilities.PublicStatic);
     private static readonly MethodInfo BuildFilterRangeExpressionMethod = typeof(ExpressionUtilities).GetMethod(nameof(ExpressionUtilities.BuildFilterRangeExpression), Utilities.PublicStatic);
     private static readonly MethodInfo BuildEntityRangeExpressionMethod = typeof(ExpressionUtilities).GetMethod(nameof(ExpressionUtilities.BuildEntityRangeExpression), Utilities.PublicStatic);
+    private static readonly MethodInfo BuildCompareStringExpressionMethod = typeof(ExpressionUtilities).GetMethod(nameof(ExpressionUtilities.BuildStringCompareExpression), Utilities.PublicStatic);
     private readonly TypeBuilder _typeBuilder;
     private readonly ILGenerator _generator;
 
@@ -132,6 +134,7 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
         IReadOnlyList<CompareData<TFilter>>? compareList,
         IReadOnlyList<ContainData<TFilter>>? containList,
         IReadOnlyList<InData<TFilter>>? inList,
+        IReadOnlyList<CompareStringData<TFilter>>? compareStringList,
         IReadOnlyList<FilterRangeData<TFilter>>? filterRangeList,
         IReadOnlyList<EntityRangeData<TFilter>>? entityRangeList)
     {
@@ -151,7 +154,7 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
             isIn.AddRange(inList);
         }
 
-        var includeNullLocalVariableCount = GetIncludeNullLocalVariableCount(compare, contain, isIn, filterRangeList, entityRangeList);
+        var includeNullLocalVariableCount = GetIncludeNullLocalVariableCount(compare, contain, isIn, compareStringList, filterRangeList, entityRangeList);
 
         // generate starting code
         LocalBuilder? includeNullLocal1 = null;
@@ -192,6 +195,12 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
         if (isIn.Any())
         {
             inFields = GenerateInCode(isIn, includeNullLocal1!, expressionLocal);
+        }
+
+        GeneratedFilterFields<TFilter, Dictionary<string, Dictionary<string, CompareStringData>>>? compareStringFields = default;
+        if (compareStringList != null && compareStringList.Any())
+        {
+            compareStringFields = GenerateCompareStringCode(compareStringList, includeNullLocal1!, expressionLocal);
         }
 
         GeneratedFilterFields<TFilter, Dictionary<string, Dictionary<string, Dictionary<string, RangeData>>>>? filterRangeFields = default;
@@ -242,6 +251,11 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
             WrapUpFilterCode(type, InDictionaryFieldName, inFields.Value);
         }
 
+        if (compareStringFields.HasValue)
+        {
+            WrapUpFilterCode(type, CompareStringDictionaryFieldName, compareStringFields.Value);
+        }
+
         if (filterRangeFields.HasValue)
         {
             WrapUpFilterCode(type, FilterRangeDictionaryFieldName, filterRangeFields.Value);
@@ -259,11 +273,12 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
         List<CompareData<TFilter>> compareList,
         List<ContainData<TFilter>> containList,
         List<InData<TFilter>> inList,
+        IReadOnlyList<CompareStringData<TFilter>>? compareStringList,
         IReadOnlyList<FilterRangeData<TFilter>>? filterRangeList,
         IReadOnlyList<EntityRangeData<TFilter>>? entityRangeList)
         => entityRangeList != null && entityRangeList.Any()
             ? 2
-            : compareList.Any() || containList.Any() || inList.Any() || (filterRangeList != null && filterRangeList.Any())
+            : compareList.Any() || containList.Any() || inList.Any() || (compareStringList != null && compareStringList.Any()) || (filterRangeList != null && filterRangeList.Any())
                 ? 1
                 : 0;
 
@@ -464,6 +479,35 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
         }
 
         return new (inDictionary, includeNullFields, ignoreIfFields, reverseIfFields);
+    }
+
+    private GeneratedFilterFields<TFilter, Dictionary<string, Dictionary<string, CompareStringData>>> GenerateCompareStringCode(IReadOnlyList<CompareStringData<TFilter>> compare, LocalBuilder includeNullLocal, LocalBuilder expressionLocal)
+    {
+        var compareStringDictionaryField = _typeBuilder.DefineField(CompareStringDictionaryFieldName, typeof(Dictionary<string, Dictionary<string, CompareStringData>>), FieldAttributes.Private | FieldAttributes.Static);
+        var compareStringDictionary = new Dictionary<string, Dictionary<string, CompareStringData>>();
+        var includeNullFields = new Dictionary<string, Func<TFilter, bool>>();
+        var ignoreIfFields = new Dictionary<string, Func<TFilter, bool>>();
+        var reverseIfFields = new Dictionary<string, Func<TFilter, bool>>();
+        foreach (var c in compare)
+        {
+            var fields = PrepareMethodFields(c.entityProperty.Name, c.filterProperty.Name, c.includeNull, c.ignoreIf, c.reverseIf, includeNullFields, ignoreIfFields, reverseIfFields);
+            compareStringDictionary.Add(c.entityProperty.Name, c.filterProperty.Name, new (c.type, c.stringComparison));
+            void CallBuildExpressionMethod() => _generator.Emit(OpCodes.Call, BuildCompareStringExpressionMethod);
+            GenerateFieldFilterCode(
+                compareStringDictionaryField,
+                fields.Item1,
+                fields.Item2,
+                fields.Item3,
+                c.entityProperty,
+                c.filterProperty,
+                includeNullLocal,
+                expressionLocal,
+                CompareStringFieldOuterGetItem,
+                CompareStringFieldInnerGetItem,
+                CallBuildExpressionMethod);
+        }
+
+        return new (compareStringDictionary, includeNullFields, ignoreIfFields, reverseIfFields);
     }
 
     private GeneratedFilterFields<TFilter, Dictionary<string, Dictionary<string, Dictionary<string, RangeData>>>> GenerateFilterRangeCode(IReadOnlyList<FilterRangeData<TFilter>> range, LocalBuilder includeNullLocal, LocalBuilder expressionLocal)

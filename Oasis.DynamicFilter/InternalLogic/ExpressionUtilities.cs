@@ -10,6 +10,7 @@ public record struct CompareData(Type? entityPropertyConvertTo, Type? filterProp
 public record struct ContainData(Type? filterPropertyConvertTo, FilterBy filterType, bool nullValueNotCovered);
 public record struct InData(Type? entityPropertyConvertTo, FilterBy filterType, bool nullValueNotCovered);
 public record struct RangeData(CompareData minData, CompareData maxData);
+public record struct CompareStringData(FilterStringBy filterType, StringComparison comparison);
 
 public static class ExpressionUtilities
 {
@@ -24,6 +25,15 @@ public static class ExpressionUtilities
         { FilterBy.LessThanOrEqual, Expression.LessThanOrEqual },
     };
 
+    private static readonly IReadOnlyDictionary<FilterStringBy, MethodInfo> _compareStringMethods = new Dictionary<FilterStringBy, MethodInfo>
+    {
+        { FilterStringBy.In, typeof(string).GetMethod(nameof(string.Contains), new[] { typeof(string), typeof(StringComparison) }, null) },
+        { FilterStringBy.Contains, typeof(string).GetMethod(nameof(string.Contains), new[] { typeof(string), typeof(StringComparison) }, null) },
+        { FilterStringBy.Equality, typeof(string).GetMethod(nameof(string.Equals), new[] { typeof(string), typeof(StringComparison) }, null) },
+        { FilterStringBy.StartsWith, typeof(string).GetMethod(nameof(string.StartsWith), new[] { typeof(string), typeof(StringComparison) }, null) },
+        { FilterStringBy.EndsWith, typeof(string).GetMethod(nameof(string.EndsWith), new[] { typeof(string), typeof(StringComparison) }, null) },
+    };
+
     public static void BuildCompareExpression<TEntityProperty, TFilterProperty>(ParameterExpression parameter, string entityPropertyName, TFilterProperty value, CompareData data, bool? includeNull, bool reverse, ref Expression? result)
     {
         Expression exp = _compareFunctions[reverse ? data.filterType.GetReversed() : data.filterType](
@@ -35,6 +45,43 @@ public static class ExpressionUtilities
             exp = includeNull.Value ^ reverse
                 ? Expression.OrElse(Expression.Equal(Expression.Property(parameter, entityPropertyName), Expression.Constant(null, typeof(TEntityProperty))), exp)
                 : Expression.AndAlso(Expression.NotEqual(Expression.Property(parameter, entityPropertyName), Expression.Constant(null, typeof(TEntityProperty))), exp);
+        }
+
+        result = result == null ? exp : Expression.AndAlso(result, exp);
+    }
+
+    public static void BuildStringCompareExpression(ParameterExpression parameter, string entityPropertyName, string? value, CompareStringData data, bool? includeNull, bool reverse, ref Expression? result)
+    {
+        var compareType = GetBasicStringCompareType(data.filterType, out var isReversed);
+        var methodInfo = _compareStringMethods[compareType];
+        Expression exp;
+        if (value == null)
+        {
+            exp = includeNull.HasValue
+                ? includeNull.Value
+                    ? Expression.OrElse(Expression.Equal(Expression.Property(parameter, entityPropertyName), Expression.Constant(null, typeof(string))), Expression.Constant(isReversed))
+                    : Expression.AndAlso(Expression.NotEqual(Expression.Property(parameter, entityPropertyName), Expression.Constant(null, typeof(string))), Expression.Constant(isReversed))
+                : Expression.Constant(isReversed);
+        }
+        else
+        {
+            Expression compareExpression = compareType == FilterStringBy.In
+                ? Expression.Call(Expression.Constant(value, typeof(string)), methodInfo, Expression.Property(parameter, entityPropertyName), Expression.Constant(data.comparison, typeof(StringComparison)))
+                : Expression.Call(Expression.Property(parameter, entityPropertyName), methodInfo, Expression.Constant(value, typeof(string)), Expression.Constant(data.comparison, typeof(StringComparison)));
+
+            if (isReversed)
+            {
+                compareExpression = Expression.Not(compareExpression);
+            }
+
+            exp = includeNull.HasValue && includeNull.Value
+                ? Expression.OrElse(Expression.Equal(Expression.Property(parameter, entityPropertyName), Expression.Constant(null, typeof(string))), compareExpression)
+                : Expression.AndAlso(Expression.NotEqual(Expression.Property(parameter, entityPropertyName), Expression.Constant(null, typeof(string))), compareExpression);
+        }
+
+        if (reverse)
+        {
+            exp = Expression.Not(exp);
         }
 
         result = result == null ? exp : Expression.AndAlso(result, exp);
@@ -306,6 +353,31 @@ public static class ExpressionUtilities
         }
 
         result = result == null ? exp : Expression.AndAlso(result, exp);
+    }
+
+    private static FilterStringBy GetBasicStringCompareType(FilterStringBy type, out bool isReversed)
+    {
+        switch (type)
+        {
+            case FilterStringBy.NotIn:
+                isReversed = true;
+                return FilterStringBy.In;
+            case FilterStringBy.InEquality:
+                isReversed = true;
+                return FilterStringBy.Equality;
+            case FilterStringBy.NotEndsWith:
+                isReversed = true;
+                return FilterStringBy.EndsWith;
+            case FilterStringBy.NotStartsWith:
+                isReversed = true;
+                return FilterStringBy.StartsWith;
+            case FilterStringBy.NotContains:
+                isReversed = true;
+                return FilterStringBy.Contains;
+            default:
+                isReversed = false;
+                return type;
+        }
     }
 
     private static FilterBy GetReversed(this FilterBy filterType)
