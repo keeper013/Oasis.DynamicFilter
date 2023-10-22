@@ -39,11 +39,37 @@ public sealed class StringComparisonTest
     [InlineData("cD", FilterStringBy.NotIn, StringComparison.OrdinalIgnoreCase, "AbCde", false, false)]
     [InlineData("ac", FilterStringBy.In, StringComparison.OrdinalIgnoreCase, "AbCde", false, false)]
     [InlineData("ac", FilterStringBy.NotIn, StringComparison.OrdinalIgnoreCase, "AbCde", false, true)]
-    public void TestWithoutIncludNull(string? entityValue, FilterStringBy type, StringComparison stringComparison, string? filterValue, bool reverse, bool result)
+    public void TestWithoutIncludeNull(string? entityValue, FilterStringBy type, StringComparison stringComparison, string? filterValue, bool reverse, bool result)
     {
         var expressionBuilder = new FilterBuilder()
             .Configure<StringEntity, StringFilter>()
                 .FilterByStringProperty(e => e.Value, type, stringComparison, f => f.Value, null, f => reverse, f => false)
+                .Finish()
+            .Build();
+
+        var entity = new StringEntity { Value = entityValue };
+        var filter = new StringFilter { Value = filterValue };
+        Assert.Equal(result, expressionBuilder.GetFunc<StringEntity, StringFilter>(filter)(entity));
+    }
+
+    [Theory]
+    [InlineData(null, FilterStringBy.Equality, StringComparison.Ordinal, "a", true, true, false)]
+    [InlineData(null, FilterStringBy.Equality, StringComparison.Ordinal, "a", true, false, true)]
+    [InlineData("a", FilterStringBy.Equality, StringComparison.Ordinal, null, true, true, true)]
+    [InlineData("a", FilterStringBy.Equality, StringComparison.Ordinal, null, true, false, false)]
+    [InlineData(null, FilterStringBy.Equality, StringComparison.Ordinal, null, true, true, false)]
+    [InlineData(null, FilterStringBy.Equality, StringComparison.Ordinal, null, true, false, true)]
+    [InlineData(null, FilterStringBy.Equality, StringComparison.Ordinal, "a", false, true, true)]
+    [InlineData(null, FilterStringBy.Equality, StringComparison.Ordinal, "a", false, false, false)]
+    [InlineData("a", FilterStringBy.Equality, StringComparison.Ordinal, null, false, true, true)]
+    [InlineData("a", FilterStringBy.Equality, StringComparison.Ordinal, null, false, false, false)]
+    [InlineData(null, FilterStringBy.Equality, StringComparison.Ordinal, null, false, true, true)]
+    [InlineData(null, FilterStringBy.Equality, StringComparison.Ordinal, null, false, false, false)]
+    public void TestWithIncludeNull(string? entityValue, FilterStringBy type, StringComparison stringComparison, string? filterValue, bool includeNull, bool reverse, bool result)
+    {
+        var expressionBuilder = new FilterBuilder()
+            .Configure<StringEntity, StringFilter>()
+                .FilterByStringProperty(e => e.Value, type, stringComparison, f => f.Value, f => includeNull, f => reverse, f => false)
                 .Finish()
             .Build();
 
