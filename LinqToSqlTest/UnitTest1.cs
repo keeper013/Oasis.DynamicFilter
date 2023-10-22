@@ -25,7 +25,7 @@ public class UnitTest1 : TestBase
         await ExecuteWithNewDatabaseContext(async databaseContext =>
         {
             var query = databaseContext.Set<Book>().Where(exp);
-            var str = query.ToQueryString();
+            //var str = query.ToQueryString();
             var result = await query.ToListAsync();
             Assert.Equal(number, result.Count);
         });
@@ -50,7 +50,7 @@ public class UnitTest1 : TestBase
         await ExecuteWithNewDatabaseContext(async databaseContext =>
         {
             var query = databaseContext.Set<Book>().Where(exp);
-            var str = query.ToQueryString();
+            //var str = query.ToQueryString();
             var result = await query.ToListAsync();
             Assert.Equal(number, result.Count);
         });
@@ -73,7 +73,7 @@ public class UnitTest1 : TestBase
         await ExecuteWithNewDatabaseContext(async databaseContext =>
         {
             var query = databaseContext.Set<Book>().Where(exp);
-            var str = query.ToQueryString();
+            //var str = query.ToQueryString();
             var result = await query.ToListAsync();
             Assert.Single(result);
             Assert.Equal("Book 5", result[0].Name);
