@@ -1,8 +1,8 @@
-# Oasis.MicroService
+# Oasis.DynamicFilter
 [![latest version](https://img.shields.io/nuget/v/Oasis.DynamicFilter)](https://www.nuget.org/packages/Oasis.DynamicFilter)
 [![downloads](https://img.shields.io/nuget/dt/Oasis.DynamicFilter)](https://www.nuget.org/packages/Oasis.DynamicFilter)
 ## Introduction
-**Oasis.EntityFramework.Mapper/Oasis.EntityFramework.Mapper** (referred to as **the library** in the following content) is a library that helps users (referred to as "developers" in the following document, as users of this libraries are developers) to automatically generate a linq expression/function to filter some class instances according to a filter class. Simply summarizing the feature, it helps to filter instances of one class with another.
+**Oasis.DynamicFilter** (referred to as **the library** in the following content) is a library that helps users (referred to as "developers" in the following document, as users of this libraries are developers) to automatically generate a linq expression/function to filter some class instances according to a filter class. Simply summarizing the feature, it helps to filter instances of one class with another.
 
 During implementation of a web application, searching for data according to certain criteria is a common requirement, that developers provide a searching panel to let business users provide some input values, then the input value gets sent to the server side, and the input values will be used to filter data in the database, at last the filter data will be sent back to web application and response of the search request. For simple searching use cases, the search logic is always simple and similar, yet for every search developers has to repeat the tedious and brainless coding to fill it in. An example of such case is demonstrated as this example. In a library system, each book has a name and published year. To search for the book by either name or published year in the database, the code may be like the following:
 ```C#
