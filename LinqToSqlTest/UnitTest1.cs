@@ -7,12 +7,12 @@ using System.Linq;
 public class UnitTest1 : TestBase
 {
     [Theory]
-    [InlineData("Book 1", null, 1)]
+    [InlineData("Book Test 1", null, 1)]
     [InlineData("Book 3", null, 2)]
     [InlineData(null, 2012, 1)]
     [InlineData(null, 2008, 2)]
     [InlineData("Book 3", 2008, 1)]
-    [InlineData("Book 5", 2017, 0)]
+    [InlineData("Test Book 5", 2017, 0)]
     public async Task FilterBook(string? name, int? year, int number)
     {
         var expressionMaker = new FilterBuilder().Register<Book, BookFilter>().Build();
@@ -56,18 +56,22 @@ public class UnitTest1 : TestBase
         });
     }
 
-    [Fact]
-    public async Task FilterBookByPartialName()
+    [Theory]
+    [InlineData(StringOperator.Contains, "5", "Test Book 5")]
+    [InlineData(StringOperator.StartsWith, "Book T", "Book Test 1")]
+    [InlineData(StringOperator.EndsWith, "2", "Book 2")]
+    [InlineData(StringOperator.In, "Book 1 or Book 2", "Book 2")]
+    public async Task FilterBookByPartialName(StringOperator op, string partialName, string name)
     {
         var expressionMaker = new FilterBuilder()
             .Configure<Book, BookByNameFilter>()
-                .FilterByStringProperty(b => b.Name, StringOperator.Contains, f => f.Name)
+                .FilterByStringProperty(b => b.Name, op, f => f.Name)
                 .Finish()
         .Build();
 
         await InitializeData();
 
-        var filter = new BookByNameFilter { Name = "5" };
+        var filter = new BookByNameFilter { Name = partialName };
         var exp = expressionMaker.GetExpression<Book, BookByNameFilter>(filter);
 
         await ExecuteWithNewDatabaseContext(async databaseContext =>
@@ -76,7 +80,7 @@ public class UnitTest1 : TestBase
             //var str = query.ToQueryString();
             var result = await query.ToListAsync();
             Assert.Single(result);
-            Assert.Equal("Book 5", result[0].Name);
+            Assert.Equal(name, result[0].Name);
         });
     }
 
@@ -86,11 +90,11 @@ public class UnitTest1 : TestBase
         {
             databaseContext.Set<Book>().AddRange(new Book[]
             {
-                new Book { Id = 1, Name = "Book 1", PublishedYear = 2000 },
+                new Book { Id = 1, Name = "Book Test 1", PublishedYear = 2000 },
                 new Book { Id = 2, Name = "Book 2", PublishedYear = 2008 },
                 new Book { Id = 3, Name = "Book 3", PublishedYear = 2008 },
                 new Book { Id = 4, Name = "Book 3", PublishedYear = 2012 },
-                new Book { Id = 5, Name = "Book 5", PublishedYear = 2016 },
+                new Book { Id = 5, Name = "Test Book 5", PublishedYear = 2016 },
             });
 
             await databaseContext.SaveChangesAsync();
