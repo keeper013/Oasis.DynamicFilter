@@ -10,7 +10,6 @@ public record struct CompareData(Type? entityPropertyConvertTo, Type? filterProp
 public record struct ContainData(Type? filterPropertyConvertTo, Operator filterType, bool nullValueNotCovered);
 public record struct InData(Type? entityPropertyConvertTo, Operator filterType, bool nullValueNotCovered);
 public record struct RangeData(CompareData minData, CompareData maxData);
-public record struct CompareStringData(StringOperator filterType, StringComparison comparison);
 
 public static class ExpressionUtilities
 {
@@ -27,11 +26,11 @@ public static class ExpressionUtilities
 
     private static readonly IReadOnlyDictionary<StringOperator, MethodInfo> _compareStringMethods = new Dictionary<StringOperator, MethodInfo>
     {
-        { StringOperator.In, typeof(string).GetMethod(nameof(string.Contains), new[] { typeof(string), typeof(StringComparison) }, null) },
-        { StringOperator.Contains, typeof(string).GetMethod(nameof(string.Contains), new[] { typeof(string), typeof(StringComparison) }, null) },
-        { StringOperator.Equality, typeof(string).GetMethod(nameof(string.Equals), new[] { typeof(string), typeof(StringComparison) }, null) },
-        { StringOperator.StartsWith, typeof(string).GetMethod(nameof(string.StartsWith), new[] { typeof(string), typeof(StringComparison) }, null) },
-        { StringOperator.EndsWith, typeof(string).GetMethod(nameof(string.EndsWith), new[] { typeof(string), typeof(StringComparison) }, null) },
+        { StringOperator.In, typeof(string).GetMethod(nameof(string.Contains), new[] { typeof(string) }, null) },
+        { StringOperator.Contains, typeof(string).GetMethod(nameof(string.Contains), new[] { typeof(string) }, null) },
+        { StringOperator.Equality, typeof(string).GetMethod(nameof(string.Equals), new[] { typeof(string) }, null) },
+        { StringOperator.StartsWith, typeof(string).GetMethod(nameof(string.StartsWith), new[] { typeof(string) }, null) },
+        { StringOperator.EndsWith, typeof(string).GetMethod(nameof(string.EndsWith), new[] { typeof(string) }, null) },
     };
 
     public static void BuildCompareExpression<TEntityProperty, TFilterProperty>(ParameterExpression parameter, string entityPropertyName, TFilterProperty value, CompareData data, bool? includeNull, bool reverse, ref Expression? result)
@@ -50,9 +49,9 @@ public static class ExpressionUtilities
         result = result == null ? exp : Expression.AndAlso(result, exp);
     }
 
-    public static void BuildStringCompareExpression(ParameterExpression parameter, string entityPropertyName, string? value, CompareStringData data, bool? includeNull, bool reverse, ref Expression? result)
+    public static void BuildStringCompareExpression(ParameterExpression parameter, string entityPropertyName, string? value, StringOperator data, bool? includeNull, bool reverse, ref Expression? result)
     {
-        var compareType = GetBasicStringCompareType(data.filterType, out var isReversed);
+        var compareType = GetBasicStringCompareType(data, out var isReversed);
         var methodInfo = _compareStringMethods[compareType];
         Expression exp;
         if (value == null)
@@ -66,8 +65,8 @@ public static class ExpressionUtilities
         else
         {
             Expression compareExpression = compareType == StringOperator.In
-                ? Expression.Call(Expression.Constant(value, typeof(string)), methodInfo, Expression.Property(parameter, entityPropertyName), Expression.Constant(data.comparison, typeof(StringComparison)))
-                : Expression.Call(Expression.Property(parameter, entityPropertyName), methodInfo, Expression.Constant(value, typeof(string)), Expression.Constant(data.comparison, typeof(StringComparison)));
+                ? Expression.Call(Expression.Constant(value, typeof(string)), methodInfo, Expression.Property(parameter, entityPropertyName))
+                : Expression.Call(Expression.Property(parameter, entityPropertyName), methodInfo, Expression.Constant(value, typeof(string)));
 
             if (isReversed)
             {

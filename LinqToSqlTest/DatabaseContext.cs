@@ -13,7 +13,7 @@ internal class DatabaseContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.Entity<Entity1>().ToTable(nameof(Entity1));
-        modelBuilder.Entity<Entity1>().HasKey(e => e.Id);
+        modelBuilder.Entity<Book>().ToTable(nameof(Book));
+        modelBuilder.Entity<Book>().HasKey(e => e.Id);
     }
 }

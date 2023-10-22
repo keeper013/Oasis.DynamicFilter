@@ -137,7 +137,6 @@ public interface IFilterConfigurationBuilder<TEntity, TFilter>
     IFilterConfigurationBuilder<TEntity, TFilter> FilterByStringProperty(
         Expression<Func<TEntity, string?>> entityPropertyExpression,
         StringOperator type,
-        StringComparison stringComparison,
         Expression<Func<TFilter, string?>> filterPropertyExpression,
         Func<TFilter, bool>? includeNull = null,
         Func<TFilter, bool>? reverseIf = null,

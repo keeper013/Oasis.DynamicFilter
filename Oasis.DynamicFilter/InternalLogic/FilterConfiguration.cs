@@ -10,7 +10,6 @@ using System.Linq;
 internal record struct CompareStringData<TFilter>(
     PropertyInfo entityProperty,
     StringOperator type,
-    StringComparison stringComparison,
     PropertyInfo filterProperty,
     Func<TFilter, bool>? includeNull,
     Func<TFilter, bool>? reverseIf,
@@ -139,7 +138,6 @@ internal sealed class FilterConfiguration<TEntity, TFilter> : IFilterConfigurati
     public IFilterConfigurationBuilder<TEntity, TFilter> FilterByStringProperty(
         Expression<Func<TEntity, string?>> entityPropertyExpression,
         StringOperator type,
-        StringComparison stringComparison,
         Expression<Func<TFilter, string?>> filterPropertyExpression,
         Func<TFilter, bool>? includeNull = null,
         Func<TFilter, bool>? reverseIf = null,
@@ -166,7 +164,7 @@ internal sealed class FilterConfiguration<TEntity, TFilter> : IFilterConfigurati
             ignoreIf = TypeUtilities.BuildFilterPropertyIsDefaultFunction<TFilter>(filterProperty);
         }
 
-        _compareStringDictionary.Add(entityPropertyName, filterPropertyName, new CompareStringData<TFilter>(entityProperty, type, stringComparison, filterProperty, includeNull, reverseIf, ignoreIf));
+        _compareStringDictionary.Add(entityPropertyName, filterPropertyName, new CompareStringData<TFilter>(entityProperty, type, filterProperty, includeNull, reverseIf, ignoreIf));
         _configuredEntityProperties.Add(entityPropertyName);
         _configuredFilterProperties.Add(filterPropertyName);
 

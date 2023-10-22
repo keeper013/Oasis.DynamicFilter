@@ -99,8 +99,8 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
     private static readonly MethodInfo RangeFieldLevel1GetItem = typeof(Dictionary<string, Dictionary<string, Dictionary<string, RangeData>>>).GetMethod(DictionaryItemMethodName, Utilities.PublicInstance)!;
     private static readonly MethodInfo RangeFieldLevel2GetItem = typeof(Dictionary<Type, Dictionary<string, RangeData>>).GetMethod(DictionaryItemMethodName, Utilities.PublicInstance)!;
     private static readonly MethodInfo RangeFieldLevel3GetItem = typeof(Dictionary<Type, RangeData>).GetMethod(DictionaryItemMethodName, Utilities.PublicInstance)!;
-    private static readonly MethodInfo CompareStringFieldOuterGetItem = typeof(Dictionary<string, Dictionary<string, CompareStringData>>).GetMethod(DictionaryItemMethodName, Utilities.PublicInstance)!;
-    private static readonly MethodInfo CompareStringFieldInnerGetItem = typeof(Dictionary<Type, CompareStringData>).GetMethod(DictionaryItemMethodName, Utilities.PublicInstance)!;
+    private static readonly MethodInfo CompareStringFieldOuterGetItem = typeof(Dictionary<string, Dictionary<string, StringOperator>>).GetMethod(DictionaryItemMethodName, Utilities.PublicInstance)!;
+    private static readonly MethodInfo CompareStringFieldInnerGetItem = typeof(Dictionary<Type, StringOperator>).GetMethod(DictionaryItemMethodName, Utilities.PublicInstance)!;
     private static readonly Type EntityType = typeof(TEntity);
     private static readonly Type BooleanType = typeof(bool);
     private static readonly Type NullableBooleanType = typeof(bool?);
@@ -197,7 +197,7 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
             inFields = GenerateInCode(isIn, includeNullLocal1!, expressionLocal);
         }
 
-        GeneratedFilterFields<TFilter, Dictionary<string, Dictionary<string, CompareStringData>>>? compareStringFields = default;
+        GeneratedFilterFields<TFilter, Dictionary<string, Dictionary<string, StringOperator>>>? compareStringFields = default;
         if (compareStringList != null && compareStringList.Any())
         {
             compareStringFields = GenerateCompareStringCode(compareStringList, includeNullLocal1!, expressionLocal);
@@ -481,17 +481,17 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
         return new (inDictionary, includeNullFields, ignoreIfFields, reverseIfFields);
     }
 
-    private GeneratedFilterFields<TFilter, Dictionary<string, Dictionary<string, CompareStringData>>> GenerateCompareStringCode(IReadOnlyList<CompareStringData<TFilter>> compare, LocalBuilder includeNullLocal, LocalBuilder expressionLocal)
+    private GeneratedFilterFields<TFilter, Dictionary<string, Dictionary<string, StringOperator>>> GenerateCompareStringCode(IReadOnlyList<CompareStringData<TFilter>> compare, LocalBuilder includeNullLocal, LocalBuilder expressionLocal)
     {
-        var compareStringDictionaryField = _typeBuilder.DefineField(CompareStringDictionaryFieldName, typeof(Dictionary<string, Dictionary<string, CompareStringData>>), FieldAttributes.Private | FieldAttributes.Static);
-        var compareStringDictionary = new Dictionary<string, Dictionary<string, CompareStringData>>();
+        var compareStringDictionaryField = _typeBuilder.DefineField(CompareStringDictionaryFieldName, typeof(Dictionary<string, Dictionary<string, StringOperator>>), FieldAttributes.Private | FieldAttributes.Static);
+        var compareStringDictionary = new Dictionary<string, Dictionary<string, StringOperator>>();
         var includeNullFields = new Dictionary<string, Func<TFilter, bool>>();
         var ignoreIfFields = new Dictionary<string, Func<TFilter, bool>>();
         var reverseIfFields = new Dictionary<string, Func<TFilter, bool>>();
         foreach (var c in compare)
         {
             var fields = PrepareMethodFields(c.entityProperty.Name, c.filterProperty.Name, c.includeNull, c.ignoreIf, c.reverseIf, includeNullFields, ignoreIfFields, reverseIfFields);
-            compareStringDictionary.Add(c.entityProperty.Name, c.filterProperty.Name, new (c.type, c.stringComparison));
+            compareStringDictionary.Add(c.entityProperty.Name, c.filterProperty.Name, c.type);
             void CallBuildExpressionMethod() => _generator.Emit(OpCodes.Call, BuildCompareStringExpressionMethod);
             GenerateFieldFilterCode(
                 compareStringDictionaryField,

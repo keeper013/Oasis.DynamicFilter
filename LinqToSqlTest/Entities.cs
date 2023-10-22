@@ -1,17 +1,29 @@
 ﻿namespace LinqToSqlTest;
 
-public sealed class Entity1
+public sealed class Book
 {
     public int Id { get; set; }
 
-    public int Number { get; set; }
+    public int PublishedYear { get; set; }
 
     public string Name { get; set; } = null!;
 }
 
-public sealed class EntityFilter<T>
+public sealed class BookFilter
 {
-    public T Number { get; set; } = default!;
+    public int? PublishedYear { get; set; } = default!;
 
     public string? Name { get; set; }
+}
+
+public sealed class BookByYearRangeFilter
+{
+    public int FromYear { get; set; }
+
+    public int ToYear { get; set; }
+}
+
+public sealed class BookByNameFilter
+{
+    public string? Name { get; set; } = null!;
 }

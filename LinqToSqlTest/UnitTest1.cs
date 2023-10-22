@@ -6,68 +6,77 @@ using System.Linq;
 
 public class UnitTest1 : TestBase
 {
-    [Fact]
-    public async Task SingleFieldTest()
+    [Theory]
+    [InlineData("Book 1", null, 1)]
+    [InlineData("Book 3", null, 2)]
+    [InlineData(null, 2012, 1)]
+    [InlineData(null, 2008, 2)]
+    [InlineData("Book 3", 2008, 1)]
+    [InlineData("Book 5", 2017, 0)]
+    public async Task FilterBook(string? name, int? year, int number)
     {
-        var expressionMaker = new FilterBuilder().Register<Entity1, EntityFilter<double?>>().Build();
+        var expressionMaker = new FilterBuilder().Register<Book, BookFilter>().Build();
 
         await InitializeData();
 
-        var filter = new EntityFilter<double?> { Number = 2 };
-        var exp = expressionMaker.GetExpression<Entity1, EntityFilter<double?>>(filter);
+        var filter = new BookFilter { Name = name, PublishedYear = year };
+        var exp = expressionMaker.GetExpression<Book, BookFilter>(filter);
 
         await ExecuteWithNewDatabaseContext(async databaseContext =>
         {
-            var query = databaseContext.Set<Entity1>().Where(exp);
-            // var str = query.ToQueryString();
+            var query = databaseContext.Set<Book>().Where(exp);
+            var str = query.ToQueryString();
             var result = await query.ToListAsync();
-            Assert.Single(result);
-            Assert.Equal("2", result[0].Name);
-        });
-    }
-
-    [Fact]
-    public async Task IgnoreDefaultNullTest()
-    {
-        var expressionMaker = new FilterBuilder().Register<Entity1, EntityFilter<int?>>().Build();
-
-        await InitializeData();
-
-        var filter = new EntityFilter<int?>();
-        var exp = expressionMaker.GetExpression<Entity1, EntityFilter<int?>>(filter);
-
-        await ExecuteWithNewDatabaseContext(async databaseContext =>
-        {
-            var query = databaseContext.Set<Entity1>().Where(exp);
-            // var str = query.ToQueryString();
-            var result = await query.ToListAsync();
-            Assert.Equal(5, result.Count);
+            Assert.Equal(number, result.Count);
         });
     }
 
     [Theory]
-    [InlineData(2, "2", 1)]
-    [InlineData(2, "3", 0)]
-    [InlineData(1, "1", 1)]
-    public async Task MultipleFieldTest(byte number, string name, int count)
+    [InlineData(2001, 2005, 0)]
+    [InlineData(2007, 2015, 3)]
+    public async Task FilterBookByYearRange(int fromYear, int toYear, int number)
     {
-        var expressionMaker = new FilterBuilder().Register<Entity1, EntityFilter<byte>>().Build();
+        var expressionMaker = new FilterBuilder()
+            .Configure<Book, BookByYearRangeFilter>()
+                .FilterByRangedFilter(f => f.FromYear, RangeOperator.LessThanOrEqual, e => e.PublishedYear, RangeOperator.LessThanOrEqual, f => f.ToYear)
+                .Finish()
+        .Build();
 
         await InitializeData();
 
-        var filter = new EntityFilter<byte> { Number = number, Name = name };
-        var exp = expressionMaker.GetExpression<Entity1, EntityFilter<byte>>(filter);
+        var filter = new BookByYearRangeFilter { FromYear = fromYear, ToYear = toYear };
+        var exp = expressionMaker.GetExpression<Book, BookByYearRangeFilter>(filter);
 
         await ExecuteWithNewDatabaseContext(async databaseContext =>
         {
-            var query = databaseContext.Set<Entity1>().Where(exp);
-            // var str = query.ToQueryString();
+            var query = databaseContext.Set<Book>().Where(exp);
+            var str = query.ToQueryString();
             var result = await query.ToListAsync();
-            Assert.Equal(count, result.Count);
-            if (count == 1)
-            {
-                Assert.Equal(result[0].Number, number);
-            }
+            Assert.Equal(number, result.Count);
+        });
+    }
+
+    [Fact]
+    public async Task FilterBookByPartialName()
+    {
+        var expressionMaker = new FilterBuilder()
+            .Configure<Book, BookByNameFilter>()
+                .FilterByStringProperty(b => b.Name, StringOperator.Contains, f => f.Name)
+                .Finish()
+        .Build();
+
+        await InitializeData();
+
+        var filter = new BookByNameFilter { Name = "5" };
+        var exp = expressionMaker.GetExpression<Book, BookByNameFilter>(filter);
+
+        await ExecuteWithNewDatabaseContext(async databaseContext =>
+        {
+            var query = databaseContext.Set<Book>().Where(exp);
+            var str = query.ToQueryString();
+            var result = await query.ToListAsync();
+            Assert.Single(result);
+            Assert.Equal("Book 5", result[0].Name);
         });
     }
 
@@ -75,11 +84,15 @@ public class UnitTest1 : TestBase
     {
         await ExecuteWithNewDatabaseContext(async databaseContext =>
         {
-            databaseContext.Set<Entity1>().Add(new Entity1 { Id = 1, Number = 1, Name = "1" });
-            databaseContext.Set<Entity1>().Add(new Entity1 { Id = 2, Number = 2, Name = "2" });
-            databaseContext.Set<Entity1>().Add(new Entity1 { Id = 3, Number = 3, Name = "3" });
-            databaseContext.Set<Entity1>().Add(new Entity1 { Id = 4, Number = 3, Name = "4" });
-            databaseContext.Set<Entity1>().Add(new Entity1 { Id = 5, Number = 4, Name = "5" });
+            databaseContext.Set<Book>().AddRange(new Book[]
+            {
+                new Book { Id = 1, Name = "Book 1", PublishedYear = 2000 },
+                new Book { Id = 2, Name = "Book 2", PublishedYear = 2008 },
+                new Book { Id = 3, Name = "Book 3", PublishedYear = 2008 },
+                new Book { Id = 4, Name = "Book 3", PublishedYear = 2012 },
+                new Book { Id = 5, Name = "Book 5", PublishedYear = 2016 },
+            });
+
             await databaseContext.SaveChangesAsync();
         });
     }

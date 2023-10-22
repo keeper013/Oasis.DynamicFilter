@@ -13,37 +13,37 @@ public sealed class StringFilter
 public sealed class StringComparisonTest
 {
     [Theory]
-    [InlineData(null, StringOperator.Equality, StringComparison.Ordinal, "a", true, true)]
-    [InlineData(null, StringOperator.Equality, StringComparison.Ordinal, "a", false, false)]
-    [InlineData("a", StringOperator.Equality, StringComparison.Ordinal, null, true, true)]
-    [InlineData("a", StringOperator.Equality, StringComparison.Ordinal, null, false, false)]
-    [InlineData(null, StringOperator.Equality, StringComparison.Ordinal, null, true, true)]
-    [InlineData(null, StringOperator.Equality, StringComparison.Ordinal, null, false, false)]
-    [InlineData("A", StringOperator.Equality, StringComparison.OrdinalIgnoreCase, "a", true, false)]
-    [InlineData("A", StringOperator.Equality, StringComparison.OrdinalIgnoreCase, "a", false, true)]
-    [InlineData("Abc", StringOperator.InEquality, StringComparison.OrdinalIgnoreCase, "acb", false, true)]
-    [InlineData("Abc", StringOperator.InEquality, StringComparison.OrdinalIgnoreCase, "acb", true, false)]
-    [InlineData("Abcde", StringOperator.Contains, StringComparison.OrdinalIgnoreCase, "cD", false, true)]
-    [InlineData("Abcde", StringOperator.NotContains, StringComparison.OrdinalIgnoreCase, "cD", false, false)]
-    [InlineData("Abcde", StringOperator.Contains, StringComparison.OrdinalIgnoreCase, "ac", false, false)]
-    [InlineData("Abcde", StringOperator.NotContains, StringComparison.OrdinalIgnoreCase, "ac", false, true)]
-    [InlineData("Abcde", StringOperator.StartsWith, StringComparison.OrdinalIgnoreCase, "aB", false, true)]
-    [InlineData("Abcde", StringOperator.NotStartsWith, StringComparison.OrdinalIgnoreCase, "aB", false, false)]
-    [InlineData("Abcde", StringOperator.StartsWith, StringComparison.OrdinalIgnoreCase, "bc", false, false)]
-    [InlineData("Abcde", StringOperator.NotStartsWith, StringComparison.OrdinalIgnoreCase, "bc", false, true)]
-    [InlineData("Abcde", StringOperator.EndsWith, StringComparison.OrdinalIgnoreCase, "DE", false, true)]
-    [InlineData("Abcde", StringOperator.NotEndsWith, StringComparison.OrdinalIgnoreCase, "DE", false, false)]
-    [InlineData("Abcde", StringOperator.EndsWith, StringComparison.OrdinalIgnoreCase, "ed", false, false)]
-    [InlineData("Abcde", StringOperator.NotEndsWith, StringComparison.OrdinalIgnoreCase, "ed", false, true)]
-    [InlineData("cD", StringOperator.In, StringComparison.OrdinalIgnoreCase, "AbCde", false, true)]
-    [InlineData("cD", StringOperator.NotIn, StringComparison.OrdinalIgnoreCase, "AbCde", false, false)]
-    [InlineData("ac", StringOperator.In, StringComparison.OrdinalIgnoreCase, "AbCde", false, false)]
-    [InlineData("ac", StringOperator.NotIn, StringComparison.OrdinalIgnoreCase, "AbCde", false, true)]
-    public void TestWithoutIncludeNull(string? entityValue, StringOperator type, StringComparison stringComparison, string? filterValue, bool reverse, bool result)
+    [InlineData(null, StringOperator.Equality, "a", true, true)]
+    [InlineData(null, StringOperator.Equality, "a", false, false)]
+    [InlineData("a", StringOperator.Equality, null, true, true)]
+    [InlineData("a", StringOperator.Equality, null, false, false)]
+    [InlineData(null, StringOperator.Equality, null, true, true)]
+    [InlineData(null, StringOperator.Equality, null, false, false)]
+    [InlineData("A", StringOperator.Equality, "A", true, false)]
+    [InlineData("A", StringOperator.Equality, "A", false, true)]
+    [InlineData("Abc", StringOperator.InEquality, "Acb", false, true)]
+    [InlineData("Abc", StringOperator.InEquality, "Acb", true, false)]
+    [InlineData("Abcde", StringOperator.Contains, "cd", false, true)]
+    [InlineData("Abcde", StringOperator.NotContains, "cd", false, false)]
+    [InlineData("Abcde", StringOperator.Contains, "ac", false, false)]
+    [InlineData("Abcde", StringOperator.NotContains, "ac", false, true)]
+    [InlineData("Abcde", StringOperator.StartsWith, "Ab", false, true)]
+    [InlineData("Abcde", StringOperator.NotStartsWith, "Ab", false, false)]
+    [InlineData("Abcde", StringOperator.StartsWith, "bc", false, false)]
+    [InlineData("Abcde", StringOperator.NotStartsWith, "bc", false, true)]
+    [InlineData("Abcde", StringOperator.EndsWith, "de", false, true)]
+    [InlineData("Abcde", StringOperator.NotEndsWith, "de", false, false)]
+    [InlineData("Abcde", StringOperator.EndsWith, "ed", false, false)]
+    [InlineData("Abcde", StringOperator.NotEndsWith, "ed", false, true)]
+    [InlineData("Cd", StringOperator.In, "AbCde", false, true)]
+    [InlineData("Cd", StringOperator.NotIn, "AbCde", false, false)]
+    [InlineData("ac", StringOperator.In, "AbCde", false, false)]
+    [InlineData("ac", StringOperator.NotIn, "AbCde", false, true)]
+    public void TestWithoutIncludeNull(string? entityValue, StringOperator type, string? filterValue, bool reverse, bool result)
     {
         var expressionBuilder = new FilterBuilder()
             .Configure<StringEntity, StringFilter>()
-                .FilterByStringProperty(e => e.Value, type, stringComparison, f => f.Value, null, f => reverse, f => false)
+                .FilterByStringProperty(e => e.Value, type, f => f.Value, null, f => reverse, f => false)
                 .Finish()
             .Build();
 
@@ -53,23 +53,23 @@ public sealed class StringComparisonTest
     }
 
     [Theory]
-    [InlineData(null, StringOperator.Equality, StringComparison.Ordinal, "a", true, true, false)]
-    [InlineData(null, StringOperator.Equality, StringComparison.Ordinal, "a", true, false, true)]
-    [InlineData("a", StringOperator.Equality, StringComparison.Ordinal, null, true, true, true)]
-    [InlineData("a", StringOperator.Equality, StringComparison.Ordinal, null, true, false, false)]
-    [InlineData(null, StringOperator.Equality, StringComparison.Ordinal, null, true, true, false)]
-    [InlineData(null, StringOperator.Equality, StringComparison.Ordinal, null, true, false, true)]
-    [InlineData(null, StringOperator.Equality, StringComparison.Ordinal, "a", false, true, true)]
-    [InlineData(null, StringOperator.Equality, StringComparison.Ordinal, "a", false, false, false)]
-    [InlineData("a", StringOperator.Equality, StringComparison.Ordinal, null, false, true, true)]
-    [InlineData("a", StringOperator.Equality, StringComparison.Ordinal, null, false, false, false)]
-    [InlineData(null, StringOperator.Equality, StringComparison.Ordinal, null, false, true, true)]
-    [InlineData(null, StringOperator.Equality, StringComparison.Ordinal, null, false, false, false)]
-    public void TestWithIncludeNull(string? entityValue, StringOperator type, StringComparison stringComparison, string? filterValue, bool includeNull, bool reverse, bool result)
+    [InlineData(null, StringOperator.Equality, "a", true, true, false)]
+    [InlineData(null, StringOperator.Equality, "a", true, false, true)]
+    [InlineData("a", StringOperator.Equality, null, true, true, true)]
+    [InlineData("a", StringOperator.Equality, null, true, false, false)]
+    [InlineData(null, StringOperator.Equality, null, true, true, false)]
+    [InlineData(null, StringOperator.Equality, null, true, false, true)]
+    [InlineData(null, StringOperator.Equality, "a", false, true, true)]
+    [InlineData(null, StringOperator.Equality, "a", false, false, false)]
+    [InlineData("a", StringOperator.Equality, null, false, true, true)]
+    [InlineData("a", StringOperator.Equality, null, false, false, false)]
+    [InlineData(null, StringOperator.Equality, null, false, true, true)]
+    [InlineData(null, StringOperator.Equality, null, false, false, false)]
+    public void TestWithIncludeNull(string? entityValue, StringOperator type, string? filterValue, bool includeNull, bool reverse, bool result)
     {
         var expressionBuilder = new FilterBuilder()
             .Configure<StringEntity, StringFilter>()
-                .FilterByStringProperty(e => e.Value, type, stringComparison, f => f.Value, f => includeNull, f => reverse, f => false)
+                .FilterByStringProperty(e => e.Value, type, f => f.Value, f => includeNull, f => reverse, f => false)
                 .Finish()
             .Build();
 
