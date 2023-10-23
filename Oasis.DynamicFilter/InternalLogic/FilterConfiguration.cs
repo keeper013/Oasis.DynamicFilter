@@ -7,15 +7,6 @@ using System.Reflection;
 using System;
 using System.Linq;
 
-internal record struct CompareStringData<TFilter>(
-    PropertyInfo entityProperty,
-    StringOperator type,
-    PropertyInfo filterProperty,
-    Func<TFilter, bool>? includeNull,
-    Func<TFilter, bool>? reverseIf,
-    Func<TFilter, bool>? ignoreIf)
-    where TFilter : class;
-
 internal record struct FilterRangeData<TFilter>(
     PropertyInfo filterMinProperty,
     Type? filterMinPropertyConvertTo,

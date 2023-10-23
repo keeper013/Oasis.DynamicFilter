@@ -15,12 +15,12 @@ public sealed class FilterBuilder : IFilterBuilder
     private readonly FilterTypeBuilder _filterTypeBuilder;
     private readonly Dictionary<Type, Dictionary<Type, Delegate>> _filterBuilders = new ();
 
-    public FilterBuilder()
+    public FilterBuilder(bool defaultContainForFilteringByString = false)
     {
         var name = new AssemblyName($"{Utilities.GenerateRandomName(16)}.Oasis.DynamicFilter.Generated");
         var assemblyBuilder = AssemblyBuilder.DefineDynamicAssembly(name, AssemblyBuilderAccess.Run);
         var module = assemblyBuilder.DefineDynamicModule($"{name.Name}.dll");
-        _filterTypeBuilder = new (module);
+        _filterTypeBuilder = new (module, defaultContainForFilteringByString ? StringOperator.Contains : StringOperator.Equality);
     }
 
     public IFilter Build()

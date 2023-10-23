@@ -1,7 +1,6 @@
 ﻿namespace Oasis.DynamicFilter.InternalLogic;
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
@@ -12,10 +11,12 @@ internal sealed class FilterTypeBuilder
 {
     public const string FilterMethodName = "Filter";
     private readonly ModuleBuilder _moduleBuilder;
+    private readonly StringOperator _defaultStringOperator;
 
-    public FilterTypeBuilder(ModuleBuilder moduleBuilder)
+    public FilterTypeBuilder(ModuleBuilder moduleBuilder, StringOperator defaultStringOperator)
     {
         _moduleBuilder = moduleBuilder;
+        _defaultStringOperator = defaultStringOperator;
     }
 
     public FilterMethodBuilder<TEntity, TFilter> BuildFilterMethodBuilder<TEntity, TFilter>()
@@ -29,7 +30,7 @@ internal sealed class FilterTypeBuilder
         methodBuilder.SetParameters(filterType);
         methodBuilder.SetReturnType(typeof(Expression<>).MakeGenericType(typeof(Func<,>).MakeGenericType(entityType, typeof(bool))));
         var generator = methodBuilder.GetILGenerator();
-        return new FilterMethodBuilder<TEntity, TFilter>(typeBuilder, generator);
+        return new FilterMethodBuilder<TEntity, TFilter>(typeBuilder, generator, _defaultStringOperator);
     }
 
     private static string GetDynamicTypeName(Type entityType, Type filterType) => $"Filter_${entityType.Name}_${filterType.Name}_{Utilities.GenerateRandomName(16)}";
@@ -67,6 +68,15 @@ internal record struct InData<TFilter>(
     Type filterPropertyItemType,
     bool isCollection,
     bool nullValueNotCovered,
+    Func<TFilter, bool>? includeNull,
+    Func<TFilter, bool>? reverseIf,
+    Func<TFilter, bool>? ignoreIf)
+    where TFilter : class;
+
+internal record struct CompareStringData<TFilter>(
+    PropertyInfo entityProperty,
+    StringOperator type,
+    PropertyInfo filterProperty,
     Func<TFilter, bool>? includeNull,
     Func<TFilter, bool>? reverseIf,
     Func<TFilter, bool>? ignoreIf)
@@ -121,11 +131,13 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
     private static readonly MethodInfo BuildCompareStringExpressionMethod = typeof(ExpressionUtilities).GetMethod(nameof(ExpressionUtilities.BuildStringCompareExpression), Utilities.PublicStatic);
     private readonly TypeBuilder _typeBuilder;
     private readonly ILGenerator _generator;
+    private readonly StringOperator _defaultStringOperator;
 
-    public FilterMethodBuilder(TypeBuilder typeBuilder, ILGenerator generator)
+    public FilterMethodBuilder(TypeBuilder typeBuilder, ILGenerator generator, StringOperator defaultStringOperator)
     {
         _typeBuilder = typeBuilder;
         _generator = generator;
+        _defaultStringOperator = defaultStringOperator;
     }
 
     internal Type Build(
@@ -138,10 +150,15 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
         IReadOnlyList<FilterRangeData<TFilter>>? filterRangeList,
         IReadOnlyList<EntityRangeData<TFilter>>? entityRangeList)
     {
-        var (compare, contain, isIn) = ExtractFilterProperties(configuredEntityProperties, configuredFilterProperties);
+        var (compare, compareString, contain, isIn) = ExtractFilterProperties(configuredEntityProperties, configuredFilterProperties);
         if (compareList != null && compareList.Any())
         {
             compare.AddRange(compareList);
+        }
+
+        if (compareStringList != null && compareStringList.Any())
+        {
+            compareString.AddRange(compareStringList);
         }
 
         if (containList != null && containList.Any())
@@ -154,7 +171,7 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
             isIn.AddRange(inList);
         }
 
-        var includeNullLocalVariableCount = GetIncludeNullLocalVariableCount(compare, contain, isIn, compareStringList, filterRangeList, entityRangeList);
+        var includeNullLocalVariableCount = GetIncludeNullLocalVariableCount(compare, compareString, contain, isIn, filterRangeList, entityRangeList);
 
         // generate starting code
         LocalBuilder? includeNullLocal1 = null;
@@ -185,6 +202,12 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
             compareFields = GenerateCompareCode(compare, includeNullLocal1!, expressionLocal);
         }
 
+        GeneratedFilterFields<TFilter, Dictionary<string, Dictionary<string, StringOperator>>>? compareStringFields = default;
+        if (compareString.Any())
+        {
+            compareStringFields = GenerateCompareStringCode(compareString, includeNullLocal1!, expressionLocal);
+        }
+
         GeneratedFilterFields<TFilter, Dictionary<string, Dictionary<string, ContainData>>>? containFields = default;
         if (contain.Any())
         {
@@ -195,12 +218,6 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
         if (isIn.Any())
         {
             inFields = GenerateInCode(isIn, includeNullLocal1!, expressionLocal);
-        }
-
-        GeneratedFilterFields<TFilter, Dictionary<string, Dictionary<string, StringOperator>>>? compareStringFields = default;
-        if (compareStringList != null && compareStringList.Any())
-        {
-            compareStringFields = GenerateCompareStringCode(compareStringList, includeNullLocal1!, expressionLocal);
         }
 
         GeneratedFilterFields<TFilter, Dictionary<string, Dictionary<string, Dictionary<string, RangeData>>>>? filterRangeFields = default;
@@ -241,6 +258,11 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
             WrapUpFilterCode(type, CompareDictionaryFieldName, compareFields.Value);
         }
 
+        if (compareStringFields.HasValue)
+        {
+            WrapUpFilterCode(type, CompareStringDictionaryFieldName, compareStringFields.Value);
+        }
+
         if (containFields.HasValue)
         {
             WrapUpFilterCode(type, ContainDictionaryFieldName, containFields.Value);
@@ -249,11 +271,6 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
         if (inFields.HasValue)
         {
             WrapUpFilterCode(type, InDictionaryFieldName, inFields.Value);
-        }
-
-        if (compareStringFields.HasValue)
-        {
-            WrapUpFilterCode(type, CompareStringDictionaryFieldName, compareStringFields.Value);
         }
 
         if (filterRangeFields.HasValue)
@@ -271,9 +288,9 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
 
     private static int GetIncludeNullLocalVariableCount(
         List<CompareData<TFilter>> compareList,
+        List<CompareStringData<TFilter>> compareStringList,
         List<ContainData<TFilter>> containList,
         List<InData<TFilter>> inList,
-        IReadOnlyList<CompareStringData<TFilter>>? compareStringList,
         IReadOnlyList<FilterRangeData<TFilter>>? filterRangeList,
         IReadOnlyList<EntityRangeData<TFilter>>? entityRangeList)
         => entityRangeList != null && entityRangeList.Any()
@@ -281,56 +298,6 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
             : compareList.Any() || containList.Any() || inList.Any() || (compareStringList != null && compareStringList.Any()) || (filterRangeList != null && filterRangeList.Any())
                 ? 1
                 : 0;
-
-    private static (List<CompareData<TFilter>>, List<ContainData<TFilter>>, List<InData<TFilter>>) ExtractFilterProperties(ISet<string>? configuredEntityProperties, ISet<string>? configuredFilterProperties)
-    {
-        var filterProperties = typeof(TFilter).GetProperties(Utilities.PublicInstance)
-            .Where(p => p.GetMethod != default && (configuredFilterProperties == null || !configuredFilterProperties.Contains(p.Name)));
-        var entityProperties = typeof(TEntity).GetProperties(Utilities.PublicInstance)
-            .Where(p => p.GetMethod != default && (configuredEntityProperties == null || !configuredEntityProperties.Contains(p.Name)))
-            .ToDictionary(p => p.Name, p => p);
-
-        var compareList = new List<CompareData<TFilter>>();
-        var containList = new List<ContainData<TFilter>>();
-        var inList = new List<InData<TFilter>>();
-        foreach (var filterProperty in filterProperties)
-        {
-            var filterPropertyType = filterProperty.PropertyType;
-            if (entityProperties.TryGetValue(filterProperty.Name, out var entityProperty))
-            {
-                var entityPropertyType = entityProperty.PropertyType;
-                var comparison = TypeUtilities.GetComparisonConversion(entityPropertyType, filterPropertyType, Operator.Equality);
-                if (comparison != null)
-                {
-                    var c = comparison.Value;
-                    var ignoreIf = filterPropertyType.IsClass || filterPropertyType.IsNullable(out _)
-                        ? TypeUtilities.BuildFilterPropertyIsDefaultFunction<TFilter>(filterProperty) : null;
-                    compareList.Add(new CompareData<TFilter>(entityProperty, c.leftConvertTo, Operator.Equality, filterProperty, c.rightConvertTo, null, null, ignoreIf));
-                    continue;
-                }
-
-                var contains = TypeUtilities.GetContainConversion(entityPropertyType, filterPropertyType);
-                if (contains != null)
-                {
-                    var value = contains.Value;
-                    var ignoreIf = filterPropertyType.IsClass || filterPropertyType.IsNullable(out _)
-                        ? TypeUtilities.BuildFilterPropertyIsDefaultFunction<TFilter>(filterProperty) : null;
-                    containList.Add(new ContainData<TFilter>(entityProperty, value.containerItemType, Operator.Contains, filterProperty, value.itemConvertTo, value.isCollection, value.nullValueNotCovered, null, null, ignoreIf));
-                    continue;
-                }
-
-                var isIn = TypeUtilities.GetContainConversion(filterPropertyType, entityPropertyType);
-                if (isIn != null)
-                {
-                    var value = isIn.Value;
-                    inList.Add(new InData<TFilter>(entityProperty, value.itemConvertTo, Operator.In, filterProperty, isIn.Value.containerItemType, value.isCollection, value.nullValueNotCovered, null, null, null));
-                    continue;
-                }
-            }
-        }
-
-        return (compareList, containList, inList);
-    }
 
     private static void WrapUpFilterCode<TDictionary>(
         Type type,
@@ -370,6 +337,64 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
             RangeOperator.LessThan => Operator.LessThan,
             _ => Operator.LessThanOrEqual,
         };
+    }
+
+    private (List<CompareData<TFilter>>, List<CompareStringData<TFilter>>, List<ContainData<TFilter>>, List<InData<TFilter>>) ExtractFilterProperties(ISet<string>? configuredEntityProperties, ISet<string>? configuredFilterProperties)
+    {
+        var filterProperties = typeof(TFilter).GetProperties(Utilities.PublicInstance)
+            .Where(p => p.GetMethod != default && (configuredFilterProperties == null || !configuredFilterProperties.Contains(p.Name)));
+        var entityProperties = typeof(TEntity).GetProperties(Utilities.PublicInstance)
+            .Where(p => p.GetMethod != default && (configuredEntityProperties == null || !configuredEntityProperties.Contains(p.Name)))
+            .ToDictionary(p => p.Name, p => p);
+
+        var compareList = new List<CompareData<TFilter>>();
+        var containList = new List<ContainData<TFilter>>();
+        var inList = new List<InData<TFilter>>();
+        var compareStringList = new List<CompareStringData<TFilter>>();
+        foreach (var filterProperty in filterProperties)
+        {
+            var filterPropertyType = filterProperty.PropertyType;
+            if (entityProperties.TryGetValue(filterProperty.Name, out var entityProperty))
+            {
+                var entityPropertyType = entityProperty.PropertyType;
+                if (entityPropertyType == typeof(string) && filterPropertyType == typeof(string))
+                {
+                    var ignoreIf = TypeUtilities.BuildFilterPropertyIsDefaultFunction<TFilter>(filterProperty);
+                    compareStringList.Add(new CompareStringData<TFilter>(entityProperty, _defaultStringOperator, filterProperty, null, null, ignoreIf));
+                    continue;
+                }
+
+                var comparison = TypeUtilities.GetComparisonConversion(entityPropertyType, filterPropertyType, Operator.Equality);
+                if (comparison != null)
+                {
+                    var c = comparison.Value;
+                    var ignoreIf = filterPropertyType.IsClass || filterPropertyType.IsNullable(out _)
+                        ? TypeUtilities.BuildFilterPropertyIsDefaultFunction<TFilter>(filterProperty) : null;
+                    compareList.Add(new CompareData<TFilter>(entityProperty, c.leftConvertTo, Operator.Equality, filterProperty, c.rightConvertTo, null, null, ignoreIf));
+                    continue;
+                }
+
+                var contains = TypeUtilities.GetContainConversion(entityPropertyType, filterPropertyType);
+                if (contains != null)
+                {
+                    var value = contains.Value;
+                    var ignoreIf = filterPropertyType.IsClass || filterPropertyType.IsNullable(out _)
+                        ? TypeUtilities.BuildFilterPropertyIsDefaultFunction<TFilter>(filterProperty) : null;
+                    containList.Add(new ContainData<TFilter>(entityProperty, value.containerItemType, Operator.Contains, filterProperty, value.itemConvertTo, value.isCollection, value.nullValueNotCovered, null, null, ignoreIf));
+                    continue;
+                }
+
+                var isIn = TypeUtilities.GetContainConversion(filterPropertyType, entityPropertyType);
+                if (isIn != null)
+                {
+                    var value = isIn.Value;
+                    inList.Add(new InData<TFilter>(entityProperty, value.itemConvertTo, Operator.In, filterProperty, isIn.Value.containerItemType, value.isCollection, value.nullValueNotCovered, null, null, null));
+                    continue;
+                }
+            }
+        }
+
+        return (compareList, compareStringList, containList, inList);
     }
 
     private GeneratedFilterFields<TFilter, Dictionary<string, Dictionary<string, CompareData>>> GenerateCompareCode(IList<CompareData<TFilter>> compare, LocalBuilder includeNullLocal, LocalBuilder expressionLocal)
@@ -481,7 +506,7 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
         return new (inDictionary, includeNullFields, ignoreIfFields, reverseIfFields);
     }
 
-    private GeneratedFilterFields<TFilter, Dictionary<string, Dictionary<string, StringOperator>>> GenerateCompareStringCode(IReadOnlyList<CompareStringData<TFilter>> compare, LocalBuilder includeNullLocal, LocalBuilder expressionLocal)
+    private GeneratedFilterFields<TFilter, Dictionary<string, Dictionary<string, StringOperator>>> GenerateCompareStringCode(List<CompareStringData<TFilter>> compare, LocalBuilder includeNullLocal, LocalBuilder expressionLocal)
     {
         var compareStringDictionaryField = _typeBuilder.DefineField(CompareStringDictionaryFieldName, typeof(Dictionary<string, Dictionary<string, StringOperator>>), FieldAttributes.Private | FieldAttributes.Static);
         var compareStringDictionary = new Dictionary<string, Dictionary<string, StringOperator>>();

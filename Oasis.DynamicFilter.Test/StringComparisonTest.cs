@@ -77,4 +77,15 @@ public sealed class StringComparisonTest
         var filter = new StringFilter { Value = filterValue };
         Assert.Equal(result, expressionBuilder.GetFunc<StringEntity, StringFilter>(filter)(entity));
     }
+
+    [Theory]
+    [InlineData("Abc", "Abc")]
+    [InlineData("Abcde", "cd")]
+    public void TestDefaultContainForString(string? entityValue, string? filterValue)
+    {
+        var expressionBuilder = new FilterBuilder(true).Register<StringEntity, StringFilter>().Build();
+        var entity = new StringEntity { Value = entityValue };
+        var filter = new StringFilter { Value = filterValue };
+        Assert.True(expressionBuilder.GetFunc<StringEntity, StringFilter>(filter)(entity));
+    }
 }
