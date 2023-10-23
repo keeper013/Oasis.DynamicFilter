@@ -39,11 +39,11 @@ var expressionMaker = new FilterBuilder().Register<Book, SearchForBookDto>().Bui
 await databaseContext.Set<Book>().Where(expressionMaker.GetExpression<Book, SearchForBookDto>(searchForBookDto)).ToListAsync();
 ```
 ## Basic Feature
-The library uses ILGenerator class provided by C# to dynamically generate the "If not null then apply the search" logic code in IL to save developers the effort. *FilterBuilder.Register<TEntity, TFilter>* method automatically tries to scan over all public instance properties of the TEntity and TFilter classes, find the property pairs with the same names, and apply some logic to the pair when filtering. The default filtering operation applied between properties of certain types are listed below:
+The library uses ILGenerator class provided by C# to dynamically generate the "If not null then apply the search" logic code in IL to save developers the effort. *FilterBuilder.Register<TEntity, TFilter>* method automatically tries to scan over all public instance properties of the TEntity and TFilter classes, find the property pairs with the same names, detect types of both entity and filter properties, and decide which operator it should use for the filtering. The default filtering operators applied between properties types of certain types are listed below.
 Entity Property Type | Filter Property Type | Default Operation
 --- | --- | ---
 C# primitive numeric | C# primitive numeric | Equal
-string | string | Equal
+string | string | Equal/Contains
 Decimal | Decimal | Equal
 DateTime | DateTime | Equal
 other value types (custom enum or struct if equal operator is defined) | same value type | Equal
@@ -52,6 +52,8 @@ T[] where T is string or value type | same string or value type | Contains
 some string or value type | ICollection<T> where T is the same string or value type | In
 some string or value type | T[] where T is the same string or value type | In
 
+Note that if the property types are not suitable for any operator, the property pair will be silently ignored by the library when filtering.
+When both etity and property types are string, the default operator is by default *Equal*, but configurable. This will be elaborated in the later sections.
 Note that for C# primitive numeric values comparison, the types don't need to be exactly the same, like comparison between an *int* and a *long* is allowed, also that between a *sbyte* and *ushort*. As long as C# allows the comparison, the library supportes it. But for custom defined enums structs and classes, comparison is only allowed to happen between instances of the same type, for structs and classes, the corresponding compairson operator must exist as well.
 In the above table, "In" logic represents simply the reverse of contains, that if the string or numeric value is in the collection or array. Developers can call register for multiple times to register filtering relationship between multiple class pairs, when finished call *FilterBuilder.Build* method to finish it get the *IFilter* instance that generates expressions.
 To get a function to filter IEnumerable instances, developers can call *IFilter.GetFunction<TEntity, TFilter>* instead of calling *IFilter.GetExpression<TEntity, TFilter>*, or they can simple call *Compile* method from the expression to get the function, they are essentially the same.
@@ -130,7 +132,9 @@ NotStartsWith | entity property string does not start with filter property strin
 EndsWith | entity property string ends with filter property string
 NotEndsWith | entity property string does not end with filter property string
 
-Note that ignore case option is not provided in this method, as it's not supported by Linq to SQL.
+For filtering a string type with a string type, the default operator is configurable by the parameter of *FilterBuilder* constrctor. If ignored, the default value is false, and the operator will be *Equal*, or else if set to true, then the default value will be *Contains*, which means property string of entity contains property string of filter. This parameter will help simply the registration code for certain systems if their most search cases need to filter entities with a partial of the property value. With *new FilterBuilder(true)*, developers won't have to specify *FilterByStringProperty(entity => entity.Value, StringOperator.Contains, filter.Value)* if there are really a lot of such cases.
+
+Note that case-insensitive option is not provided in this method, as it's not supported by Linq to SQL.
 ### Filter by Range
 The library also provides a maybe-not-ofter-used feature to allow developers to filter by range. Consider the use case above, if developers want to filter books published between year 2000 and 2020, they can declare the filter class like below:
 ```C#
