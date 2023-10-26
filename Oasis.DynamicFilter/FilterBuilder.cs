@@ -57,7 +57,7 @@ public sealed class FilterBuilder : IFilterBuilder
             throw new RedundantRegisterException(entityType, filterType);
         }
 
-        var type = _filterTypeBuilder.BuildFilterMethodBuilder<TEntity, TFilter>().Build(null, null, null, null, null, null, null, null);
+        var type = _filterTypeBuilder.BuildFilterMethodBuilder<TEntity, TFilter>().Build(0, null, null, null, null, null, null, null);
         var delegateType = typeof(Func<,>).MakeGenericType(filterType, typeof(Expression<>).MakeGenericType(typeof(Func<,>).MakeGenericType(entityType, typeof(bool))));
         _filterBuilders.Add(entityType, filterType, Delegate.CreateDelegate(delegateType, type.GetMethod(FilterTypeBuilder.FilterMethodName, Utilities.PublicStatic)));
 

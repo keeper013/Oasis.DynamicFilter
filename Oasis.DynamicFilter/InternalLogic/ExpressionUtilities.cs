@@ -6,10 +6,38 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 
-public record struct CompareData(Type? entityPropertyConvertTo, Type? filterPropertyConvertTo, Operator filterType);
-public record struct ContainData(Type? filterPropertyConvertTo, Operator filterType, bool nullValueNotCovered);
-public record struct InData(Type? entityPropertyConvertTo, Operator filterType, bool nullValueNotCovered);
-public record struct RangeData(CompareData minData, CompareData maxData);
+public sealed class ExpressionParameterReplacer
+{
+    private readonly ReplaceParameterVisitor _visitor;
+
+    public ExpressionParameterReplacer(ParameterExpression expression)
+    {
+        _visitor = new (expression);
+    }
+
+    public Expression GetBodyWithReplacedParameter(LambdaExpression expression)
+    {
+        _visitor.Source = expression.Parameters[0];
+        return _visitor.Visit(expression.Body);
+    }
+
+    private sealed class ReplaceParameterVisitor : ExpressionVisitor
+    {
+        private readonly ParameterExpression _target;
+
+        public ReplaceParameterVisitor(ParameterExpression target)
+        {
+            _target = target;
+        }
+
+        public ParameterExpression Source { private get; set; } = null!;
+
+        protected override Expression VisitParameter(ParameterExpression node)
+        {
+            return node == Source ? _target : base.VisitParameter(node);
+        }
+    }
+}
 
 public static class ExpressionUtilities
 {
@@ -33,157 +61,182 @@ public static class ExpressionUtilities
         { StringOperator.EndsWith, typeof(string).GetMethod(nameof(string.EndsWith), new[] { typeof(string) }, null) },
     };
 
-    public static void BuildCompareExpression<TEntityProperty, TFilterProperty>(ParameterExpression parameter, string entityPropertyName, TFilterProperty value, CompareData data, bool? includeNull, bool reverse, ref Expression? result)
+    public static void BuildCompareExpression<TFilter, TFilterProperty>(ExpressionParameterReplacer parameterReplacer, TFilter filter, CompareData<TFilter> data, ref Expression? result)
+        where TFilter : class
     {
-        Expression exp = _compareFunctions[reverse ? data.filterType.GetReversed() : data.filterType](
-            data.entityPropertyConvertTo != null ? Expression.Convert(Expression.Property(parameter, entityPropertyName), data.entityPropertyConvertTo!) : Expression.Property(parameter, entityPropertyName),
-            data.filterPropertyConvertTo != null ? Expression.Convert(Expression.Constant(value, typeof(TFilterProperty)), data.filterPropertyConvertTo!) : Expression.Constant(value, typeof(TFilterProperty)));
-
-        if (includeNull.HasValue)
+        if (data.ignore == null || !data.ignore(filter))
         {
-            exp = includeNull.Value ^ reverse
-                ? Expression.OrElse(Expression.Equal(Expression.Property(parameter, entityPropertyName), Expression.Constant(null, typeof(TEntityProperty))), exp)
-                : Expression.AndAlso(Expression.NotEqual(Expression.Property(parameter, entityPropertyName), Expression.Constant(null, typeof(TEntityProperty))), exp);
-        }
+            var entityPropertyExpression = parameterReplacer.GetBodyWithReplacedParameter(data.entityPropertyExpression);
+            var value = (data.filterFunc as Func<TFilter, TFilterProperty>)!.Invoke(filter);
+            var reverse = data.reverse?.Invoke(filter) ?? false;
+            Expression exp = _compareFunctions[reverse ? data.op.GetReversed() : data.op](
+                data.entityPropertyConvertTo != null ? Expression.Convert(entityPropertyExpression, data.entityPropertyConvertTo!) : entityPropertyExpression,
+                data.filterPropertyConvertTo != null ? Expression.Convert(Expression.Constant(value, data.filterPropertyType), data.filterPropertyConvertTo!) : Expression.Constant(value, data.filterPropertyType));
 
-        result = result == null ? exp : Expression.AndAlso(result, exp);
-    }
-
-    public static void BuildStringCompareExpression(ParameterExpression parameter, string entityPropertyName, string? value, StringOperator data, bool? includeNull, bool reverse, ref Expression? result)
-    {
-        var compareType = GetBasicStringCompareType(data, out var isReversed);
-        var methodInfo = _compareStringMethods[compareType];
-        Expression exp;
-        if (value == null)
-        {
-            exp = includeNull.HasValue
-                ? includeNull.Value
-                    ? Expression.OrElse(Expression.Equal(Expression.Property(parameter, entityPropertyName), Expression.Constant(null, typeof(string))), Expression.Constant(isReversed))
-                    : Expression.AndAlso(Expression.NotEqual(Expression.Property(parameter, entityPropertyName), Expression.Constant(null, typeof(string))), Expression.Constant(isReversed))
-                : Expression.Constant(isReversed);
-        }
-        else
-        {
-            Expression compareExpression = compareType == StringOperator.In
-                ? Expression.Call(Expression.Constant(value, typeof(string)), methodInfo, Expression.Property(parameter, entityPropertyName))
-                : Expression.Call(Expression.Property(parameter, entityPropertyName), methodInfo, Expression.Constant(value, typeof(string)));
-
-            if (isReversed)
+            if (data.includeNull != null)
             {
-                compareExpression = Expression.Not(compareExpression);
+                exp = data.includeNull(filter) ^ reverse
+                    ? Expression.OrElse(Expression.Equal(entityPropertyExpression, Expression.Constant(null, data.entityPropertyType)), exp)
+                    : Expression.AndAlso(Expression.NotEqual(entityPropertyExpression, Expression.Constant(null, data.entityPropertyType)), exp);
             }
 
-            exp = includeNull.HasValue && includeNull.Value
-                ? Expression.OrElse(Expression.Equal(Expression.Property(parameter, entityPropertyName), Expression.Constant(null, typeof(string))), compareExpression)
-                : Expression.AndAlso(Expression.NotEqual(Expression.Property(parameter, entityPropertyName), Expression.Constant(null, typeof(string))), compareExpression);
+            result = result == null ? exp : Expression.AndAlso(result, exp);
         }
-
-        if (reverse)
-        {
-            exp = Expression.Not(exp);
-        }
-
-        result = result == null ? exp : Expression.AndAlso(result, exp);
     }
 
-    public static void BuildCollectionContainsExpression<TEntityPropertyItem, TFilterProperty>(ParameterExpression parameter, string entityPropertyName, TFilterProperty value, ContainData data, bool? includeNull, bool reverse, ref Expression? result)
+    public static void BuildStringCompareExpression<TFilter>(ExpressionParameterReplacer parameterReplacer, TFilter filter, CompareStringData<TFilter> data, ref Expression? result)
+        where TFilter : class
     {
-        var collectionType = typeof(ICollection<TEntityPropertyItem>);
-        Expression MakeContainsExpression()
+        if (data.ignore == null || !data.ignore(filter))
         {
-            var filterPropertyType = typeof(TFilterProperty);
-            var containsMethod = collectionType!.GetMethod(nameof(ICollection<TEntityPropertyItem>.Contains))!;
-            return Expression.Call(
-                Expression.Property(parameter, entityPropertyName),
-                containsMethod,
-                data.filterPropertyConvertTo == null ? Expression.Constant(value, filterPropertyType) : Expression.Convert(Expression.Constant(value, filterPropertyType), data.filterPropertyConvertTo));
-        }
+            var compareType = GetBasicStringCompareType(data.op, out var isReversed);
+            var methodInfo = _compareStringMethods[compareType];
+            var value = (data.filterFunc as Func<TFilter, string>)!.Invoke(filter);
+            var entityPropertyExpression = parameterReplacer.GetBodyWithReplacedParameter(data.entityPropertyExpression);
+            Expression exp;
+            if (value == null)
+            {
+                exp = data.includeNull != null
+                    ? data.includeNull(filter)
+                        ? Expression.OrElse(Expression.Equal(entityPropertyExpression, Expression.Constant(null, typeof(string))), Expression.Constant(isReversed))
+                        : Expression.AndAlso(Expression.NotEqual(entityPropertyExpression, Expression.Constant(null, typeof(string))), Expression.Constant(isReversed))
+                    : Expression.Constant(isReversed);
+            }
+            else
+            {
+                Expression compareExpression = compareType == StringOperator.In
+                    ? Expression.Call(Expression.Constant(value, typeof(string)), methodInfo, entityPropertyExpression)
+                    : Expression.Call(entityPropertyExpression, methodInfo, Expression.Constant(value, typeof(string)));
 
-        BuildContainsExpression<TEntityPropertyItem, TFilterProperty>(parameter, entityPropertyName, value, data, includeNull, reverse, collectionType, MakeContainsExpression, ref result);
+                if (isReversed)
+                {
+                    compareExpression = Expression.Not(compareExpression);
+                }
+
+                exp = data.includeNull != null && data.includeNull(filter)
+                    ? Expression.OrElse(Expression.Equal(entityPropertyExpression, Expression.Constant(null, typeof(string))), compareExpression)
+                    : Expression.AndAlso(Expression.NotEqual(entityPropertyExpression, Expression.Constant(null, typeof(string))), compareExpression);
+            }
+
+            if (data.reverse?.Invoke(filter) ?? false)
+            {
+                exp = Expression.Not(exp);
+            }
+
+            result = result == null ? exp : Expression.AndAlso(result, exp);
+        }
     }
 
-    public static void BuildArrayContainsExpression<TEntityPropertyItem, TFilterProperty>(ParameterExpression parameter, string entityPropertyName, TFilterProperty value, ContainData data, bool? includeNull, bool reverse, ref Expression? result)
+    public static void BuildCollectionContainsExpression<TFilter, TFilterProperty>(ExpressionParameterReplacer parameterReplacer, TFilter filter, ContainData<TFilter> data, ref Expression? result)
+        where TFilter : class
     {
-        var arrayType = typeof(TEntityPropertyItem[]);
-        Expression MakeContainsExpression()
+        if (data.ignore == null || !data.ignore(filter))
         {
-            var entityPropertyItemType = typeof(TEntityPropertyItem);
-            var filterPropertyType = typeof(TFilterProperty);
-            var containsMethod = EnumerableContains.MakeGenericMethod(entityPropertyItemType);
-            return Expression.Call(
-                containsMethod,
-                Expression.Property(parameter, entityPropertyName),
-                data.filterPropertyConvertTo == null ? Expression.Constant(value, filterPropertyType) : Expression.Convert(Expression.Constant(value, filterPropertyType), data.filterPropertyConvertTo));
-        }
-
-        BuildContainsExpression<TEntityPropertyItem, TFilterProperty>(parameter, entityPropertyName, value, data, includeNull, reverse, arrayType, MakeContainsExpression, ref result);
-    }
-
-    public static void BuildInCollectionExpression<TEntityProperty, TFilterPropertyItem>(ParameterExpression parameter, string entityPropertyName, ICollection<TFilterPropertyItem> value, InData data, bool? includeNull, bool reverse, ref Expression? result)
-    {
-        Expression MakeContainsExpression()
-        {
-            var collectionType = typeof(ICollection<TFilterPropertyItem>);
-            var containsMethod = collectionType.GetMethod(nameof(ICollection<TFilterPropertyItem>.Contains))!;
-            return Expression.Call(
-                Expression.Constant(value),
-                containsMethod,
-                data.entityPropertyConvertTo == null ? Expression.Property(parameter, entityPropertyName) : Expression.Convert(Expression.Property(parameter, entityPropertyName), data.entityPropertyConvertTo));
-        }
-
-        BuildInExpression<TEntityProperty, TFilterPropertyItem>(
-            parameter,
-            entityPropertyName,
-            value,
-            data,
-            includeNull,
-            reverse,
-            MakeContainsExpression,
-            ref result);
-    }
-
-    public static void BuildInArrayExpression<TEntityProperty, TFilterPropertyItem>(ParameterExpression parameter, string entityPropertyName, TFilterPropertyItem[] value, InData data, bool? includeNull, bool reverse, ref Expression? result)
-    {
-        Expression MakeContainsExpression()
-        {
-            var filterPropertyItemType = typeof(TFilterPropertyItem);
-            var containsMethod = EnumerableContains.MakeGenericMethod(filterPropertyItemType);
-            return Expression.AndAlso(
-                Expression.NotEqual(Expression.Constant(value), Expression.Constant(null, typeof(TFilterPropertyItem[]))),
-                Expression.Call(
+            var collectionType = typeof(ICollection<>).MakeGenericType(data.entityPropertyItemType);
+            var value = (data.filterFunc as Func<TFilter, TFilterProperty>)!.Invoke(filter);
+            var entityPropertyExpression = parameterReplacer.GetBodyWithReplacedParameter(data.entityPropertyExpression);
+            Expression MakeContainsExpression()
+            {
+                var filterPropertyType = typeof(TFilterProperty);
+                var containsMethod = collectionType!.GetMethod("Contains")!;
+                return Expression.Call(
+                    entityPropertyExpression,
                     containsMethod,
-                    Expression.Constant(value),
-                    data.entityPropertyConvertTo == null ? Expression.Property(parameter, entityPropertyName) : Expression.Convert(Expression.Property(parameter, entityPropertyName), data.entityPropertyConvertTo)));
-        }
+                    data.filterPropertyConvertTo == null ? Expression.Constant(value, filterPropertyType) : Expression.Convert(Expression.Constant(value, filterPropertyType), data.filterPropertyConvertTo));
+            }
 
-        BuildInExpression<TEntityProperty, TFilterPropertyItem>(
-            parameter,
-            entityPropertyName,
-            value,
-            data,
-            includeNull,
-            reverse,
-            MakeContainsExpression,
-            ref result);
+            BuildContainsExpression(entityPropertyExpression, filter, value, data, collectionType, MakeContainsExpression, ref result);
+        }
     }
 
-    public static void BuildFilterRangeExpression<TEntityProperty, TFilterMinProperty, TFilterMaxProperty>(ParameterExpression parameter, string entityPropertyName, TFilterMinProperty min, TFilterMaxProperty max, RangeData data, bool ignoreMin, bool ignoreMax, bool? includeNull, bool reverse, ref Expression? result)
+    public static void BuildArrayContainsExpression<TFilter, TFilterProperty>(ExpressionParameterReplacer parameterReplacer, TFilter filter, ContainData<TFilter> data, ref Expression? result)
+        where TFilter : class
+    {
+        if (data.ignore == null || !data.ignore(filter))
+        {
+            var arrayType = data.entityPropertyItemType.MakeArrayType();
+            var value = (data.filterFunc as Func<TFilter, TFilterProperty>)!.Invoke(filter);
+            var entityPropertyExpression = parameterReplacer.GetBodyWithReplacedParameter(data.entityPropertyExpression);
+            Expression MakeContainsExpression()
+            {
+                var filterPropertyType = typeof(TFilterProperty);
+                var containsMethod = EnumerableContains.MakeGenericMethod(data.entityPropertyItemType);
+                return Expression.Call(
+                    containsMethod,
+                    entityPropertyExpression,
+                    data.filterPropertyConvertTo == null ? Expression.Constant(value, filterPropertyType) : Expression.Convert(Expression.Constant(value, filterPropertyType), data.filterPropertyConvertTo));
+            }
+
+            BuildContainsExpression(entityPropertyExpression, filter, value, data, arrayType, MakeContainsExpression, ref result);
+        }
+    }
+
+    public static void BuildInCollectionExpression<TFilter, TFilterProperty>(ExpressionParameterReplacer parameterReplacer, TFilter filter, InData<TFilter> data, ref Expression? result)
+        where TFilter : class
+    {
+        if (data.ignore == null || !data.ignore(filter))
+        {
+            var value = (data.filterFunc as Func<TFilter, TFilterProperty>)!.Invoke(filter);
+            var entityPropertyExpression = parameterReplacer.GetBodyWithReplacedParameter(data.entityPropertyExpression);
+            Expression MakeContainsExpression()
+            {
+                var collectionType = typeof(ICollection<>).MakeGenericType(data.filterPropertyItemType);
+                var containsMethod = collectionType.GetMethod("Contains")!;
+                return Expression.Call(
+                    Expression.Constant(value),
+                    containsMethod,
+                    data.entityPropertyConvertTo == null ? entityPropertyExpression : Expression.Convert(entityPropertyExpression, data.entityPropertyConvertTo));
+            }
+
+            BuildInExpression(entityPropertyExpression, filter, value, data, MakeContainsExpression, ref result);
+        }
+    }
+
+    public static void BuildInArrayExpression<TFilter, TFilterProperty>(ExpressionParameterReplacer parameterReplacer, TFilter filter, InData<TFilter> data, ref Expression? result)
+        where TFilter : class
+    {
+        if (data.ignore == null || !data.ignore(filter))
+        {
+            var value = (data.filterFunc as Func<TFilter, TFilterProperty>)!.Invoke(filter);
+            var entityPropertyExpression = parameterReplacer.GetBodyWithReplacedParameter(data.entityPropertyExpression);
+            Expression MakeContainsExpression()
+            {
+                var containsMethod = EnumerableContains.MakeGenericMethod(data.filterPropertyItemType);
+                return Expression.AndAlso(
+                    Expression.NotEqual(Expression.Constant(value), Expression.Constant(null, data.filterPropertyItemType.MakeArrayType())),
+                    Expression.Call(
+                        containsMethod,
+                        Expression.Constant(value),
+                        data.entityPropertyConvertTo == null ? entityPropertyExpression : Expression.Convert(entityPropertyExpression, data.entityPropertyConvertTo)));
+            }
+
+            BuildInExpression(entityPropertyExpression, filter, value, data, MakeContainsExpression, ref result);
+        }
+    }
+
+    public static void BuildFilterRangeExpression<TFilter, TFilterMinProperty, TFilterMaxProperty>(ExpressionParameterReplacer parameterReplacer, TFilter filter, FilterRangeData<TFilter> data, ref Expression? result)
+        where TFilter : class
     {
         Expression minExp = null!;
         Expression maxExp = null!;
 
-        if (!ignoreMin)
+        var ignoreMin = data.ignoreMin != null && data.ignoreMin(filter);
+        var entityPropertyExpression = parameterReplacer.GetBodyWithReplacedParameter(data.entityPropertyExpression);
+        if (ignoreMin)
         {
-            minExp = _compareFunctions[data.minData.filterType](
-                data.minData.entityPropertyConvertTo != null ? Expression.Convert(Expression.Property(parameter, entityPropertyName), data.minData.entityPropertyConvertTo!) : Expression.Property(parameter, entityPropertyName),
-                data.minData.filterPropertyConvertTo != null ? Expression.Convert(Expression.Constant(min, typeof(TFilterMinProperty)), data.minData.filterPropertyConvertTo!) : Expression.Constant(min, typeof(TFilterMinProperty)));
+            var min = (data.filterMinFunc as Func<TFilter, TFilterMinProperty>)!.Invoke(filter);
+            minExp = _compareFunctions[Convert(data.minOp)](
+                data.entityMinPropertyConvertTo != null ? Expression.Convert(entityPropertyExpression, data.entityMinPropertyConvertTo!) : entityPropertyExpression,
+                data.filterMinPropertyConvertTo != null ? Expression.Convert(Expression.Constant(min, typeof(TFilterMinProperty)), data.filterMinPropertyConvertTo!) : Expression.Constant(min, data.filterMinPropertyType));
         }
 
-        if (!ignoreMax)
+        var ignoreMax = data.ignoreMax != null && data.ignoreMax(filter);
+        if (ignoreMax)
         {
-            maxExp = _compareFunctions[data.maxData.filterType](
-                data.maxData.entityPropertyConvertTo != null ? Expression.Convert(Expression.Property(parameter, entityPropertyName), data.maxData.entityPropertyConvertTo!) : Expression.Property(parameter, entityPropertyName),
-                data.maxData.filterPropertyConvertTo != null ? Expression.Convert(Expression.Constant(max, typeof(TFilterMaxProperty)), data.maxData.filterPropertyConvertTo!) : Expression.Constant(max, typeof(TFilterMaxProperty)));
+            var max = (data.filterMaxFunc as Func<TFilter, TFilterMinProperty>)!.Invoke(filter);
+            maxExp = _compareFunctions[Opposite(data.maxOp)](
+                data.entityMaxPropertyConvertTo != null ? Expression.Convert(entityPropertyExpression, data.entityMaxPropertyConvertTo!) : entityPropertyExpression,
+                data.filterMaxPropertyConvertTo != null ? Expression.Convert(Expression.Constant(max, typeof(TFilterMaxProperty)), data.filterMaxPropertyConvertTo!) : Expression.Constant(max, data.filterMaxPropertyType));
         }
 
         Expression? exp;
@@ -202,14 +255,14 @@ public static class ExpressionUtilities
 
         if (exp != null)
         {
-            if (includeNull.HasValue)
+            if (data.includeNull != null)
             {
-                exp = includeNull.Value
-                    ? Expression.OrElse(Expression.Equal(Expression.Property(parameter, entityPropertyName), Expression.Constant(null, typeof(TEntityProperty))), exp)
-                    : Expression.AndAlso(Expression.NotEqual(Expression.Property(parameter, entityPropertyName), Expression.Constant(null, typeof(TEntityProperty))), exp);
+                exp = data.includeNull(filter)
+                    ? Expression.OrElse(Expression.Equal(entityPropertyExpression, Expression.Constant(null, data.entityPropertyType)), exp)
+                    : Expression.AndAlso(Expression.NotEqual(entityPropertyExpression, Expression.Constant(null, data.entityPropertyType)), exp);
             }
 
-            if (reverse)
+            if (data.reverse?.Invoke(filter) ?? false)
             {
                 exp = Expression.Not(exp);
             }
@@ -218,59 +271,65 @@ public static class ExpressionUtilities
         }
     }
 
-    public static void BuildEntityRangeExpression<TEntityMinProperty, TEntityMaxProperty, TFilterProperty>(ParameterExpression parameter, string entityMinPropertyName, string entityMaxPropertyName, TFilterProperty value, RangeData data, bool? includeNullMin, bool? includeNullMax, bool reverse, ref Expression? result)
+    public static void BuildEntityRangeExpression<TFilter, TFilterProperty>(ExpressionParameterReplacer parameterReplacer, TFilter filter, EntityRangeData<TFilter> data, ref Expression? result)
+        where TFilter : class
     {
-        var filterPropertyType = typeof(TFilterProperty);
-        Expression minExp = _compareFunctions[data.minData.filterType](
-            data.minData.entityPropertyConvertTo != null ? Expression.Convert(Expression.Property(parameter, entityMinPropertyName), data.minData.entityPropertyConvertTo!) : Expression.Property(parameter, entityMinPropertyName),
-            data.minData.filterPropertyConvertTo != null ? Expression.Convert(Expression.Constant(value, filterPropertyType), data.minData.filterPropertyConvertTo!) : Expression.Constant(value, filterPropertyType));
-
-        if (includeNullMin.HasValue)
+        if (data.ignore == null || !data.ignore(filter))
         {
-            minExp = includeNullMin.Value
-                ? Expression.OrElse(Expression.Equal(Expression.Property(parameter, entityMinPropertyName), Expression.Constant(null, typeof(TEntityMinProperty))), minExp)
-                : Expression.AndAlso(Expression.NotEqual(Expression.Property(parameter, entityMinPropertyName), Expression.Constant(null, typeof(TEntityMinProperty))), minExp);
+            var filterPropertyType = typeof(TFilterProperty);
+            var value = (data.filterFunc as Func<TFilter, TFilterProperty>)!.Invoke(filter);
+            var entityMinPropertyExpression = parameterReplacer.GetBodyWithReplacedParameter(data.entityMinPropertyExpression);
+            Expression minExp = _compareFunctions[Convert(data.minOp)](
+                data.entityMinPropertyConvertTo != null ? Expression.Convert(entityMinPropertyExpression, data.entityMinPropertyConvertTo!) : entityMinPropertyExpression,
+                data.filterMinPropertyConvertTo != null ? Expression.Convert(Expression.Constant(value, filterPropertyType), data.filterMinPropertyConvertTo!) : Expression.Constant(value, filterPropertyType));
+
+            if (data.includeNullMin != null)
+            {
+                minExp = data.includeNullMin(filter)
+                    ? Expression.OrElse(Expression.Equal(entityMinPropertyExpression, Expression.Constant(null, data.entityMinPropertyType)), minExp)
+                    : Expression.AndAlso(Expression.NotEqual(entityMinPropertyExpression, Expression.Constant(null, data.entityMinPropertyType)), minExp);
+            }
+
+            var entityMaxPropertyExpression = parameterReplacer.GetBodyWithReplacedParameter(data.entityMaxPropertyExpression);
+            Expression maxExp = _compareFunctions[Opposite(data.maxOp)](
+                data.entityMaxPropertyConvertTo != null ? Expression.Convert(entityMaxPropertyExpression, data.entityMaxPropertyConvertTo!) : entityMaxPropertyExpression,
+                data.filterMaxPropertyConvertTo != null ? Expression.Convert(Expression.Constant(value, filterPropertyType), data.filterMaxPropertyConvertTo!) : Expression.Constant(value, filterPropertyType));
+
+            if (data.includeNullMax != null)
+            {
+                maxExp = data.includeNullMax(filter)
+                    ? Expression.OrElse(Expression.Equal(entityMaxPropertyExpression, Expression.Constant(null, data.entityMaxPropertyType)), maxExp)
+                    : Expression.AndAlso(Expression.NotEqual(entityMaxPropertyExpression, Expression.Constant(null, data.entityMaxPropertyType)), maxExp);
+            }
+
+            Expression exp = Expression.AndAlso(minExp, maxExp);
+            if (data.reverse?.Invoke(filter) ?? false)
+            {
+                exp = Expression.Not(exp);
+            }
+
+            result = result == null ? exp : Expression.AndAlso(result, exp);
         }
-
-        Expression maxExp = _compareFunctions[data.maxData.filterType](
-            data.maxData.entityPropertyConvertTo != null ? Expression.Convert(Expression.Property(parameter, entityMaxPropertyName), data.maxData.entityPropertyConvertTo!) : Expression.Property(parameter, entityMaxPropertyName),
-            data.maxData.filterPropertyConvertTo != null ? Expression.Convert(Expression.Constant(value, filterPropertyType), data.maxData.filterPropertyConvertTo!) : Expression.Constant(value, filterPropertyType));
-
-        if (includeNullMax.HasValue)
-        {
-            maxExp = includeNullMax.Value
-                ? Expression.OrElse(Expression.Equal(Expression.Property(parameter, entityMaxPropertyName), Expression.Constant(null, typeof(TEntityMaxProperty))), maxExp)
-                : Expression.AndAlso(Expression.NotEqual(Expression.Property(parameter, entityMaxPropertyName), Expression.Constant(null, typeof(TEntityMaxProperty))), maxExp);
-        }
-
-        Expression exp = Expression.AndAlso(minExp, maxExp);
-        if (reverse)
-        {
-            exp = Expression.Not(exp);
-        }
-
-        result = result == null ? exp : Expression.AndAlso(result, exp);
     }
 
-    private static void BuildContainsExpression<TEntityPropertyItem, TFilterProperty>(
-        ParameterExpression parameter,
-        string entityPropertyName,
+    private static void BuildContainsExpression<TFilter, TFilterProperty>(
+        Expression entityPropertyExpression,
+        TFilter filter,
         TFilterProperty value,
-        ContainData data,
-        bool? includeNull,
-        bool reverse,
+        ContainData<TFilter> data,
         Type containerType,
         Func<Expression> makeContainsExpression,
         ref Expression? result)
+        where TFilter : class
     {
         Expression exp;
-        var notContains = data.filterType == Operator.NotContains;
+        var notContains = data.op == Operator.NotContains;
 
         // can't call contains, if entity property isn't null then not contains
         if (data.nullValueNotCovered && value == null)
         {
-            exp = includeNull.HasValue && includeNull.Value
-                ? Expression.OrElse(Expression.Equal(Expression.Property(parameter, entityPropertyName), Expression.Constant(null, containerType)), Expression.Constant(notContains))
+            exp = data.includeNull != null && data.includeNull(filter)
+                ? Expression.OrElse(Expression.Equal(entityPropertyExpression, Expression.Constant(null, containerType)), Expression.Constant(notContains))
                 : Expression.Constant(notContains);
         }
         else
@@ -281,17 +340,17 @@ public static class ExpressionUtilities
                 containsExpression = Expression.Not(containsExpression);
             }
 
-            exp = includeNull.HasValue
-                ? includeNull.Value
-                    ? Expression.OrElse(Expression.Equal(Expression.Property(parameter, entityPropertyName), Expression.Constant(null, containerType)), containsExpression)
-                    : Expression.AndAlso(Expression.NotEqual(Expression.Property(parameter, entityPropertyName), Expression.Constant(null, containerType)), containsExpression)
+            exp = data.includeNull != null
+                ? data.includeNull(filter)
+                    ? Expression.OrElse(Expression.Equal(entityPropertyExpression, Expression.Constant(null, containerType)), containsExpression)
+                    : Expression.AndAlso(Expression.NotEqual(entityPropertyExpression, Expression.Constant(null, containerType)), containsExpression)
                 : Expression.Condition(
-                    Expression.Equal(Expression.Property(parameter, entityPropertyName), Expression.Constant(null, containerType)),
+                    Expression.Equal(entityPropertyExpression, Expression.Constant(null, containerType)),
                     Expression.Constant(notContains),
                     containsExpression);
         }
 
-        if (reverse)
+        if (data.reverse?.Invoke(filter) ?? false)
         {
             exp = Expression.Not(exp);
         }
@@ -299,24 +358,23 @@ public static class ExpressionUtilities
         result = result == null ? exp : Expression.AndAlso(result, exp);
     }
 
-    private static void BuildInExpression<TEntityProperty, TFilterPropertyItem>(
-        ParameterExpression parameter,
-        string entityPropertyName,
-        IEnumerable<TFilterPropertyItem> value,
-        InData data,
-        bool? includeNull,
-        bool reverse,
+    private static void BuildInExpression<TFilter, TFilterProperty>(
+        Expression entityPropertyExpression,
+        TFilter filter,
+        TFilterProperty value,
+        InData<TFilter> data,
         Func<Expression> makeContainsExpression,
         ref Expression? result)
+        where TFilter : class
     {
-        var notIn = data.filterType == Operator.NotIn;
+        var notIn = data.op == Operator.NotIn;
         Expression exp;
         if (value == null)
         {
-            exp = includeNull.HasValue
-                ? includeNull.Value
-                    ? Expression.OrElse(Expression.Equal(Expression.Property(parameter, entityPropertyName), Expression.Constant(null, typeof(TEntityProperty))), Expression.Constant(notIn))
-                    : Expression.AndAlso(Expression.NotEqual(Expression.Property(parameter, entityPropertyName), Expression.Constant(null, typeof(TEntityProperty))), Expression.Constant(notIn))
+            exp = data.includeNull != null
+                ? data.includeNull(filter)
+                    ? Expression.OrElse(Expression.Equal(entityPropertyExpression, Expression.Constant(null, data.entityPropertyType)), Expression.Constant(notIn))
+                    : Expression.AndAlso(Expression.NotEqual(entityPropertyExpression, Expression.Constant(null, data.entityPropertyType)), Expression.Constant(notIn))
                 : Expression.Constant(notIn);
         }
         else
@@ -330,23 +388,21 @@ public static class ExpressionUtilities
             if (data.nullValueNotCovered)
             {
                 exp = Expression.Condition(
-                    Expression.Equal(Expression.Property(parameter, entityPropertyName), Expression.Constant(null, typeof(TEntityProperty))),
-                    Expression.Constant(includeNull.HasValue ? includeNull.Value : notIn),
+                    Expression.Equal(entityPropertyExpression, Expression.Constant(null, data.entityPropertyType)),
+                    Expression.Constant(data.includeNull != null ? data.includeNull(filter) : notIn),
                     containsExpression);
-            }
-            else if (includeNull.HasValue)
-            {
-                exp = includeNull.Value
-                    ? Expression.OrElse(Expression.Equal(Expression.Property(parameter, entityPropertyName), Expression.Constant(null, typeof(TEntityProperty))), containsExpression)
-                    : Expression.AndAlso(Expression.NotEqual(Expression.Property(parameter, entityPropertyName), Expression.Constant(null, typeof(TEntityProperty))), containsExpression);
             }
             else
             {
-                exp = containsExpression;
+                exp = data.includeNull != null
+                    ? data.includeNull(filter)
+                        ? Expression.OrElse(Expression.Equal(entityPropertyExpression, Expression.Constant(null, data.entityPropertyType)), containsExpression)
+                        : Expression.AndAlso(Expression.NotEqual(entityPropertyExpression, Expression.Constant(null, data.entityPropertyType)), containsExpression)
+                    : containsExpression;
             }
         }
 
-        if (reverse)
+        if (data.reverse?.Invoke(filter) ?? false)
         {
             exp = Expression.Not(exp);
         }
@@ -393,6 +449,24 @@ public static class ExpressionUtilities
             Operator.LessThanOrEqual => Operator.GreaterThan,
             Operator.NotContains => Operator.Contains,
             _ => Operator.In,
+        };
+    }
+
+    private static Operator Opposite(RangeOperator type)
+    {
+        return type switch
+        {
+            RangeOperator.LessThan => Operator.GreaterThan,
+            _ => Operator.GreaterThanOrEqual,
+        };
+    }
+
+    private static Operator Convert(RangeOperator type)
+    {
+        return type switch
+        {
+            RangeOperator.LessThan => Operator.LessThan,
+            _ => Operator.LessThanOrEqual,
         };
     }
 }

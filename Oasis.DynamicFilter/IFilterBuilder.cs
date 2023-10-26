@@ -129,7 +129,7 @@ public interface IFilterConfigurationBuilder<TEntity, TFilter>
     IFilterConfigurationBuilder<TEntity, TFilter> FilterByProperty<TEntityProperty, TFilterProperty>(
         Expression<Func<TEntity, TEntityProperty>> entityPropertyExpression,
         Operator type,
-        Expression<Func<TFilter, TFilterProperty>> filterPropertyExpression,
+        Func<TFilter, TFilterProperty> filterPropertyFunc,
         Func<TFilter, bool>? includeNull = null,
         Func<TFilter, bool>? reverseIf = null,
         Func<TFilter, bool>? ignoreIf = null);
@@ -137,17 +137,17 @@ public interface IFilterConfigurationBuilder<TEntity, TFilter>
     IFilterConfigurationBuilder<TEntity, TFilter> FilterByStringProperty(
         Expression<Func<TEntity, string?>> entityPropertyExpression,
         StringOperator type,
-        Expression<Func<TFilter, string?>> filterPropertyExpression,
+        Func<TFilter, string?> filterPropertyFunc,
         Func<TFilter, bool>? includeNull = null,
         Func<TFilter, bool>? reverseIf = null,
         Func<TFilter, bool>? ignoreIf = null);
 
     IFilterConfigurationBuilder<TEntity, TFilter> FilterByRangedFilter<TEntityProperty, TMinFilterProperty, TMaxFilterProperty>(
-        Expression<Func<TFilter, TMinFilterProperty>> filterPropertyMinExpression,
+        Func<TFilter, TMinFilterProperty> filterPropertyMinFunc,
         RangeOperator minFilteringType,
         Expression<Func<TEntity, TEntityProperty>> entityPropertyExpression,
         RangeOperator maxFilteringType,
-        Expression<Func<TFilter, TMaxFilterProperty>> filterPropertyMaxExpression,
+        Func<TFilter, TMaxFilterProperty> filterPropertyMaxFunc,
         Func<TFilter, bool>? includeNull = null,
         Func<TFilter, bool>? reverseIf = null,
         Func<TFilter, bool>? ignoreMinIf = null,
@@ -156,7 +156,7 @@ public interface IFilterConfigurationBuilder<TEntity, TFilter>
     IFilterConfigurationBuilder<TEntity, TFilter> FilterByRangedEntity<TMinEntityProperty, TFilterProperty, TMaxEntityProperty>(
         Expression<Func<TEntity, TMinEntityProperty>> entityPropertyMinExpression,
         RangeOperator minFilteringType,
-        Expression<Func<TFilter, TFilterProperty>> filterPropertyExpression,
+        Func<TFilter, TFilterProperty> filterPropertyFunc,
         RangeOperator maxFilteringType,
         Expression<Func<TEntity, TMaxEntityProperty>> entityPropertyMaxExpression,
         Func<TFilter, bool>? includeNullMin = null,

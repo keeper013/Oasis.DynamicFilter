@@ -606,11 +606,4 @@ internal static class TypeUtilities
 
         return null;
     }
-
-    internal static Func<TFilter, bool> BuildFilterPropertyIsDefaultFunction<TFilter>(PropertyInfo filterProperty)
-        where TFilter : class
-    {
-        var parameter = Expression.Parameter(typeof(TFilter), "t");
-        return Expression.Lambda<Func<TFilter, bool>>(Expression.Equal(Expression.Default(filterProperty.PropertyType), Expression.Property(parameter, filterProperty)), parameter).Compile();
-    }
 }
