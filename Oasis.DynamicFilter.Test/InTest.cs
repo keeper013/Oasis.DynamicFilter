@@ -1,4 +1,4 @@
-﻿namespace Oasis.DynamicFilter.Test.BasicTests;
+﻿namespace Oasis.DynamicFilter.Test;
 
 using System.Linq;
 using Oasis.DynamicFilter;

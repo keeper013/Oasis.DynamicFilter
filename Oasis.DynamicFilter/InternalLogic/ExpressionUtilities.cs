@@ -222,19 +222,19 @@ public static class ExpressionUtilities
 
         var ignoreMin = data.ignoreMin != null && data.ignoreMin(filter);
         var entityPropertyExpression = parameterReplacer.GetBodyWithReplacedParameter(data.entityPropertyExpression);
-        if (ignoreMin)
+        if (!ignoreMin)
         {
             var min = (data.filterMinFunc as Func<TFilter, TFilterMinProperty>)!.Invoke(filter);
-            minExp = _compareFunctions[Convert(data.minOp)](
+            minExp = _compareFunctions[Opposite(data.minOp)](
                 data.entityMinPropertyConvertTo != null ? Expression.Convert(entityPropertyExpression, data.entityMinPropertyConvertTo!) : entityPropertyExpression,
                 data.filterMinPropertyConvertTo != null ? Expression.Convert(Expression.Constant(min, typeof(TFilterMinProperty)), data.filterMinPropertyConvertTo!) : Expression.Constant(min, data.filterMinPropertyType));
         }
 
         var ignoreMax = data.ignoreMax != null && data.ignoreMax(filter);
-        if (ignoreMax)
+        if (!ignoreMax)
         {
-            var max = (data.filterMaxFunc as Func<TFilter, TFilterMinProperty>)!.Invoke(filter);
-            maxExp = _compareFunctions[Opposite(data.maxOp)](
+            var max = (data.filterMaxFunc as Func<TFilter, TFilterMaxProperty>)!.Invoke(filter);
+            maxExp = _compareFunctions[Convert(data.maxOp)](
                 data.entityMaxPropertyConvertTo != null ? Expression.Convert(entityPropertyExpression, data.entityMaxPropertyConvertTo!) : entityPropertyExpression,
                 data.filterMaxPropertyConvertTo != null ? Expression.Convert(Expression.Constant(max, typeof(TFilterMaxProperty)), data.filterMaxPropertyConvertTo!) : Expression.Constant(max, data.filterMaxPropertyType));
         }

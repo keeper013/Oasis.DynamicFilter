@@ -8,9 +8,4 @@ public abstract class DynamicFilterException : Exception
         : base(message)
     {
     }
-
-    protected DynamicFilterException(string message, Exception innerException)
-        : base(message, innerException)
-    {
-    }
 }

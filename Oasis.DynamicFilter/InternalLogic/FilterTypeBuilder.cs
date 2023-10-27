@@ -201,180 +201,200 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
         }
 
         var filterConditionCount = GetFilteringConditionCount(compare, compareString, contain, isIn, filterRangeList, entityRangeList);
-
-        // generate starting code
-        var expressionLocal = _generator.DeclareLocal(typeof(Expression));
-        _ = _generator.DeclareLocal(ParameterExpressionType);
-        _generator.Emit(OpCodes.Ldnull);
-        _generator.Emit(OpCodes.Stloc_0);
-        _generator.Emit(OpCodes.Ldtoken, EntityType);
-        _generator.Emit(OpCodes.Call, TypeOfMethod);
-        _generator.Emit(OpCodes.Ldstr, "t");
-        _generator.Emit(OpCodes.Call, ParameterMethod);
-        _generator.Emit(OpCodes.Stloc_1);
-        _generator.Emit(OpCodes.Ldloc_1);
-        _generator.Emit(OpCodes.Newobj, ParameterReplacerConstructor);
-
-        Dictionary<uint, CompareData<TFilter>>? compareData = default;
-        if (compare.Any())
+        if (filterConditionCount > 0)
         {
-            var buildCompareExpressionMethod = typeof(ExpressionUtilities).GetMethod(nameof(ExpressionUtilities.BuildCompareExpression), Utilities.PublicStatic);
-            var compareDictionaryField = _typeBuilder.DefineField(CompareDictionaryFieldName, typeof(Dictionary<uint, CompareData<TFilter>>), FieldAttributes.Private | FieldAttributes.Static);
-            foreach (var c in compare)
+            // generate starting code
+            var expressionLocal = _generator.DeclareLocal(typeof(Expression));
+            _ = _generator.DeclareLocal(ParameterExpressionType);
+            _generator.Emit(OpCodes.Ldnull);
+            _generator.Emit(OpCodes.Stloc_0);
+            _generator.Emit(OpCodes.Ldtoken, EntityType);
+            _generator.Emit(OpCodes.Call, TypeOfMethod);
+            _generator.Emit(OpCodes.Ldstr, "t");
+            _generator.Emit(OpCodes.Call, ParameterMethod);
+            _generator.Emit(OpCodes.Stloc_1);
+            _generator.Emit(OpCodes.Ldloc_1);
+            _generator.Emit(OpCodes.Newobj, ParameterReplacerConstructor);
+
+            Dictionary<uint, CompareData<TFilter>>? compareData = default;
+            if (compare.Any())
             {
-                void CallBuildExpressionMethod() => _generator.Emit(OpCodes.Call, buildCompareExpressionMethod.MakeGenericMethod(FilterType, c.filterPropertyType));
-                GenerateFieldFilterCode(compareDictionaryField, c.id, CompareFieldGetItem, expressionLocal, CallBuildExpressionMethod, ref filterConditionCount);
-            }
-
-            compareData = compare.ToDictionary(c => c.id, c => c);
-        }
-
-        Dictionary<uint, CompareStringData<TFilter>>? compareStringData = default;
-        if (compareString.Any())
-        {
-            var buildCompareStringExpressionMethod = typeof(ExpressionUtilities).GetMethod(nameof(ExpressionUtilities.BuildStringCompareExpression), Utilities.PublicStatic);
-            var compareStringDictionaryField = _typeBuilder.DefineField(CompareStringDictionaryFieldName, typeof(Dictionary<uint, CompareStringData<TFilter>>), FieldAttributes.Private | FieldAttributes.Static);
-            foreach (var c in compareString)
-            {
-                void CallBuildExpressionMethod() => _generator.Emit(OpCodes.Call, buildCompareStringExpressionMethod.MakeGenericMethod(FilterType));
-                GenerateFieldFilterCode(compareStringDictionaryField, c.id, CompareStringFieldGetItem, expressionLocal, CallBuildExpressionMethod, ref filterConditionCount);
-            }
-
-            compareStringData = compareString.ToDictionary(c => c.id, c => c);
-        }
-
-        Dictionary<uint, ContainData<TFilter>>? containData = default;
-        if (contain.Any())
-        {
-            var buildCollectionContainExpressionMethod = typeof(ExpressionUtilities).GetMethod(nameof(ExpressionUtilities.BuildCollectionContainsExpression), Utilities.PublicStatic);
-            var buildArrayContainExpressionMethod = typeof(ExpressionUtilities).GetMethod(nameof(ExpressionUtilities.BuildArrayContainsExpression), Utilities.PublicStatic);
-            var containDictionaryField = _typeBuilder.DefineField(ContainDictionaryFieldName, typeof(Dictionary<uint, ContainData<TFilter>>), FieldAttributes.Private | FieldAttributes.Static);
-            foreach (var c in contain)
-            {
-                void CallBuildExpressionMethod()
+                var buildCompareExpressionMethod = typeof(ExpressionUtilities).GetMethod(nameof(ExpressionUtilities.BuildCompareExpression), Utilities.PublicStatic);
+                var compareDictionaryField = _typeBuilder.DefineField(CompareDictionaryFieldName, typeof(Dictionary<uint, CompareData<TFilter>>), FieldAttributes.Private | FieldAttributes.Static);
+                foreach (var c in compare)
                 {
-                    if (c.isCollection)
-                    {
-                        _generator.Emit(OpCodes.Call, buildCollectionContainExpressionMethod.MakeGenericMethod(FilterType, c.filterPropertyType));
-                    }
-                    else
-                    {
-                        _generator.Emit(OpCodes.Call, buildArrayContainExpressionMethod.MakeGenericMethod(FilterType, c.filterPropertyType));
-                    }
+                    void CallBuildExpressionMethod() => _generator.Emit(OpCodes.Call, buildCompareExpressionMethod.MakeGenericMethod(FilterType, c.filterPropertyType));
+                    GenerateFieldFilterCode(compareDictionaryField, c.id, CompareFieldGetItem, expressionLocal, CallBuildExpressionMethod, ref filterConditionCount);
                 }
 
-                GenerateFieldFilterCode(containDictionaryField, c.id, ContainFieldGetItem, expressionLocal, CallBuildExpressionMethod, ref filterConditionCount);
+                compareData = compare.ToDictionary(c => c.id, c => c);
             }
 
-            containData = contain.ToDictionary(c => c.id, c => c);
-        }
-
-        Dictionary<uint, InData<TFilter>>? inData = default;
-        if (isIn.Any())
-        {
-            var buildInCollectionExpressionMethod = typeof(ExpressionUtilities).GetMethod(nameof(ExpressionUtilities.BuildInCollectionExpression), Utilities.PublicStatic);
-            var buildInArrayExpressionMethod = typeof(ExpressionUtilities).GetMethod(nameof(ExpressionUtilities.BuildInArrayExpression), Utilities.PublicStatic);
-            var inDictionaryField = _typeBuilder.DefineField(InDictionaryFieldName, typeof(Dictionary<uint, InData<TFilter>>), FieldAttributes.Private | FieldAttributes.Static);
-            foreach (var i in isIn)
+            Dictionary<uint, CompareStringData<TFilter>>? compareStringData = default;
+            if (compareString.Any())
             {
-                void CallBuildExpressionMethod()
+                var buildCompareStringExpressionMethod = typeof(ExpressionUtilities).GetMethod(nameof(ExpressionUtilities.BuildStringCompareExpression), Utilities.PublicStatic);
+                var compareStringDictionaryField = _typeBuilder.DefineField(CompareStringDictionaryFieldName, typeof(Dictionary<uint, CompareStringData<TFilter>>), FieldAttributes.Private | FieldAttributes.Static);
+                foreach (var c in compareString)
                 {
-                    if (i.isCollection)
-                    {
-                        _generator.Emit(OpCodes.Call, buildInCollectionExpressionMethod.MakeGenericMethod(FilterType, i.filterPropertyType));
-                    }
-                    else
-                    {
-                        _generator.Emit(OpCodes.Call, buildInArrayExpressionMethod.MakeGenericMethod(FilterType, i.filterPropertyType));
-                    }
+                    void CallBuildExpressionMethod() => _generator.Emit(OpCodes.Call, buildCompareStringExpressionMethod.MakeGenericMethod(FilterType));
+                    GenerateFieldFilterCode(compareStringDictionaryField, c.id, CompareStringFieldGetItem, expressionLocal, CallBuildExpressionMethod, ref filterConditionCount);
                 }
 
-                GenerateFieldFilterCode(inDictionaryField, i.id, InFieldGetItem, expressionLocal, CallBuildExpressionMethod, ref filterConditionCount);
+                compareStringData = compareString.ToDictionary(c => c.id, c => c);
             }
 
-            inData = isIn.ToDictionary(i => i.id, i => i);
-        }
-
-        Dictionary<uint, FilterRangeData<TFilter>>? filterRangeData = default;
-        if (filterRangeList != null && filterRangeList.Any())
-        {
-            var buildFilterRangeExpressionMethod = typeof(ExpressionUtilities).GetMethod(nameof(ExpressionUtilities.BuildFilterRangeExpression), Utilities.PublicStatic);
-            var filterRangeDictionaryField = _typeBuilder.DefineField(FilterRangeDictionaryFieldName, typeof(Dictionary<uint, FilterRangeData<TFilter>>), FieldAttributes.Private | FieldAttributes.Static);
-            foreach (var f in filterRangeList)
+            Dictionary<uint, ContainData<TFilter>>? containData = default;
+            if (contain.Any())
             {
-                void CallBuildExpressionMethod() => _generator.Emit(OpCodes.Call, buildFilterRangeExpressionMethod.MakeGenericMethod(FilterType, f.filterMinPropertyType, f.filterMaxPropertyType));
-                GenerateFieldFilterCode(filterRangeDictionaryField, f.id, FilterRangeFieldGetItem, expressionLocal, CallBuildExpressionMethod, ref filterConditionCount);
+                var buildCollectionContainExpressionMethod = typeof(ExpressionUtilities).GetMethod(nameof(ExpressionUtilities.BuildCollectionContainsExpression), Utilities.PublicStatic);
+                var buildArrayContainExpressionMethod = typeof(ExpressionUtilities).GetMethod(nameof(ExpressionUtilities.BuildArrayContainsExpression), Utilities.PublicStatic);
+                var containDictionaryField = _typeBuilder.DefineField(ContainDictionaryFieldName, typeof(Dictionary<uint, ContainData<TFilter>>), FieldAttributes.Private | FieldAttributes.Static);
+                foreach (var c in contain)
+                {
+                    void CallBuildExpressionMethod()
+                    {
+                        if (c.isCollection)
+                        {
+                            _generator.Emit(OpCodes.Call, buildCollectionContainExpressionMethod.MakeGenericMethod(FilterType, c.filterPropertyType));
+                        }
+                        else
+                        {
+                            _generator.Emit(OpCodes.Call, buildArrayContainExpressionMethod.MakeGenericMethod(FilterType, c.filterPropertyType));
+                        }
+                    }
+
+                    GenerateFieldFilterCode(containDictionaryField, c.id, ContainFieldGetItem, expressionLocal, CallBuildExpressionMethod, ref filterConditionCount);
+                }
+
+                containData = contain.ToDictionary(c => c.id, c => c);
             }
 
-            filterRangeData = filterRangeList.ToDictionary(f => f.id, f => f);
-        }
-
-        Dictionary<uint, EntityRangeData<TFilter>>? entityRangeData = default;
-        if (entityRangeList != null && entityRangeList.Any())
-        {
-            var buildEntityRangeExpressionMethod = typeof(ExpressionUtilities).GetMethod(nameof(ExpressionUtilities.BuildEntityRangeExpression), Utilities.PublicStatic);
-            var entityRangeDictionaryField = _typeBuilder.DefineField(EntityRangeDictionaryFieldName, typeof(Dictionary<string, EntityRangeData<TFilter>>), FieldAttributes.Private | FieldAttributes.Static);
-            foreach (var e in entityRangeList)
+            Dictionary<uint, InData<TFilter>>? inData = default;
+            if (isIn.Any())
             {
-                void CallBuildExpressionMethod() => _generator.Emit(OpCodes.Call, buildEntityRangeExpressionMethod.MakeGenericMethod(FilterType, e.filterPropertyType));
-                GenerateFieldFilterCode(entityRangeDictionaryField, e.id, EntityRangeFieldGetItem, expressionLocal, CallBuildExpressionMethod, ref filterConditionCount);
+                var buildInCollectionExpressionMethod = typeof(ExpressionUtilities).GetMethod(nameof(ExpressionUtilities.BuildInCollectionExpression), Utilities.PublicStatic);
+                var buildInArrayExpressionMethod = typeof(ExpressionUtilities).GetMethod(nameof(ExpressionUtilities.BuildInArrayExpression), Utilities.PublicStatic);
+                var inDictionaryField = _typeBuilder.DefineField(InDictionaryFieldName, typeof(Dictionary<uint, InData<TFilter>>), FieldAttributes.Private | FieldAttributes.Static);
+                foreach (var i in isIn)
+                {
+                    void CallBuildExpressionMethod()
+                    {
+                        if (i.isCollection)
+                        {
+                            _generator.Emit(OpCodes.Call, buildInCollectionExpressionMethod.MakeGenericMethod(FilterType, i.filterPropertyType));
+                        }
+                        else
+                        {
+                            _generator.Emit(OpCodes.Call, buildInArrayExpressionMethod.MakeGenericMethod(FilterType, i.filterPropertyType));
+                        }
+                    }
+
+                    GenerateFieldFilterCode(inDictionaryField, i.id, InFieldGetItem, expressionLocal, CallBuildExpressionMethod, ref filterConditionCount);
+                }
+
+                inData = isIn.ToDictionary(i => i.id, i => i);
             }
 
-            entityRangeData = entityRangeList.ToDictionary(e => e.id, e => e);
+            Dictionary<uint, FilterRangeData<TFilter>>? filterRangeData = default;
+            if (filterRangeList != null && filterRangeList.Any())
+            {
+                var buildFilterRangeExpressionMethod = typeof(ExpressionUtilities).GetMethod(nameof(ExpressionUtilities.BuildFilterRangeExpression), Utilities.PublicStatic);
+                var filterRangeDictionaryField = _typeBuilder.DefineField(FilterRangeDictionaryFieldName, typeof(Dictionary<uint, FilterRangeData<TFilter>>), FieldAttributes.Private | FieldAttributes.Static);
+                foreach (var f in filterRangeList)
+                {
+                    void CallBuildExpressionMethod() => _generator.Emit(OpCodes.Call, buildFilterRangeExpressionMethod.MakeGenericMethod(FilterType, f.filterMinPropertyType, f.filterMaxPropertyType));
+                    GenerateFieldFilterCode(filterRangeDictionaryField, f.id, FilterRangeFieldGetItem, expressionLocal, CallBuildExpressionMethod, ref filterConditionCount);
+                }
+
+                filterRangeData = filterRangeList.ToDictionary(f => f.id, f => f);
+            }
+
+            Dictionary<uint, EntityRangeData<TFilter>>? entityRangeData = default;
+            if (entityRangeList != null && entityRangeList.Any())
+            {
+                var buildEntityRangeExpressionMethod = typeof(ExpressionUtilities).GetMethod(nameof(ExpressionUtilities.BuildEntityRangeExpression), Utilities.PublicStatic);
+                var entityRangeDictionaryField = _typeBuilder.DefineField(EntityRangeDictionaryFieldName, typeof(Dictionary<uint, EntityRangeData<TFilter>>), FieldAttributes.Private | FieldAttributes.Static);
+                foreach (var e in entityRangeList)
+                {
+                    void CallBuildExpressionMethod() => _generator.Emit(OpCodes.Call, buildEntityRangeExpressionMethod.MakeGenericMethod(FilterType, e.filterPropertyType));
+                    GenerateFieldFilterCode(entityRangeDictionaryField, e.id, EntityRangeFieldGetItem, expressionLocal, CallBuildExpressionMethod, ref filterConditionCount);
+                }
+
+                entityRangeData = entityRangeList.ToDictionary(e => e.id, e => e);
+            }
+
+            // Generate ending code
+            _generator.Emit(OpCodes.Ldloc_0);
+            _generator.Emit(OpCodes.Dup);
+            var parameterJump = _generator.DefineLabel();
+            _generator.Emit(OpCodes.Brtrue_S, parameterJump);
+            _generator.Emit(OpCodes.Pop);
+            _generator.Emit(OpCodes.Ldc_I4_1);
+            _generator.Emit(OpCodes.Box, BooleanType);
+            _generator.Emit(OpCodes.Call, ConstantExpressionMethod);
+            _generator.MarkLabel(parameterJump);
+            _generator.Emit(OpCodes.Ldc_I4_1);
+            _generator.Emit(OpCodes.Newarr, ParameterExpressionType);
+            _generator.Emit(OpCodes.Dup);
+            _generator.Emit(OpCodes.Ldc_I4_0);
+            _generator.Emit(OpCodes.Ldloc_1);
+            _generator.Emit(OpCodes.Stelem_Ref);
+            _generator.Emit(OpCodes.Call, LambdaMethod.MakeGenericMethod(typeof(Func<,>).MakeGenericType(EntityType, BooleanType)));
+            _generator.Emit(OpCodes.Ret);
+
+            var type = _typeBuilder.CreateType()!;
+
+            if (compareData != null)
+            {
+                WrapUpFilterCode(type, CompareDictionaryFieldName, compareData);
+            }
+
+            if (compareStringData != null)
+            {
+                WrapUpFilterCode(type, CompareStringDictionaryFieldName, compareStringData);
+            }
+
+            if (containData != null)
+            {
+                WrapUpFilterCode(type, ContainDictionaryFieldName, containData);
+            }
+
+            if (inData != null)
+            {
+                WrapUpFilterCode(type, InDictionaryFieldName, inData);
+            }
+
+            if (filterRangeData != null)
+            {
+                WrapUpFilterCode(type, FilterRangeDictionaryFieldName, filterRangeData);
+            }
+
+            if (entityRangeData != null)
+            {
+                WrapUpFilterCode(type, EntityRangeDictionaryFieldName, entityRangeData);
+            }
+
+            return type;
         }
-
-        // Generate ending code
-        _generator.Emit(OpCodes.Ldloc_0);
-        _generator.Emit(OpCodes.Dup);
-        var parameterJump = _generator.DefineLabel();
-        _generator.Emit(OpCodes.Brtrue_S, parameterJump);
-        _generator.Emit(OpCodes.Pop);
-        _generator.Emit(OpCodes.Ldc_I4_1);
-        _generator.Emit(OpCodes.Box, BooleanType);
-        _generator.Emit(OpCodes.Call, ConstantExpressionMethod);
-        _generator.MarkLabel(parameterJump);
-        _generator.Emit(OpCodes.Ldc_I4_1);
-        _generator.Emit(OpCodes.Newarr, ParameterExpressionType);
-        _generator.Emit(OpCodes.Dup);
-        _generator.Emit(OpCodes.Ldc_I4_0);
-        _generator.Emit(OpCodes.Ldloc_1);
-        _generator.Emit(OpCodes.Stelem_Ref);
-        _generator.Emit(OpCodes.Call, LambdaMethod.MakeGenericMethod(typeof(Func<,>).MakeGenericType(EntityType, BooleanType)));
-        _generator.Emit(OpCodes.Ret);
-
-        var type = _typeBuilder.CreateType()!;
-
-        if (compareData != null)
+        else
         {
-            WrapUpFilterCode(type, CompareDictionaryFieldName, compareData);
+            _generator.Emit(OpCodes.Ldc_I4_1);
+            _generator.Emit(OpCodes.Box, BooleanType);
+            _generator.Emit(OpCodes.Call, ConstantExpressionMethod);
+            _generator.Emit(OpCodes.Ldc_I4_1);
+            _generator.Emit(OpCodes.Newarr, ParameterExpressionType);
+            _generator.Emit(OpCodes.Dup);
+            _generator.Emit(OpCodes.Ldc_I4_0);
+            _generator.Emit(OpCodes.Ldtoken, EntityType);
+            _generator.Emit(OpCodes.Call, TypeOfMethod);
+            _generator.Emit(OpCodes.Ldstr, "t");
+            _generator.Emit(OpCodes.Call, ParameterMethod);
+            _generator.Emit(OpCodes.Stelem_Ref);
+            _generator.Emit(OpCodes.Call, LambdaMethod.MakeGenericMethod(typeof(Func<,>).MakeGenericType(EntityType, BooleanType)));
+            _generator.Emit(OpCodes.Ret);
+            return _typeBuilder.CreateType()!;
         }
-
-        if (compareStringData != null)
-        {
-            WrapUpFilterCode(type, CompareStringDictionaryFieldName, compareStringData);
-        }
-
-        if (containData != null)
-        {
-            WrapUpFilterCode(type, ContainDictionaryFieldName, containData);
-        }
-
-        if (inData != null)
-        {
-            WrapUpFilterCode(type, InDictionaryFieldName, inData);
-        }
-
-        if (filterRangeData != null)
-        {
-            WrapUpFilterCode(type, FilterRangeDictionaryFieldName, filterRangeData);
-        }
-
-        if (entityRangeData != null)
-        {
-            WrapUpFilterCode(type, EntityRangeDictionaryFieldName, entityRangeData);
-        }
-
-        return type;
     }
 
     private static int GetFilteringConditionCount(
@@ -408,11 +428,11 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
         var compareStringList = new List<CompareStringData<TFilter>>();
         foreach (var filterProperty in filterProperties)
         {
-            var param = Expression.Parameter(typeof(TFilter));
-            var filterPropertyFunc = Expression.Lambda(Expression.Property(param, filterProperty), param).Compile();
-            var filterPropertyType = filterProperty.PropertyType;
             if (entityProperties.TryGetValue(filterProperty.Name, out var entityProperty))
             {
+                var param = Expression.Parameter(typeof(TFilter));
+                var filterPropertyFunc = Expression.Lambda(Expression.Property(param, filterProperty), param).Compile();
+                var filterPropertyType = filterProperty.PropertyType;
                 var entityPropertyType = entityProperty.PropertyType;
                 var parameter = Expression.Parameter(typeof(TEntity));
                 var entityPropertyExpression = Expression.Lambda(Expression.Property(parameter, entityProperty), parameter);

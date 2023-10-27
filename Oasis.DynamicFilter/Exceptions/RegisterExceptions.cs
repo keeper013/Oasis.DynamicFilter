@@ -1,23 +1,6 @@
 ﻿namespace Oasis.DynamicFilter.Exceptions;
 
 using System;
-using System.Reflection;
-
-public sealed class BadFilterException : DynamicFilterException
-{
-    public BadFilterException(Type entityType, Type filterType)
-        : base($"{entityType.Name} doesn't have any property that can be filtered by filter type {filterType.Name}.")
-    {
-    }
-}
-
-public sealed class PropertyMatchingException : DynamicFilterException
-{
-    public PropertyMatchingException(Type entityType, string entityProperty, Type filterType, string filterProperty)
-        : base($"Property \"{entityProperty}\" of type {entityType.Name} doesn't match property \"{filterProperty}\" type of type {filterType.Name}.")
-    {
-    }
-}
 
 public sealed class RedundantRegisterException : DynamicFilterException
 {
