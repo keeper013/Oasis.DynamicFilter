@@ -68,7 +68,7 @@ public class UnitTest1 : TestBase
 
         await InitializeData();
 
-        var filter = new AuthorFilter { AuthorName = "1" };
+        var filter = new AuthorFilter { AuthorName = "John" };
         var exp = expressionMaker.GetExpression<Book, AuthorFilter>(filter);
         await ExecuteWithNewDatabaseContext(async databaseContext =>
         {
@@ -93,7 +93,7 @@ public class UnitTest1 : TestBase
 
         await InitializeData();
 
-        var filter = new AuthorFilter { Age = 40, AuthorName = "2" };
+        var filter = new AuthorFilter { Age = 40, AuthorName = "Jane" };
         var exp = expressionMaker.GetExpression<Book, AuthorFilter>(filter);
         await ExecuteWithNewDatabaseContext(async databaseContext =>
         {
@@ -158,9 +158,9 @@ public class UnitTest1 : TestBase
     {
         await ExecuteWithNewDatabaseContext(async databaseContext =>
         {
-            var author1 = new Author { Id = 1, Name = "Author 1", BirthYear = 1971 };
-            var author2 = new Author { Id = 2, Name = "Author 2", BirthYear = 1969 };
-            var author3 = new Author { Id = 3, Name = "Author 3", BirthYear = 1950 };
+            var author1 = new Author { Id = 1, Name = "John Doe", BirthYear = 1971 };
+            var author2 = new Author { Id = 2, Name = "Jane Doe", BirthYear = 1969 };
+            var author3 = new Author { Id = 3, Name = "Black Smith", BirthYear = 1950 };
             databaseContext.Set<Book>().AddRange(new Book[]
             {
                 new Book { Id = 1, Name = "Book Test 1", PublishedYear = 2000, AuthorId = 1, Author = author1 },

@@ -6,6 +6,7 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Reflection.Emit;
+using System.Runtime.CompilerServices;
 
 internal sealed class FilterTypeBuilder
 {
@@ -415,6 +416,54 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
         return Expression.Lambda<Func<TFilter, bool>>(Expression.Equal(Expression.Default(filterProperty.PropertyType), Expression.Property(parameter, filterProperty)), parameter).Compile();
     }
 
+    private static void LoadUint(ILGenerator generator, uint number)
+    {
+        if (number == 0)
+        {
+            generator.Emit(OpCodes.Ldc_I4_0);
+        }
+        else if (number == 1)
+        {
+            generator.Emit(OpCodes.Ldc_I4_1);
+        }
+        else if (number == 2)
+        {
+            generator.Emit(OpCodes.Ldc_I4_2);
+        }
+        else if (number == 3)
+        {
+            generator.Emit(OpCodes.Ldc_I4_3);
+        }
+        else if (number == 4)
+        {
+            generator.Emit(OpCodes.Ldc_I4_4);
+        }
+        else if (number == 5)
+        {
+            generator.Emit(OpCodes.Ldc_I4_5);
+        }
+        else if (number == 6)
+        {
+            generator.Emit(OpCodes.Ldc_I4_6);
+        }
+        else if (number == 7)
+        {
+            generator.Emit(OpCodes.Ldc_I4_7);
+        }
+        else if (number == 8)
+        {
+            generator.Emit(OpCodes.Ldc_I4_8);
+        }
+        else if (number <= 127)
+        {
+            generator.Emit(OpCodes.Ldc_I4_S, number);
+        }
+        else
+        {
+            generator.Emit(OpCodes.Ldc_I4, number);
+        }
+    }
+
     private (List<CompareData<TFilter>>, List<CompareStringData<TFilter>>, List<ContainData<TFilter>>, List<InData<TFilter>>) ExtractFilterProperties(uint fieldIndex, ISet<string>? configuredEntityProperties)
     {
         var filterProperties = typeof(TFilter).GetProperties(Utilities.PublicInstance).Where(p => p.GetMethod != default);
@@ -491,7 +540,7 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
 
         _generator.Emit(OpCodes.Ldarg_0);
         _generator.Emit(OpCodes.Ldsfld, dataDictionaryField);
-        _generator.Emit(OpCodes.Ldc_I4, id);
+        LoadUint(_generator, id);
         _generator.Emit(OpCodes.Callvirt, getItem);
         _generator.Emit(OpCodes.Ldloca_S, expressionLocal);
         callBuildExpressionMethod();
