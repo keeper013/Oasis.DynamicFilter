@@ -19,7 +19,7 @@ internal sealed class FilterTypeBuilder
         _defaultStringOperator = defaultStringOperator;
     }
 
-    public FilterMethodBuilder<TEntity, TFilter> BuildFilterMethodBuilder<TEntity, TFilter>()
+    public FilterMethodBuilder<TEntity, TFilter> BuildFilterMethodBuilder<TEntity, TFilter>(StringOperator? defaultStringOperator)
         where TEntity : class
         where TFilter : class
     {
@@ -30,7 +30,7 @@ internal sealed class FilterTypeBuilder
         methodBuilder.SetParameters(filterType);
         methodBuilder.SetReturnType(typeof(Expression<>).MakeGenericType(typeof(Func<,>).MakeGenericType(entityType, typeof(bool))));
         var generator = methodBuilder.GetILGenerator();
-        return new FilterMethodBuilder<TEntity, TFilter>(typeBuilder, generator, _defaultStringOperator);
+        return new FilterMethodBuilder<TEntity, TFilter>(typeBuilder, generator, defaultStringOperator ?? _defaultStringOperator);
     }
 
     private static string GetDynamicTypeName(Type entityType, Type filterType) => $"Filter_{entityType.Name}_{filterType.Name}_{Utilities.GenerateRandomName(16)}";
@@ -170,14 +170,14 @@ internal sealed class FilterMethodBuilder<TEntity, TFilter>
     }
 
     internal Type Build(
-        uint fieldIndex,
-        ISet<string>? configuredEntityProperties,
-        IReadOnlyList<CompareData<TFilter>>? compareList,
-        IReadOnlyList<ContainData<TFilter>>? containList,
-        IReadOnlyList<InData<TFilter>>? inList,
-        IReadOnlyList<CompareStringData<TFilter>>? compareStringList,
-        IReadOnlyList<FilterRangeData<TFilter>>? filterRangeList,
-        IReadOnlyList<EntityRangeData<TFilter>>? entityRangeList)
+        uint fieldIndex = 0,
+        ISet<string>? configuredEntityProperties = null,
+        IReadOnlyList<CompareData<TFilter>>? compareList = null,
+        IReadOnlyList<ContainData<TFilter>>? containList = null,
+        IReadOnlyList<InData<TFilter>>? inList = null,
+        IReadOnlyList<CompareStringData<TFilter>>? compareStringList = null,
+        IReadOnlyList<FilterRangeData<TFilter>>? filterRangeList = null,
+        IReadOnlyList<EntityRangeData<TFilter>>? entityRangeList = null)
     {
         var (compare, compareString, contain, isIn) = ExtractFilterProperties(fieldIndex, configuredEntityProperties);
         if (compareList != null && compareList.Any())

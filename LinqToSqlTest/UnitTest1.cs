@@ -137,11 +137,7 @@ public class UnitTest1 : TestBase
     [InlineData(StringOperator.In, "Book 1 or Book 2", "Book 2")]
     public async Task FilterBookByPartialName(StringOperator op, string partialName, string name)
     {
-        var expressionMaker = new FilterBuilder()
-            .Configure<Book, BookByNameFilter>()
-                .FilterByStringProperty(b => b.Name, op, f => f.Name)
-                .Finish()
-        .Build();
+        var expressionMaker = new FilterBuilder(op).Register<Book, BookByNameFilter>().Build();
 
         await InitializeData();
 

@@ -8,19 +8,18 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Reflection.Emit;
-using System.Security.Cryptography;
 
 public sealed class FilterBuilder : IFilterBuilder
 {
     private readonly FilterTypeBuilder _filterTypeBuilder;
     private readonly Dictionary<Type, Dictionary<Type, Delegate>> _filterBuilders = new ();
 
-    public FilterBuilder(bool defaultContainForFilteringByString = false)
+    public FilterBuilder(StringOperator defaultStringOperator = StringOperator.Equality)
     {
         var name = new AssemblyName($"{Utilities.GenerateRandomName(16)}.Oasis.DynamicFilter.Generated");
         var assemblyBuilder = AssemblyBuilder.DefineDynamicAssembly(name, AssemblyBuilderAccess.Run);
         var module = assemblyBuilder.DefineDynamicModule($"{name.Name}.dll");
-        _filterTypeBuilder = new (module, defaultContainForFilteringByString ? StringOperator.Contains : StringOperator.Equality);
+        _filterTypeBuilder = new (module, defaultStringOperator);
     }
 
     public IFilter Build()
@@ -34,7 +33,7 @@ public sealed class FilterBuilder : IFilterBuilder
         return new Filter(dict);
     }
 
-    public IFilterConfigurationBuilder<TEntity, TFilter> Configure<TEntity, TFilter>()
+    public IFilterConfigurationBuilder<TEntity, TFilter> Configure<TEntity, TFilter>(StringOperator? defaultStringOperator = null)
         where TEntity : class
         where TFilter : class
     {
@@ -43,10 +42,10 @@ public sealed class FilterBuilder : IFilterBuilder
             throw new RedundantRegisterException(typeof(TEntity), typeof(TFilter));
         }
 
-        return new FilterConfiguration<TEntity, TFilter>(this, _filterTypeBuilder);
+        return new FilterConfiguration<TEntity, TFilter>(this, defaultStringOperator, _filterTypeBuilder);
     }
 
-    public IFilterBuilder Register<TEntity, TFilter>()
+    public IFilterBuilder Register<TEntity, TFilter>(StringOperator? defaultStringOperator = null)
         where TEntity : class
         where TFilter : class
     {
@@ -57,7 +56,7 @@ public sealed class FilterBuilder : IFilterBuilder
             throw new RedundantRegisterException(entityType, filterType);
         }
 
-        var type = _filterTypeBuilder.BuildFilterMethodBuilder<TEntity, TFilter>().Build(0, null, null, null, null, null, null, null);
+        var type = _filterTypeBuilder.BuildFilterMethodBuilder<TEntity, TFilter>(defaultStringOperator).Build();
         var delegateType = typeof(Func<,>).MakeGenericType(filterType, typeof(Expression<>).MakeGenericType(typeof(Func<,>).MakeGenericType(entityType, typeof(bool))));
         _filterBuilders.Add(entityType, filterType, Delegate.CreateDelegate(delegateType, type.GetMethod(FilterTypeBuilder.FilterMethodName, Utilities.PublicStatic)));
 

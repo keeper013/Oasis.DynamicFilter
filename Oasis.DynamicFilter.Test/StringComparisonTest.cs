@@ -83,7 +83,7 @@ public sealed class StringComparisonTest
     [InlineData("Abcde", "cd")]
     public void TestDefaultContainForString(string? entityValue, string? filterValue)
     {
-        var expressionBuilder = new FilterBuilder(true).Register<StringEntity, StringFilter>().Build();
+        var expressionBuilder = new FilterBuilder(StringOperator.Contains).Register<StringEntity, StringFilter>().Build();
         var entity = new StringEntity { Value = entityValue };
         var filter = new StringFilter { Value = filterValue };
         Assert.True(expressionBuilder.GetFunc<StringEntity, StringFilter>(filter)(entity));

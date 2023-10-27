@@ -12,6 +12,7 @@ internal sealed class FilterConfiguration<TEntity, TFilter> : IFilterConfigurati
 {
     private readonly FilterBuilder _builder;
     private readonly FilterTypeBuilder _filterTypeBuilder;
+    private readonly StringOperator? _defaultStringOperator;
     private readonly HashSet<string> _configuredEntityProperties = new ();
     private readonly List<CompareData<TFilter>> _compareList = new ();
     private readonly List<ContainData<TFilter>> _containList = new ();
@@ -21,9 +22,10 @@ internal sealed class FilterConfiguration<TEntity, TFilter> : IFilterConfigurati
     private readonly List<EntityRangeData<TFilter>> _entityRangeList = new ();
     private uint _fieldIndex = 0;
 
-    public FilterConfiguration(FilterBuilder builder, FilterTypeBuilder filterTypeBuilder)
+    public FilterConfiguration(FilterBuilder builder, StringOperator? defaultStringOperator, FilterTypeBuilder filterTypeBuilder)
     {
         _builder = builder;
+        _defaultStringOperator = defaultStringOperator;
         _filterTypeBuilder = filterTypeBuilder;
     }
 
@@ -230,7 +232,7 @@ internal sealed class FilterConfiguration<TEntity, TFilter> : IFilterConfigurati
 
     private Delegate BuildTypeAndFunction()
     {
-        var type = _filterTypeBuilder.BuildFilterMethodBuilder<TEntity, TFilter>().Build(
+        var type = _filterTypeBuilder.BuildFilterMethodBuilder<TEntity, TFilter>(_defaultStringOperator).Build(
             _fieldIndex,
             _configuredEntityProperties,
             _compareList,

@@ -169,11 +169,11 @@ public interface IFilterConfigurationBuilder<TEntity, TFilter>
 
 public interface IFilterBuilder
 {
-    IFilterBuilder Register<TEntity, TFilter>()
+    IFilterBuilder Register<TEntity, TFilter>(StringOperator? defaultStringOperator = null)
         where TEntity : class
         where TFilter : class;
 
-    IFilterConfigurationBuilder<TEntity, TFilter> Configure<TEntity, TFilter>()
+    IFilterConfigurationBuilder<TEntity, TFilter> Configure<TEntity, TFilter>(StringOperator? defaultStringOperator = null)
         where TEntity : class
         where TFilter : class;
 
