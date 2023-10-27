@@ -14,6 +14,9 @@ internal class DatabaseContext : DbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Book>().ToTable(nameof(Book));
-        modelBuilder.Entity<Book>().HasKey(e => e.Id);
+        modelBuilder.Entity<Book>().HasKey(b => b.Id);
+        modelBuilder.Entity<Author>().ToTable(nameof(Author));
+        modelBuilder.Entity<Author>().HasKey(a => a.Id);
+        modelBuilder.Entity<Author>().HasMany(a => a.Books).WithOne().HasForeignKey(b => b.AuthorId).OnDelete(DeleteBehavior.NoAction);
     }
 }

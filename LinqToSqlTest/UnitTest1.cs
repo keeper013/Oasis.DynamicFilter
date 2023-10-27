@@ -31,6 +31,80 @@ public class UnitTest1 : TestBase
         });
     }
 
+    [Fact]
+    public async Task FilterBookWithAuthorAge()
+    {
+        var expressionMaker = new FilterBuilder()
+            .Configure<Book, AuthorFilter>()
+                .FilterByStringProperty(b => b.Author.Name, StringOperator.Contains, f => f.AuthorName)
+                .FilterByProperty(b => b.PublishedYear - b.Author.BirthYear, Operator.LessThan, f => f.Age)
+                .Finish()
+        .Build();
+
+        await InitializeData();
+
+        var filter = new AuthorFilter { Age = 40 };
+        var exp = expressionMaker.GetExpression<Book, AuthorFilter>(filter);
+        await ExecuteWithNewDatabaseContext(async databaseContext =>
+        {
+            var query = databaseContext.Set<Book>().Include(b => b.Author).Where(exp);
+            //var str = query.ToQueryString();
+            var result = await query.ToListAsync();
+            Assert.Equal(2, result.Count);
+            Assert.Single(result.Where(r => r.Name == "Book Test 1"));
+            Assert.Single(result.Where(r => r.Name == "Book 2"));
+        });
+    }
+
+    [Fact]
+    public async Task FilterBookWithAuthorName()
+    {
+        var expressionMaker = new FilterBuilder()
+            .Configure<Book, AuthorFilter>()
+                .FilterByStringProperty(b => b.Author.Name, StringOperator.Contains, f => f.AuthorName)
+                .FilterByProperty(b => b.PublishedYear - b.Author.BirthYear, Operator.LessThan, f => f.Age)
+                .Finish()
+        .Build();
+
+        await InitializeData();
+
+        var filter = new AuthorFilter { AuthorName = "1" };
+        var exp = expressionMaker.GetExpression<Book, AuthorFilter>(filter);
+        await ExecuteWithNewDatabaseContext(async databaseContext =>
+        {
+            var query = databaseContext.Set<Book>().Include(b => b.Author).Where(exp);
+            //var str = query.ToQueryString();
+            var result = await query.ToListAsync();
+            Assert.Equal(2, result.Count);
+            Assert.Single(result.Where(r => r.Name == "Book Test 1"));
+            Assert.Single(result.Where(r => r.Name == "Book 3" && r.PublishedYear == 2012));
+        });
+    }
+
+    [Fact]
+    public async Task FilterBookWithAuthorNameAndAge()
+    {
+        var expressionMaker = new FilterBuilder()
+            .Configure<Book, AuthorFilter>()
+                .FilterByStringProperty(b => b.Author.Name, StringOperator.Contains, f => f.AuthorName)
+                .FilterByProperty(b => b.PublishedYear - b.Author.BirthYear, Operator.LessThan, f => f.Age)
+                .Finish()
+        .Build();
+
+        await InitializeData();
+
+        var filter = new AuthorFilter { Age = 40, AuthorName = "2" };
+        var exp = expressionMaker.GetExpression<Book, AuthorFilter>(filter);
+        await ExecuteWithNewDatabaseContext(async databaseContext =>
+        {
+            var query = databaseContext.Set<Book>().Include(b => b.Author).Where(exp);
+            //var str = query.ToQueryString();
+            var result = await query.ToListAsync();
+            Assert.Single(result);
+            Assert.Single(result.Where(r => r.Name == "Book 2" && r.PublishedYear == 2008));
+        });
+    }
+
     [Theory]
     [InlineData(2001, 2005, 0)]
     [InlineData(2007, 2015, 3)]
@@ -88,13 +162,23 @@ public class UnitTest1 : TestBase
     {
         await ExecuteWithNewDatabaseContext(async databaseContext =>
         {
+            var author1 = new Author { Id = 1, Name = "Author 1", BirthYear = 1971 };
+            var author2 = new Author { Id = 2, Name = "Author 2", BirthYear = 1969 };
+            var author3 = new Author { Id = 3, Name = "Author 3", BirthYear = 1950 };
             databaseContext.Set<Book>().AddRange(new Book[]
             {
-                new Book { Id = 1, Name = "Book Test 1", PublishedYear = 2000 },
-                new Book { Id = 2, Name = "Book 2", PublishedYear = 2008 },
-                new Book { Id = 3, Name = "Book 3", PublishedYear = 2008 },
-                new Book { Id = 4, Name = "Book 3", PublishedYear = 2012 },
-                new Book { Id = 5, Name = "Test Book 5", PublishedYear = 2016 },
+                new Book { Id = 1, Name = "Book Test 1", PublishedYear = 2000, AuthorId = 1, Author = author1 },
+                new Book { Id = 2, Name = "Book 2", PublishedYear = 2008, AuthorId = 2, Author = author2 },
+                new Book { Id = 3, Name = "Book 3", PublishedYear = 2008, AuthorId = 3, Author = author3 },
+                new Book { Id = 4, Name = "Book 3", PublishedYear = 2012, AuthorId = 1, Author = author1 },
+                new Book { Id = 5, Name = "Test Book 5", PublishedYear = 2016, AuthorId = 2, Author = author2 },
+            });
+
+            databaseContext.Set<Author>().AddRange(new Author[]
+            {
+                author1,
+                author2,
+                author3,
             });
 
             await databaseContext.SaveChangesAsync();
