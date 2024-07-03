@@ -11,15 +11,16 @@ using System.Reflection.Emit;
 
 public sealed class FilterBuilder : IFilterBuilder
 {
-    private readonly FilterTypeBuilder _filterTypeBuilder;
+    private readonly ModuleBuilder _moduleBuilder;
+    private readonly StringOperator _defaultStringOperator;
     private readonly Dictionary<Type, Dictionary<Type, Delegate>> _filterBuilders = new ();
 
     public FilterBuilder(StringOperator defaultStringOperator = StringOperator.Equality)
     {
         var name = new AssemblyName($"{Utilities.GenerateRandomName(16)}.Oasis.DynamicFilter.Generated");
         var assemblyBuilder = AssemblyBuilder.DefineDynamicAssembly(name, AssemblyBuilderAccess.Run);
-        var module = assemblyBuilder.DefineDynamicModule($"{name.Name}.dll");
-        _filterTypeBuilder = new (module, defaultStringOperator);
+        _moduleBuilder = assemblyBuilder.DefineDynamicModule($"{name.Name}.dll");
+        _defaultStringOperator = defaultStringOperator;
     }
 
     public IFilter Build()
@@ -42,7 +43,7 @@ public sealed class FilterBuilder : IFilterBuilder
             throw new RedundantRegisterException(typeof(TEntity), typeof(TFilter));
         }
 
-        return new FilterConfiguration<TEntity, TFilter>(this, defaultStringOperator, _filterTypeBuilder);
+        return new FilterConfiguration<TEntity, TFilter>(this, new FilterTypeBuilder<TEntity, TFilter>(_moduleBuilder, _defaultStringOperator));
     }
 
     public IFilterBuilder Register<TEntity, TFilter>(StringOperator? defaultStringOperator = null)
@@ -56,11 +57,18 @@ public sealed class FilterBuilder : IFilterBuilder
             throw new RedundantRegisterException(entityType, filterType);
         }
 
-        var type = _filterTypeBuilder.BuildFilterMethodBuilder<TEntity, TFilter>(defaultStringOperator).Build();
-        var delegateType = typeof(Func<,>).MakeGenericType(filterType, typeof(Expression<>).MakeGenericType(typeof(Func<,>).MakeGenericType(entityType, typeof(bool))));
-        _filterBuilders.Add(entityType, filterType, Delegate.CreateDelegate(delegateType, type.GetMethod(FilterTypeBuilder.FilterMethodName, Utilities.PublicStatic)));
+        var type = new FilterTypeBuilder<TEntity, TFilter>(_moduleBuilder, _defaultStringOperator).Build();
+        if (type != null)
+        {
+            var delegateType = typeof(Func<,>).MakeGenericType(filterType, typeof(Expression<>).MakeGenericType(typeof(Func<,>).MakeGenericType(entityType, typeof(bool))));
+            _filterBuilders.Add(entityType, filterType, Delegate.CreateDelegate(delegateType, type.GetMethod(FilterTypeBuilder<TEntity, TFilter>.FilterMethodName, Utilities.PublicStatic)));
 
-        return this;
+            return this;
+        }
+        else
+        {
+            throw new TrivialRegisterException(entityType, filterType);
+        }
     }
 
     internal void Add(Type entityType, Type filterType, Delegate filterBuilder) => _filterBuilders.Add(entityType, filterType, filterBuilder);

@@ -1,6 +1,7 @@
 ﻿namespace Oasis.DynamicFilter.Exceptions;
 
 using System;
+using System.Linq.Expressions;
 
 public sealed class RedundantRegisterException : DynamicFilterException
 {
@@ -10,26 +11,18 @@ public sealed class RedundantRegisterException : DynamicFilterException
     }
 }
 
-public sealed class InvalidComparisonException : DynamicFilterException
+public sealed class InvalidPropertyExpressionException : DynamicFilterException
 {
-    public InvalidComparisonException(Type entityPropertyType, Operator type, Type filterPropertyType)
-        : base($"{type} can't be applied to {entityPropertyType.Name} and {filterPropertyType.Name}.")
+    public InvalidPropertyExpressionException(Expression exp)
+        : base($"Expression {exp} doesn't have a property name.")
     {
     }
 }
 
-public sealed class InvalidContainException : DynamicFilterException
+public sealed class TrivialRegisterException : DynamicFilterException
 {
-    public InvalidContainException(Type containerType, Type itemType)
-        : base($"Element type of {containerType.Name} can't be used to compare with type {itemType.Name}.")
-    {
-    }
-}
-
-public sealed class UnnecessaryIncludeNullException : DynamicFilterException
-{
-    public UnnecessaryIncludeNullException(Type entityType)
-        : base($"Type {entityType.Name} isn't suitable to have an includeNull configuration.")
+    public TrivialRegisterException(Type entityType, Type filterType)
+        : base($"Entity class {entityType.Name} doesn't have any common field with filter class {filterType.Name}.")
     {
     }
 }

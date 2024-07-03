@@ -126,43 +126,9 @@ public interface IFilterConfigurationBuilder<TEntity, TFilter>
     where TEntity : class
     where TFilter : class
 {
-    IFilterConfigurationBuilder<TEntity, TFilter> FilterByProperty<TEntityProperty, TFilterProperty>(
-        Expression<Func<TEntity, TEntityProperty>> entityPropertyExpression,
-        Operator type,
-        Func<TFilter, TFilterProperty> filterPropertyFunc,
-        Func<TFilter, bool>? includeNull = null,
-        Func<TFilter, bool>? reverseIf = null,
-        Func<TFilter, bool>? ignoreIf = null);
+    IFilterConfigurationBuilder<TEntity, TFilter> ExcludeProperties<TEntityProperty>(params Expression<Func<TEntity, TEntityProperty>>[] entityPropertyExpressions);
 
-    IFilterConfigurationBuilder<TEntity, TFilter> FilterByStringProperty(
-        Expression<Func<TEntity, string?>> entityPropertyExpression,
-        StringOperator type,
-        Func<TFilter, string?> filterPropertyFunc,
-        Func<TFilter, bool>? includeNull = null,
-        Func<TFilter, bool>? reverseIf = null,
-        Func<TFilter, bool>? ignoreIf = null);
-
-    IFilterConfigurationBuilder<TEntity, TFilter> FilterByRangedFilter<TEntityProperty, TMinFilterProperty, TMaxFilterProperty>(
-        Func<TFilter, TMinFilterProperty> filterPropertyMinFunc,
-        RangeOperator minFilteringType,
-        Expression<Func<TEntity, TEntityProperty>> entityPropertyExpression,
-        RangeOperator maxFilteringType,
-        Func<TFilter, TMaxFilterProperty> filterPropertyMaxFunc,
-        Func<TFilter, bool>? includeNull = null,
-        Func<TFilter, bool>? reverseIf = null,
-        Func<TFilter, bool>? ignoreMinIf = null,
-        Func<TFilter, bool>? ignoreMaxIf = null);
-
-    IFilterConfigurationBuilder<TEntity, TFilter> FilterByRangedEntity<TMinEntityProperty, TFilterProperty, TMaxEntityProperty>(
-        Expression<Func<TEntity, TMinEntityProperty>> entityPropertyMinExpression,
-        RangeOperator minFilteringType,
-        Func<TFilter, TFilterProperty> filterPropertyFunc,
-        RangeOperator maxFilteringType,
-        Expression<Func<TEntity, TMaxEntityProperty>> entityPropertyMaxExpression,
-        Func<TFilter, bool>? includeNullMin = null,
-        Func<TFilter, bool>? includeNullMax = null,
-        Func<TFilter, bool>? reverseIf = null,
-        Func<TFilter, bool>? ignoreIf = null);
+    IFilterConfigurationBuilder<TEntity, TFilter> Filter(Func<TFilter, Expression<Func<TEntity, bool>>> filterMethod);
 
     IFilterBuilder Finish();
 }
