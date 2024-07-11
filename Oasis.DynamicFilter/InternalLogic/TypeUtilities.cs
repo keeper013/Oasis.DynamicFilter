@@ -551,14 +551,14 @@ internal static class TypeUtilities
 
     private static readonly Type StringType = typeof(string);
 
-    internal static ComparisonConversion? GetComparisonConversion(Type left, Type right, Operator type)
+    internal static ComparisonConversion? GetComparisonConversion(Type left, Type right)
     {
         var leftIsNullable = left.IsNullable(out var leftArgumentType);
         if (left == right)
         {
-            return left.IsPrimitive || left.IsEnum || left.HasOperator(type) ||
-                (leftIsNullable && (leftArgumentType!.IsPrimitive || leftArgumentType.IsEnum || leftArgumentType.HasOperator(type))) ||
-                (left.IsClass && left.HasOperator(type))
+            return left.IsPrimitive || left.IsEnum || left.HasEqualityOperator() ||
+                (leftIsNullable && (leftArgumentType!.IsPrimitive || leftArgumentType.IsEnum || leftArgumentType.HasEqualityOperator())) ||
+                (left.IsClass && left.HasEqualityOperator())
                 ? new (null, null)
                 : null;
         }
@@ -571,7 +571,7 @@ internal static class TypeUtilities
             // not equal and not nullable primitive, gotta be nullable enum or struct if can be compared
             var leftUnderlyingType = leftIsNullable ? leftArgumentType : left;
             var rightUnderlyingType = right.IsNullable(out var rightArgumentType) ? rightArgumentType : right;
-            if (leftUnderlyingType == rightUnderlyingType && (leftUnderlyingType.IsEnum || leftUnderlyingType.HasOperator(type)))
+            if (leftUnderlyingType == rightUnderlyingType && (leftUnderlyingType.IsEnum || leftUnderlyingType.HasEqualityOperator()))
             {
                 return leftIsNullable ? new (left, left) : new (right, right);
             }
@@ -586,7 +586,7 @@ internal static class TypeUtilities
         if (data != null)
         {
             var containerItemType = data.Value.elementType;
-            if (containerItemType == itemType && (itemType == StringType || (itemType.IsValueType && (itemType.IsPrimitive || itemType.IsEnum || itemType.HasOperator(Operator.Equality)))))
+            if (containerItemType == itemType && (itemType == StringType || (itemType.IsValueType && (itemType.IsPrimitive || itemType.IsEnum || itemType.HasEqualityOperator()))))
             {
                 return new (containerItemType, null, data.Value.isCollection, false);
             }
@@ -596,7 +596,7 @@ internal static class TypeUtilities
             var containerItemUnderlyingType = containerItemTypeIsNullable ? containerItemArgumentType : containerItemType;
             var itemUnderlyingType = itemTypeIsNullable ? itemArgumentType : itemType;
             if (_convertForContainDictionary.Contains(containerItemUnderlyingType!, itemUnderlyingType!)
-                || (containerItemUnderlyingType == itemUnderlyingType && (itemUnderlyingType!.IsEnum || itemUnderlyingType.HasOperator(Operator.Equality))))
+                || (containerItemUnderlyingType == itemUnderlyingType && (itemUnderlyingType!.IsEnum || itemUnderlyingType.HasEqualityOperator())))
             {
                 return new (containerItemType, containerItemType, data.Value.isCollection, itemTypeIsNullable && !containerItemTypeIsNullable);
             }

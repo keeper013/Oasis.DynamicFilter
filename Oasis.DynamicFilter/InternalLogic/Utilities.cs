@@ -5,7 +5,6 @@ using System;
 using System.Reflection;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-using Oasis.DynamicFilter;
 using System.Security.Cryptography;
 
 internal record struct ContainerElementTypeData(Type elementType, bool isCollection);
@@ -15,15 +14,8 @@ internal static class Utilities
     public const BindingFlags PublicInstance = BindingFlags.Public | BindingFlags.Instance;
     public const BindingFlags PublicStatic = BindingFlags.Public | BindingFlags.Static;
     internal const string EqualityOperatorMethodName = "op_Equality";
-    internal const string InequalityOperatorMethodName = "op_Inequality";
-    internal const string GreaterThanOperatorMethodName = "op_GreaterThan";
-    internal const string GreaterThanOrEqualOperatorMethodName = "op_GreaterThanOrEqual";
-    internal const string LessThanOperatorMethodName = "op_LessThan";
-    internal const string LessThanOrEqualOperatorMethodName = "op_LessThanOrEqual";
     private const string NullableTypeName = "System.Nullable`1[[";
     private static readonly Type CollectionType = typeof(ICollection<>);
-
-    public static bool IsScalarType(this Type type) => type.IsNullable(out _) || type.IsValueType || type == typeof(string);
 
     public static bool IsNullable(this Type type, [NotNullWhen(true)] out Type? argumentType)
     {
@@ -63,33 +55,7 @@ internal static class Utilities
         return string.Concat(str);
     }
 
-    internal static bool HasOperator(this Type type, Operator filterType)
-    {
-        string methodName = null!;
-        switch (filterType)
-        {
-            case Operator.Equality:
-                methodName = EqualityOperatorMethodName;
-                break;
-            case Operator.GreaterThan:
-                methodName = GreaterThanOperatorMethodName;
-                break;
-            case Operator.GreaterThanOrEqual:
-                methodName = GreaterThanOrEqualOperatorMethodName;
-                break;
-            case Operator.LessThan:
-                methodName = LessThanOperatorMethodName;
-                break;
-            case Operator.LessThanOrEqual:
-                methodName = LessThanOrEqualOperatorMethodName;
-                break;
-            default:
-                methodName = InequalityOperatorMethodName;
-                break;
-        }
-
-        return type.GetMethod(methodName, PublicStatic) != null;
-    }
+    internal static bool HasEqualityOperator(this Type type) => type.GetMethod(EqualityOperatorMethodName, PublicStatic) != null;
 
     internal static void Add<TKey1, TKey2, TValue>(this Dictionary<TKey1, Dictionary<TKey2, TValue>> dict, TKey1 key1, TKey2 key2, TValue value)
     {
@@ -102,31 +68,9 @@ internal static class Utilities
         innerDict.Add(key2, value);
     }
 
-    internal static void Add<TKey1, TKey2, TKey3, TValue>(this Dictionary<TKey1, Dictionary<TKey2, Dictionary<TKey3, TValue>>> dict, TKey1 key1, TKey2 key2, TKey3 key3, TValue value)
-    {
-        if (!dict.TryGetValue(key1, out var innerDict))
-        {
-            innerDict = new Dictionary<TKey2, Dictionary<TKey3, TValue>>();
-            dict[key1] = innerDict;
-        }
-
-        if (!innerDict.TryGetValue(key2, out var innerInnerDict))
-        {
-            innerInnerDict = new Dictionary<TKey3, TValue>();
-            innerDict.Add(key2, innerInnerDict);
-        }
-
-        innerInnerDict.Add(key3, value);
-    }
-
     internal static bool Contains<TKey1, TKey2, TValue>(this Dictionary<TKey1, Dictionary<TKey2, TValue>> dict, TKey1 key1, TKey2 key2) => dict.TryGetValue(key1, out var innerDict) && innerDict.ContainsKey(key2);
 
     internal static bool Contains<TKey1, TKey2>(this IReadOnlyDictionary<TKey1, ISet<TKey2>> dict, TKey1 key1, TKey2 key2) => dict.TryGetValue(key1, out var innserSet) && innserSet.Contains(key2);
-
-    internal static bool Contains<TKey1, TKey2, TKey3, TValue>(this Dictionary<TKey1, Dictionary<TKey2, Dictionary<TKey3, TValue>>> dict, TKey1 key1, TKey2 key2, TKey3 key3)
-    {
-        return dict.TryGetValue(key1, out var innerDict) && innerDict.TryGetValue(key2, out var innerInnerDict) && innerInnerDict.ContainsKey(key3);
-    }
 
     internal static TValue? Find<TKey1, TKey2, TValue>(this IReadOnlyDictionary<TKey1, IReadOnlyDictionary<TKey2, TValue>> dict, TKey1 key1, TKey2 key2)
         where TKey1 : notnull
@@ -138,5 +82,3 @@ internal static class Utilities
 
     private static bool IsOfGenericTypeDefinition(Type source, Type target) => source.IsGenericType && source.GetGenericTypeDefinition() == target;
 }
-
-internal record struct MethodMetaData(Type type, string name);

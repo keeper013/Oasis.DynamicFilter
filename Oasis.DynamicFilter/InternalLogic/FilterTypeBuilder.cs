@@ -30,13 +30,11 @@ internal sealed class FilterTypeBuilder<TEntity, TFilter>
     private static readonly MethodInfo ParameterMethod = typeof(Expression).GetMethods(Utilities.PublicStatic).First(m => m.Name == nameof(Expression.Parameter) && m.GetParameters().Length == 2)!;
     private static readonly MethodInfo LambdaMethod = typeof(Expression).GetMethods(Utilities.PublicStatic).First(m => m.Name == "Lambda" && m.GetParameters().Length == 2);
     private static readonly MethodInfo ConstantExpressionMethod = typeof(Expression).GetMethods(Utilities.PublicStatic).First(m => m.Name == "Constant" && m.GetParameters().Length == 1);
-    private readonly StringOperator _defaultStringOperator;
     private readonly ModuleBuilder _moduleBuilder;
 
-    public FilterTypeBuilder(ModuleBuilder moduleBuilder, StringOperator defaultStringOperator)
+    public FilterTypeBuilder(ModuleBuilder moduleBuilder)
     {
         _moduleBuilder = moduleBuilder;
-        _defaultStringOperator = defaultStringOperator;
     }
 
     internal Type? Build(ISet<string>? configuredEntityProperties = null)
@@ -285,17 +283,17 @@ internal sealed class FilterTypeBuilder<TEntity, TFilter>
                 if (entityPropertyType == typeof(string) && filterPropertyType == typeof(string))
                 {
                     var ignoreIf = BuildFilterPropertyIsDefaultFunction(filterProperty);
-                    compareStringList.Add(new CompareStringData<TFilter>(fieldIndex++, entityPropertyExpression, _defaultStringOperator, filterPropertyFunc, null, null, ignoreIf));
+                    compareStringList.Add(new CompareStringData<TFilter>(fieldIndex++, entityPropertyExpression, filterPropertyFunc, ignoreIf));
                     continue;
                 }
 
-                var comparison = TypeUtilities.GetComparisonConversion(entityPropertyType, filterPropertyType, Operator.Equality);
+                var comparison = TypeUtilities.GetComparisonConversion(entityPropertyType, filterPropertyType);
                 if (comparison != null)
                 {
                     var c = comparison.Value;
                     var ignoreIf = filterPropertyType.IsClass || filterPropertyType.IsNullable(out _)
                         ? BuildFilterPropertyIsDefaultFunction(filterProperty) : null;
-                    compareList.Add(new CompareData<TFilter>(fieldIndex++, entityPropertyExpression, entityProperty.PropertyType, c.leftConvertTo, Operator.Equality, filterPropertyFunc, filterPropertyType, c.rightConvertTo, null, null, ignoreIf));
+                    compareList.Add(new CompareData<TFilter>(fieldIndex++, entityPropertyExpression, entityProperty.PropertyType, c.leftConvertTo, filterPropertyFunc, filterPropertyType, c.rightConvertTo, ignoreIf));
                     continue;
                 }
 
@@ -305,7 +303,7 @@ internal sealed class FilterTypeBuilder<TEntity, TFilter>
                     var value = contains.Value;
                     var ignoreIf = filterPropertyType.IsClass || filterPropertyType.IsNullable(out _)
                         ? BuildFilterPropertyIsDefaultFunction(filterProperty) : null;
-                    containList.Add(new ContainData<TFilter>(fieldIndex++, entityPropertyExpression, entityProperty.PropertyType, value.containerItemType, Operator.Contains, filterPropertyFunc, filterPropertyType, value.itemConvertTo, value.isCollection, value.nullValueNotCovered, null, null, ignoreIf));
+                    containList.Add(new ContainData<TFilter>(fieldIndex++, entityPropertyExpression, entityProperty.PropertyType, value.containerItemType, filterPropertyFunc, filterPropertyType, value.itemConvertTo, value.isCollection, value.nullValueNotCovered, ignoreIf));
                     continue;
                 }
 
@@ -313,7 +311,7 @@ internal sealed class FilterTypeBuilder<TEntity, TFilter>
                 if (isIn != null)
                 {
                     var value = isIn.Value;
-                    inList.Add(new InData<TFilter>(fieldIndex++, entityPropertyExpression, entityProperty.PropertyType, value.itemConvertTo, Operator.In, filterPropertyFunc, filterPropertyType, isIn.Value.containerItemType, value.isCollection, value.nullValueNotCovered, null, null, null));
+                    inList.Add(new InData<TFilter>(fieldIndex++, entityPropertyExpression, entityProperty.PropertyType, value.itemConvertTo, filterPropertyFunc, filterPropertyType, isIn.Value.containerItemType, value.isCollection, value.nullValueNotCovered));
                     continue;
                 }
             }
@@ -351,12 +349,9 @@ public record struct CompareData<TFilter>(
     LambdaExpression entityPropertyExpression,
     Type entityPropertyType,
     Type? entityPropertyConvertTo,
-    Operator op,
     Delegate filterFunc,
     Type filterPropertyType,
     Type? filterPropertyConvertTo,
-    Func<TFilter, bool>? includeNull,
-    Func<TFilter, bool>? reverse,
     Func<TFilter, bool>? ignore)
     where TFilter : class;
 
@@ -365,14 +360,11 @@ public record struct ContainData<TFilter>(
     LambdaExpression entityPropertyExpression,
     Type entityPropertyType,
     Type entityPropertyItemType,
-    Operator op,
     Delegate filterFunc,
     Type filterPropertyType,
     Type? filterPropertyConvertTo,
     bool isCollection,
     bool nullValueNotCovered,
-    Func<TFilter, bool>? includeNull,
-    Func<TFilter, bool>? reverse,
     Func<TFilter, bool>? ignore)
     where TFilter : class;
 
@@ -381,23 +373,16 @@ public record struct InData<TFilter>(
     LambdaExpression entityPropertyExpression,
     Type entityPropertyType,
     Type? entityPropertyConvertTo,
-    Operator op,
     Delegate filterFunc,
     Type filterPropertyType,
     Type filterPropertyItemType,
     bool isCollection,
-    bool nullValueNotCovered,
-    Func<TFilter, bool>? includeNull,
-    Func<TFilter, bool>? reverse,
-    Func<TFilter, bool>? ignore)
+    bool nullValueNotCovered)
     where TFilter : class;
 
 public record struct CompareStringData<TFilter>(
     uint id,
     LambdaExpression entityPropertyExpression,
-    StringOperator op,
     Delegate filterFunc,
-    Func<TFilter, bool>? includeNull,
-    Func<TFilter, bool>? reverse,
     Func<TFilter, bool>? ignore)
     where TFilter : class;
