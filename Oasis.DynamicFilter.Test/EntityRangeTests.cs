@@ -1,6 +1,5 @@
 ﻿namespace Oasis.DynamicFilter.Test;
 
-using Newtonsoft.Json.Linq;
 using System.Linq;
 
 public sealed class EntityRangeFilter<T>
