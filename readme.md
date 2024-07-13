@@ -96,8 +96,47 @@ var filter = new AuthorFilter { Age = 40, AuthorName = "John" };
 var exp = expressionMaker.GetExpression<Book, AuthorFilter>(filter);
 ```
 Note that the custom filtering expressions uses or operation to implement the behavior that if filter.AuthorName is empty, any author name will be included, and if filter.Age is empty, any author age when book was published will be included.
-The filtering conditions in the 2 .Filter calls will be combined with "And" operator when filtering. Of course we can use a single .Filter call to implement the same behavior: .Filter(filter => book => (string.IsNullOrEmpty(filter.AuthorName) || book.Author.Name.Contains(filter.AuthorName)) && (!filter.Age.HasValue || book.PublishedYear - book.Author.BirthYear < filter.Age)).
+The filtering conditions in the 2 .Filter calls will be combined with "And" operator when filtering. Of course we can use a single .Filter call to implement the same behavior:
+```C#
+var expressionMaker = new FilterBuilder()
+    .Configure<Book, AuthorFilter>()
+        .Filter(filter => book => (string.IsNullOrEmpty(filter.AuthorName) || book.Author.Name.Contains(filter.AuthorName)) && (!filter.Age.HasValue || book.PublishedYear - book.Author.BirthYear < filter.Age))
+        .Finish()
+.Build();
+```
 This feature allows developers to filter entities with more complicated expressions rather than only with existing property values, which adds a lot of flexibility for developers and makes the library way more powerful.
 Note that to make use of this feature when querying data in database, the expression passed in for entity property must be supported by Linq to SQL.
+## Confliction Between Automatically Generated Filtering and Custom Filtering
+When building a filtering rule between a filter and entity, with .Configure method, **the library** will still try to find scan over both classes, and try to generate filtering code for properties of same names and compatible types. If the same property is used in custom configuration and shouldn't be used for automatic filtering, .ExcludeProperties method should be called to stop **the library** from automatically generating filtering code for that property. Like the case:
+```C#
+public sealed class Book
+{
+    public int Id { get; set; }
+
+    public int PublishedYear { get; set; }
+
+    public string Name { get; set; } = null!;
+
+    public int AuthorId { get; set; }
+
+    public Author Author { get; set; } = null!;
+}
+
+public sealed class BookByNameFilter
+{
+    public string? Name { get; set; } = null!;
+}
+```
+If we want to use the filter to find books whose name contains the value of filter, like book name is "Book 1", and we pass "k 1" to BookByNameFilter.Name and hoping to use it to find "Book 1" because string "Book 1" contains string "k 1", the code below is the correct configuration.
+```C#
+var expressionMaker = new FilterBuilder()
+    .Configure<Book, BookByNameFilter>()
+        .ExcludeProperties(book => book.Name)
+        .Filter(filter => book => string.IsNullOrEmpty(filter.Name) || book.Name.Contains(filter.Name))
+    .Finish()
+.Build();
+```
+Note that without the statement ".ExcludeProperties(book => book.Name)", the library will automatically generate the condition that book name should equal to book filter name, so the final condition becomes "book names equals to book filter name, and book name contains book filter name", which will only work when book filter name equals to book name. It certainly is not what it meant to be.
+".ExcludeProperties" accepts an array of expressions to allow excluding multiple poperties for automatic filtering condition generation in one call.
 ## Feedback
 There there be any questions or suggestions regarding the library, please send an email to keeper013@gmail.com for inquiry. When submitting bugs, it's preferred to submit a C# code file with a unit test to easily reproduce the bug.
