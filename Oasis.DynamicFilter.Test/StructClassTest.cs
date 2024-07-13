@@ -1,4 +1,6 @@
-﻿namespace Oasis.DynamicFilter.Test;
+﻿using Oasis.DynamicFilter.Exceptions;
+
+namespace Oasis.DynamicFilter.Test;
 
 public class StructTestEntity1
 {
@@ -45,23 +47,15 @@ public sealed class StructClassTest
     [Fact]
     public void TestCompareWithoutOperatorShouldFail_Struct()
     {
-        var expressionMaker = new FilterBuilder().Register<StructTestEntity1, StructTestFilter1>().Build();
-        var entity = new StructTestEntity1 { Property = new TestStruct1 { X = 1 } };
-        var filter = new StructTestFilter1 { Property = new TestStruct1 { X = 2 } };
-
         // TestStruct1 doesn't have an equality operator defined, so it's not used for filtering
-        Assert.True(expressionMaker.GetFunc<StructTestEntity1, StructTestFilter1>(filter)(entity));
+        Assert.Throws<TrivialRegisterException>(() => new FilterBuilder().Register<StructTestEntity1, StructTestFilter1>());
     }
 
     [Fact]
     public void TestCompareWithoutOperatorShouldFail_Class()
     {
-        var expressionMaker = new FilterBuilder().Register<ClassTestEntity1, ClassTestFilter1>().Build();
-        var entity = new ClassTestEntity1 { Property = new TestClass1 { X = 1 } };
-        var filter = new ClassTestFilter1 { Property = new TestClass1 { X = 2 } };
-
         // TestStruct1 doesn't have an equality operator defined, so it's not used for filtering
-        Assert.True(expressionMaker.GetFunc<ClassTestEntity1, ClassTestFilter1>(filter)(entity));
+        Assert.Throws<TrivialRegisterException>(() => new FilterBuilder().Register<ClassTestEntity1, ClassTestFilter1>());
     }
 
     [Fact]

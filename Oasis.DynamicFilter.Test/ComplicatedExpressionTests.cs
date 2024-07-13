@@ -35,7 +35,7 @@ public sealed class ComplicatedExpressionTests
     {
         var expressionMaker = new FilterBuilder()
             .Configure<Outer, ComplicatedExpressionFilter>()
-                .FilterByProperty(outer => outer.Middle.Inner.Z, Operator.Equality, f => f.Number)
+                .Filter(f => e => e.Middle.Inner.Z == f.Number)
                 .Finish()
         .Build();
 
@@ -54,7 +54,7 @@ public sealed class ComplicatedExpressionTests
     {
         var expressionMaker = new FilterBuilder()
             .Configure<Outer, ComplicatedExpressionFilter>()
-                .FilterByProperty(outer => outer.Middle.Inner.Z + outer.Middle.Y - outer.X, Operator.GreaterThanOrEqual, f => f.Number)
+                .Filter(f => e => e.Middle.Inner.Z + e.Middle.Y - e.X >= f.Number)
                 .Finish()
         .Build();
 

@@ -68,248 +68,93 @@ public sealed class InTest
     }
 
     [Theory]
-    [InlineData(1, Operator.In, 1, true, false)]
-    [InlineData(1, Operator.In, 1, false, true)]
-    [InlineData(2, Operator.In, 1, true, true)]
-    [InlineData(2, Operator.In, 1, false, false)]
-    [InlineData(1, Operator.NotIn, 1, true, true)]
-    [InlineData(1, Operator.NotIn, 1, false, false)]
-    [InlineData(2, Operator.NotIn, 1, true, false)]
-    [InlineData(2, Operator.NotIn, 1, false, true)]
-    public void TestIntInIntWithoutIncludeNull(int entityValue, Operator type, int filterValue, bool reverse, bool result)
+    [InlineData(1, 1, true)]
+    [InlineData(2, 1, false)]
+    public void TestIntInIntWithoutIncludeNull(int entityValue, int filterValue, bool result)
     {
-        TestInWithoutIncludeNull(entityValue, type, filterValue, reverse, result);
+        var expressionBuilder = new FilterBuilder()
+            .Configure<InEntity<int>, InCollectionFilter<int>>()
+                .ExcludeProperties(e => e.Value)
+                .Filter(f => e => f.Value!.Contains(e.Value))
+                .Finish()
+            .Build();
+        var entity = new InEntity<int>(entityValue);
+        var filter = new InCollectionFilter<int>(new List<int> { filterValue });
+        Assert.Equal(result, expressionBuilder.GetFunc<InEntity<int>, InCollectionFilter<int>>(filter)(entity));
     }
 
     [Theory]
-    [InlineData(1, Operator.In, true, true)]
-    [InlineData(1, Operator.In, false, false)]
-    [InlineData(1, Operator.NotIn, true, false)]
-    [InlineData(1, Operator.NotIn, false, true)]
-    public void TestIntInIntNullWithoutIncludeNull(int entityValue, Operator type, bool reverse, bool result)
+    [InlineData(1, 1, true)]
+    [InlineData(2, 1, false)]
+    [InlineData(1, null, false)]
+
+    public void TestIntInNullableIntWithoutIncludeNull(int entityValue, int? filterValue, bool result)
     {
-        TestInNullWithoutIncludeNull<int, int>(entityValue, type, reverse, result);
+        var expressionBuilder = new FilterBuilder()
+            .Configure<InEntity<int>, InCollectionFilter<int?>>()
+                .ExcludeProperties(e => e.Value)
+                .Filter(f => e => f.Value!.Contains(e.Value))
+                .Finish()
+            .Build();
+        var entity = new InEntity<int>(entityValue);
+        var filter = new InCollectionFilter<int?>(new List<int?> { filterValue });
+        Assert.Equal(result, expressionBuilder.GetFunc<InEntity<int>, InCollectionFilter<int?>>(filter)(entity));
     }
 
     [Theory]
-    [InlineData(1, Operator.In, 1, true, false)]
-    [InlineData(1, Operator.In, 1, false, true)]
-    [InlineData(2, Operator.In, 1, true, true)]
-    [InlineData(2, Operator.In, 1, false, false)]
-    [InlineData(1, Operator.In, null, true, true)]
-    [InlineData(1, Operator.In, null, false, false)]
-    [InlineData(1, Operator.NotIn, 1, true, true)]
-    [InlineData(1, Operator.NotIn, 1, false, false)]
-    [InlineData(2, Operator.NotIn, 1, true, false)]
-    [InlineData(2, Operator.NotIn, 1, false, true)]
-    [InlineData(1, Operator.NotIn, null, true, false)]
-    [InlineData(1, Operator.NotIn, null, false, true)]
-
-    public void TestIntInNullableIntWithoutIncludeNull(int entityValue, Operator type, int? filterValue, bool reverse, bool result)
+    [InlineData(1, 1, true)]
+    [InlineData(null, 1, false)]
+    [InlineData(2, 1, false)]
+    public void TestNullableIntInIntWithoutIncludeNull(int? entityValue, int filterValue, bool result)
     {
-        TestInWithoutIncludeNull(entityValue, type, filterValue, reverse, result);
+        var expressionBuilder = new FilterBuilder()
+            .Configure<InEntity<int?>, InCollectionFilter<int>>()
+                .ExcludeProperties(e => e.Value)
+                .Filter(f => e => e.Value.HasValue && f.Value!.Contains(e.Value.Value))
+                .Finish()
+            .Build();
+        var entity = new InEntity<int?>(entityValue);
+        var filter = new InCollectionFilter<int>(new List<int> { filterValue });
+        Assert.Equal(result, expressionBuilder.GetFunc<InEntity<int?>, InCollectionFilter<int>>(filter)(entity));
     }
 
     [Theory]
-    [InlineData(1, Operator.In, true, true)]
-    [InlineData(1, Operator.In, false, false)]
-    [InlineData(1, Operator.NotIn, true, false)]
-    [InlineData(1, Operator.NotIn, false, true)]
-    public void TestIntInNullableIntNullWithoutIncludeNull(int entityValue, Operator type, bool reverse, bool result)
+    [InlineData(1, 1, false, true)]
+    [InlineData(null, 1, false, false)]
+    [InlineData(2, 1, false, false)]
+    [InlineData(1, 1, true, true)]
+    [InlineData(null, 1, true, true)]
+    [InlineData(2, 1, true, false)]
+    public void TestNullableIntInIntWithIncludeNull(int? entityValue, int filterValue, bool includeNull, bool result)
     {
-        TestInNullWithoutIncludeNull<int, int?>(entityValue, type, reverse, result);
+        var expressionBuilder = new FilterBuilder()
+            .Configure<InEntity<int?>, InArrayFilter<int>>()
+                .ExcludeProperties(e => e.Value)
+                .Filter(f => e => includeNull ? !e.Value.HasValue || f.Value!.Contains(e.Value.Value) : e.Value.HasValue && f.Value!.Contains(e.Value.Value))
+                .Finish()
+            .Build();
+        var entity = new InEntity<int?>(entityValue);
+        var filter = new InArrayFilter<int>(new int[] { filterValue });
+        Assert.Equal(result, expressionBuilder.GetFunc<InEntity<int?>, InArrayFilter<int>>(filter)(entity));
     }
 
     [Theory]
-    [InlineData(1, Operator.In, 1, true, false)]
-    [InlineData(1, Operator.In, 1, false, true)]
-    [InlineData(null, Operator.In, 1, true, true)]
-    [InlineData(null, Operator.In, 1, false, false)]
-    [InlineData(2, Operator.In, 1, true, true)]
-    [InlineData(2, Operator.In, 1, false, false)]
-    [InlineData(1, Operator.NotIn, 1, true, true)]
-    [InlineData(1, Operator.NotIn, 1, false, false)]
-    [InlineData(2, Operator.NotIn, 1, true, false)]
-    [InlineData(2, Operator.NotIn, 1, false, true)]
-    [InlineData(null, Operator.NotIn, 1, true, false)]
-    [InlineData(null, Operator.NotIn, 1, false, true)]
-    public void TestNullableIntInIntWithoutIncludeNull(int? entityValue, Operator type, int filterValue, bool reverse, bool result)
+    [InlineData(1, 1, true)]
+    [InlineData(null, 1, false)]
+    [InlineData(2, 1, false)]
+    [InlineData(1, null, false)]
+    [InlineData(null, null, true)]
+    public void TestNullableIntInNullableIntWithoutIncludeNull(int? entityValue, int? filterValue, bool result)
     {
-        TestInWithoutIncludeNull(entityValue, type, filterValue, reverse, result);
-    }
-
-    [Theory]
-    [InlineData(1, Operator.In, 1, false, true, false)]
-    [InlineData(1, Operator.In, 1, false, false, true)]
-    [InlineData(null, Operator.In, 1, false, true, true)]
-    [InlineData(null, Operator.In, 1, false, false, false)]
-    [InlineData(2, Operator.In, 1, false, true, true)]
-    [InlineData(2, Operator.In, 1, false, false, false)]
-    [InlineData(1, Operator.NotIn, 1, false, true, true)]
-    [InlineData(1, Operator.NotIn, 1, false, false, false)]
-    [InlineData(2, Operator.NotIn, 1, false, true, false)]
-    [InlineData(2, Operator.NotIn, 1, false, false, true)]
-    [InlineData(null, Operator.NotIn, 1, false, true, true)]
-    [InlineData(null, Operator.NotIn, 1, false, false, false)]
-    [InlineData(1, Operator.In, 1, true, true, false)]
-    [InlineData(1, Operator.In, 1, true, false, true)]
-    [InlineData(null, Operator.In, 1, true, true, false)]
-    [InlineData(null, Operator.In, 1, true, false, true)]
-    [InlineData(2, Operator.In, 1, true, true, true)]
-    [InlineData(2, Operator.In, 1, true, false, false)]
-    [InlineData(1, Operator.NotIn, 1, true, true, true)]
-    [InlineData(1, Operator.NotIn, 1, true, false, false)]
-    [InlineData(2, Operator.NotIn, 1, true, true, false)]
-    [InlineData(2, Operator.NotIn, 1, true, false, true)]
-    [InlineData(null, Operator.NotIn, 1, true, true, false)]
-    [InlineData(null, Operator.NotIn, 1, true, false, true)]
-    public void TestNullableIntInIntWithInclueNull(int? entityValue, Operator type, int filterValue, bool includeNull, bool reverse, bool result)
-    {
-        TestInWithIncludeNull(entityValue, type, filterValue, includeNull, reverse, result);
-    }
-
-    [Theory]
-    [InlineData(1, Operator.In, true, true)]
-    [InlineData(1, Operator.In, false, false)]
-    [InlineData(1, Operator.NotIn, true, false)]
-    [InlineData(1, Operator.NotIn, false, true)]
-    [InlineData(null, Operator.In, true, true)]
-    [InlineData(null, Operator.In, false, false)]
-    [InlineData(null, Operator.NotIn, true, false)]
-    [InlineData(null, Operator.NotIn, false, true)]
-    public void TestNullableIntInIntNullWithoutIncludeNull(int? entityValue, Operator type, bool reverse, bool result)
-    {
-        TestInNullWithoutIncludeNull<int?, int>(entityValue, type, reverse, result);
-    }
-
-    [Theory]
-    [InlineData(1, Operator.In, false, true, true)]
-    [InlineData(1, Operator.In, false, false, false)]
-    [InlineData(1, Operator.NotIn, false, true, false)]
-    [InlineData(1, Operator.NotIn, false, false, true)]
-    [InlineData(null, Operator.In, false, true, true)]
-    [InlineData(null, Operator.In, false, false, false)]
-    [InlineData(null, Operator.NotIn, false, true, true)]
-    [InlineData(null, Operator.NotIn, false, false, false)]
-    [InlineData(1, Operator.In, true, true, true)]
-    [InlineData(1, Operator.In, true, false, false)]
-    [InlineData(1, Operator.NotIn, true, true, false)]
-    [InlineData(1, Operator.NotIn, true, false, true)]
-    [InlineData(null, Operator.In, true, true, false)]
-    [InlineData(null, Operator.In, true, false, true)]
-    [InlineData(null, Operator.NotIn, true, true, false)]
-    [InlineData(null, Operator.NotIn, true, false, true)]
-    public void TestNullableIntInIntNullWithIncludeNull(int? entityValue, Operator type, bool includeNull, bool reverse, bool result)
-    {
-        TestInNullWithIncludeNull<int?, int>(entityValue, type, includeNull, reverse, result);
-    }
-
-    [Theory]
-    [InlineData(1, Operator.In, 1, true, false)]
-    [InlineData(1, Operator.In, 1, false, true)]
-    [InlineData(null, Operator.In, 1, true, true)]
-    [InlineData(null, Operator.In, 1, false, false)]
-    [InlineData(2, Operator.In, 1, true, true)]
-    [InlineData(2, Operator.In, 1, false, false)]
-    [InlineData(1, Operator.NotIn, 1, true, true)]
-    [InlineData(1, Operator.NotIn, 1, false, false)]
-    [InlineData(2, Operator.NotIn, 1, true, false)]
-    [InlineData(2, Operator.NotIn, 1, false, true)]
-    [InlineData(null, Operator.NotIn, 1, true, false)]
-    [InlineData(null, Operator.NotIn, 1, false, true)]
-    [InlineData(1, Operator.In, null, true, true)]
-    [InlineData(1, Operator.In, null, false, false)]
-    [InlineData(null, Operator.In, null, true, false)]
-    [InlineData(null, Operator.In, null, false, true)]
-    [InlineData(1, Operator.NotIn, null, true, false)]
-    [InlineData(1, Operator.NotIn, null, false, true)]
-    [InlineData(null, Operator.NotIn, null, true, true)]
-    [InlineData(null, Operator.NotIn, null, false, false)]
-    public void TestNullableIntInNullableIntWithoutIncludeNull(int? entityValue, Operator type, int? filterValue, bool reverse, bool result)
-    {
-        TestInWithoutIncludeNull(entityValue, type, filterValue, reverse, result);
-    }
-
-    [Theory]
-    [InlineData(1, Operator.In, 1, false, true, false)]
-    [InlineData(1, Operator.In, 1, false, false, true)]
-    [InlineData(null, Operator.In, 1, false, true, true)]
-    [InlineData(null, Operator.In, 1, false, false, false)]
-    [InlineData(2, Operator.In, 1, false, true, true)]
-    [InlineData(2, Operator.In, 1, false, false, false)]
-    [InlineData(1, Operator.NotIn, 1, false, true, true)]
-    [InlineData(1, Operator.NotIn, 1, false, false, false)]
-    [InlineData(2, Operator.NotIn, 1, false, true, false)]
-    [InlineData(2, Operator.NotIn, 1, false, false, true)]
-    [InlineData(null, Operator.NotIn, 1, false, true, true)]
-    [InlineData(null, Operator.NotIn, 1, false, false, false)]
-    [InlineData(1, Operator.In, null, false, true, true)]
-    [InlineData(1, Operator.In, null, false, false, false)]
-    [InlineData(null, Operator.In, null, false, true, true)]
-    [InlineData(null, Operator.In, null, false, false, false)]
-    [InlineData(1, Operator.NotIn, null, false, true, false)]
-    [InlineData(1, Operator.NotIn, null, false, false, true)]
-    [InlineData(null, Operator.NotIn, null, false, true, true)]
-    [InlineData(null, Operator.NotIn, null, false, false, false)]
-    [InlineData(1, Operator.In, 1, true, true, false)]
-    [InlineData(1, Operator.In, 1, true, false, true)]
-    [InlineData(null, Operator.In, 1, true, true, false)]
-    [InlineData(null, Operator.In, 1, true, false, true)]
-    [InlineData(2, Operator.In, 1, true, true, true)]
-    [InlineData(2, Operator.In, 1, true, false, false)]
-    [InlineData(1, Operator.NotIn, 1, true, true, true)]
-    [InlineData(1, Operator.NotIn, 1, true, false, false)]
-    [InlineData(2, Operator.NotIn, 1, true, true, false)]
-    [InlineData(2, Operator.NotIn, 1, true, false, true)]
-    [InlineData(null, Operator.NotIn, 1, true, true, false)]
-    [InlineData(null, Operator.NotIn, 1, true, false, true)]
-    [InlineData(1, Operator.In, null, true, true, true)]
-    [InlineData(1, Operator.In, null, true, false, false)]
-    [InlineData(null, Operator.In, null, true, true, false)]
-    [InlineData(null, Operator.In, null, true, false, true)]
-    [InlineData(1, Operator.NotIn, null, true, true, false)]
-    [InlineData(1, Operator.NotIn, null, true, false, true)]
-    [InlineData(null, Operator.NotIn, null, true, true, false)]
-    [InlineData(null, Operator.NotIn, null, true, false, true)]
-    public void TestNullableIntInNullableIntWithIncludeNull(int? entityValue, Operator type, int? filterValue, bool includeNull, bool reverse, bool result)
-    {
-        TestInWithIncludeNull(entityValue, type, filterValue, includeNull, reverse, result);
-    }
-
-    [Theory]
-    [InlineData(1, Operator.In, true, true)]
-    [InlineData(1, Operator.In, false, false)]
-    [InlineData(1, Operator.NotIn, true, false)]
-    [InlineData(1, Operator.NotIn, false, true)]
-    [InlineData(null, Operator.In, true, true)]
-    [InlineData(null, Operator.In, false, false)]
-    [InlineData(null, Operator.NotIn, true, false)]
-    [InlineData(null, Operator.NotIn, false, true)]
-    public void TestNullableIntInNullableIntNullWithoutIncludeNull(int? entityValue, Operator type, bool reverse, bool result)
-    {
-        TestInNullWithoutIncludeNull<int?, int?>(entityValue, type, reverse, result);
-    }
-
-    [Theory]
-    [InlineData(1, Operator.In, false, true, true)]
-    [InlineData(1, Operator.In, false, false, false)]
-    [InlineData(1, Operator.NotIn, false, true, false)]
-    [InlineData(1, Operator.NotIn, false, false, true)]
-    [InlineData(null, Operator.In, false, true, true)]
-    [InlineData(null, Operator.In, false, false, false)]
-    [InlineData(null, Operator.NotIn, false, true, true)]
-    [InlineData(null, Operator.NotIn, false, false, false)]
-    [InlineData(1, Operator.In, true, true, true)]
-    [InlineData(1, Operator.In, true, false, false)]
-    [InlineData(1, Operator.NotIn, true, true, false)]
-    [InlineData(1, Operator.NotIn, true, false, true)]
-    [InlineData(null, Operator.In, true, true, false)]
-    [InlineData(null, Operator.In, true, false, true)]
-    [InlineData(null, Operator.NotIn, true, true, false)]
-    [InlineData(null, Operator.NotIn, true, false, true)]
-    public void TestNullableIntInNullableIntNullWithIncludeNull(int? entityValue, Operator type, bool includeNull, bool reverse, bool result)
-    {
-        TestInNullWithIncludeNull<int?, int?>(entityValue, type, includeNull, reverse, result);
+        var expressionBuilder = new FilterBuilder()
+            .Configure<InEntity<int?>, InCollectionFilter<int?>>()
+                .ExcludeProperties(e => e.Value)
+                .Filter(f => e => f.Value!.Contains(e.Value))
+                .Finish()
+            .Build();
+        var entity = new InEntity<int?>(entityValue);
+        var filter = new InCollectionFilter<int?>(new List<int?> { filterValue });
+        Assert.Equal(result, expressionBuilder.GetFunc<InEntity<int?>, InCollectionFilter<int?>>(filter)(entity));
     }
 
     private static TEntityProperty TestInCollection<TEntityProperty, TFilterPropertyItem>(ICollection<TEntityProperty> entityValues, List<TFilterPropertyItem> filterValue)
@@ -332,53 +177,5 @@ public sealed class InTest
         var result = list.Where(exp.Compile()).ToList();
         Assert.Single(result);
         return result[0].Value;
-    }
-
-    private static void TestInWithIncludeNull<TEntity, TFilter>(TEntity entityValue, Operator type, TFilter filterValue, bool includeNull, bool reverse, bool result)
-    {
-        var expressionBuilder = new FilterBuilder()
-            .Configure<InEntity<TEntity>, InArrayFilter<TFilter>>()
-                .FilterByProperty(e => e.Value, type, f => f.Value, f => includeNull, f => reverse, f => false)
-                .Finish()
-            .Build();
-        var entity = new InEntity<TEntity>(entityValue);
-        var filter = new InArrayFilter<TFilter>(new TFilter[] { filterValue });
-        Assert.Equal(result, expressionBuilder.GetFunc<InEntity<TEntity>, InArrayFilter<TFilter>>(filter)(entity));
-    }
-
-    private static void TestInWithoutIncludeNull<TEntity, TFilter>(TEntity entityValue, Operator type, TFilter filterValue, bool reverse, bool result)
-    {
-        var expressionBuilder = new FilterBuilder()
-            .Configure<InEntity<TEntity>, InCollectionFilter<TFilter>>()
-                .FilterByProperty(e => e.Value, type, f => f.Value, null, f => reverse, f => false)
-                .Finish()
-            .Build();
-        var entity = new InEntity<TEntity>(entityValue);
-        var filter = new InCollectionFilter<TFilter>(new List<TFilter> { filterValue });
-        Assert.Equal(result, expressionBuilder.GetFunc<InEntity<TEntity>, InCollectionFilter<TFilter>>(filter)(entity));
-    }
-
-    private static void TestInNullWithIncludeNull<TEntity, TFilter>(TEntity entityValue, Operator type, bool includeNull, bool reverse, bool result)
-    {
-        var expressionBuilder = new FilterBuilder()
-            .Configure<InEntity<TEntity>, InArrayFilter<TFilter>>()
-                .FilterByProperty(e => e.Value, type, f => f.Value, f => includeNull, f => reverse, f => false)
-                .Finish()
-            .Build();
-        var entity = new InEntity<TEntity>(entityValue);
-        var filter = new InArrayFilter<TFilter>(null);
-        Assert.Equal(result, expressionBuilder.GetFunc<InEntity<TEntity>, InArrayFilter<TFilter>>(filter)(entity));
-    }
-
-    private static void TestInNullWithoutIncludeNull<TEntity, TFilter>(TEntity entityValue, Operator type, bool reverse, bool result)
-    {
-        var expressionBuilder = new FilterBuilder()
-            .Configure<InEntity<TEntity>, InCollectionFilter<TFilter>>()
-                .FilterByProperty(e => e.Value, type, f => f.Value, null, f => reverse, f => false)
-                .Finish()
-            .Build();
-        var entity = new InEntity<TEntity>(entityValue);
-        var filter = new InCollectionFilter<TFilter>(null);
-        Assert.Equal(result, expressionBuilder.GetFunc<InEntity<TEntity>, InCollectionFilter<TFilter>>(filter)(entity));
     }
 }

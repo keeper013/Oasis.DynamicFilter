@@ -57,7 +57,8 @@ public sealed class ComparisonTests
     {
         var filter = new FilterBuilder()
             .Configure<ComparisonEntity<TestStruct2?>, ComparisonFilter<TestStruct2?>>()
-                .FilterByProperty(e => e.Value, Operator.Equality, f => f.Value, null, null, f => false)
+                .ExcludeProperties(e => e.Value)
+                .Filter(f => e => e.Value == f.Value)
                 .Finish()
             .Build();
         var list = new List<TestStruct2?> { null, new TestStruct2 { X = 2 }, new TestStruct2 { X = 3 } }.Select(v => new ComparisonEntity<TestStruct2?>(v));
@@ -91,7 +92,7 @@ public sealed class ComparisonTests
     {
         var filter = new FilterBuilder()
             .Configure<ComparisonEntity<int>, ComparisonFilter1<byte?>>()
-                .FilterByProperty(e => e.Value, Operator.Equality, f => f.Value1)
+                .Filter(f => e => e.Value == f.Value1)
                 .Finish()
             .Build();
         var list = new List<int> { 1, 2, 3, 4, 5 }.Select(v => new ComparisonEntity<int>(v));
@@ -114,26 +115,12 @@ public sealed class ComparisonTests
     }
 
     [Fact]
-    public void TestConfiguredIgnore()
-    {
-        var filter = new FilterBuilder()
-            .Configure<ComparisonEntity<int>, ComparisonFilter<byte?>>()
-                .FilterByProperty(e => e.Value, Operator.Equality, f => f.Value, null, null, f => f.Value == 2)
-                .Finish()
-            .Build();
-        var list = new List<int> { 1, 2, 3, 4, 5 }.Select(v => new ComparisonEntity<int>(v));
-        var comparisonFilter = new ComparisonFilter<byte?>(2);
-        var exp = filter.GetExpression<ComparisonEntity<int>, ComparisonFilter<byte?>>(comparisonFilter);
-        var result = list.Where(exp.Compile()).ToList();
-        Assert.Equal(5, result.Count);
-    }
-
-    [Fact]
     public void TestNullStructNotEqual1()
     {
         var filter = new FilterBuilder()
             .Configure<ComparisonEntity<TestStruct2?>, ComparisonFilter<TestStruct2?>>()
-                .FilterByProperty(e => e.Value, Operator.Equality, f => f.Value, null, null, f => false)
+                .ExcludeProperties(e => e.Value)
+                .Filter(f => e => f.Value == e.Value)
                 .Finish()
             .Build();
         var list = new List<TestStruct2?> { new TestStruct2 { X = 1 }, new TestStruct2 { X = 2 }, new TestStruct2 { X = 3 } }.Select(v => new ComparisonEntity<TestStruct2?>(v));
@@ -159,7 +146,8 @@ public sealed class ComparisonTests
     {
         var filter = new FilterBuilder()
             .Configure<ComparisonEntity<TestStruct2?>, ComparisonFilter<TestStruct2>>()
-                .FilterByProperty(e => e.Value, Operator.Equality, f => f.Value, f => true, null, null)
+                .ExcludeProperties(e => e.Value)
+                .Filter(f => e => !e.Value.HasValue || e.Value.Value == f.Value)
                 .Finish()
             .Build();
         var list = new List<TestStruct2?> { null, new TestStruct2 { X = 2 }, new TestStruct2 { X = 3 } }.Select(v => new ComparisonEntity<TestStruct2?>(v));
@@ -175,7 +163,8 @@ public sealed class ComparisonTests
     {
         var filter = new FilterBuilder()
             .Configure<ComparisonEntity<TestStruct2?>, ComparisonFilter<TestStruct2?>>()
-                .FilterByProperty(e => e.Value, Operator.Equality, f => f.Value, f => false, null, f => false)
+                .ExcludeProperties(e => e.Value)
+                .Filter(f => e => e.Value.HasValue && e.Value == f.Value)
                 .Finish()
             .Build();
         var list = new List<TestStruct2?> { null, new TestStruct2 { X = 2 }, new TestStruct2 { X = 3 } }.Select(v => new ComparisonEntity<TestStruct2?>(v));
@@ -186,27 +175,12 @@ public sealed class ComparisonTests
     }
 
     [Fact]
-    public void TestNotIncludeNullWithoutSpecification()
-    {
-        var filter = new FilterBuilder()
-            .Configure<ComparisonEntity<TestStruct2?>, ComparisonFilter<TestStruct2?>>()
-                .FilterByProperty(e => e.Value, Operator.Equality, f => f.Value, null, null, f => false)
-                .Finish()
-            .Build();
-        var list = new List<TestStruct2?> { null, new TestStruct2 { X = 2 }, new TestStruct2 { X = 3 } }.Select(v => new ComparisonEntity<TestStruct2?>(v));
-        var comparisonFilter = new ComparisonFilter<TestStruct2?>(null);
-        var exp = filter.GetExpression<ComparisonEntity<TestStruct2?>, ComparisonFilter<TestStruct2?>>(comparisonFilter);
-        var result = list.Where(exp.Compile()).ToList();
-        Assert.Single(result);
-        Assert.Null(result[0].Value);
-    }
-
-    [Fact]
     public void TestNullEnumNotEqual1()
     {
         var filter = new FilterBuilder()
             .Configure<ComparisonEntity<TestEnum?>, ComparisonFilter<TestEnum?>>()
-                .FilterByProperty(e => e.Value, Operator.Equality, f => f.Value, null, null, f => false)
+                .ExcludeProperties(e => e.Value)
+                .Filter(f => e => e.Value == f.Value)
                 .Finish()
             .Build();
         var list = new List<TestEnum?> { TestEnum.Value1, TestEnum.Value2, TestEnum.Value3 }.Select(v => new ComparisonEntity<TestEnum?>(v));
@@ -244,198 +218,202 @@ public sealed class ComparisonTests
         Assert.Equal((ushort?)2, TestEqual<decimal?, long?>(new List<decimal?> { 1, 2, 3, 4, 5 }, 2));
     }
 
-    [Theory]
-    [InlineData(Operator.Equality, 1)]
-    [InlineData(Operator.GreaterThan, 3)]
-    [InlineData(Operator.GreaterThanOrEqual, 4)]
-    [InlineData(Operator.InEquality, 4)]
-    [InlineData(Operator.LessThan, 1)]
-    [InlineData(Operator.LessThanOrEqual, 2)]
-    public void TestComparison(Operator type, int number)
+    [Fact]
+    public void TestComparisonEqual()
     {
         var filter = new FilterBuilder()
             .Configure<ComparisonEntity<int>, ComparisonFilter<byte?>>()
-                .FilterByProperty(e => e.Value, type, f => f.Value)
+                .ExcludeProperties(e => e.Value)
+                .Filter(f => e => e.Value == f.Value)
                 .Finish()
             .Build();
         var list = new List<int> { 1, 2, 3, 4, 5 }.Select(v => new ComparisonEntity<int>(v));
         var comparisonFilter = new ComparisonFilter<byte?>(2);
         var exp = filter.GetExpression<ComparisonEntity<int>, ComparisonFilter<byte?>>(comparisonFilter);
         var result = list.Where(exp.Compile()).ToList();
-        Assert.Equal(number, result.Count);
+        Assert.Single(result);
     }
 
-    [Theory]
-    [InlineData(Operator.Equality, 4)]
-    [InlineData(Operator.GreaterThan, 2)]
-    [InlineData(Operator.GreaterThanOrEqual, 1)]
-    [InlineData(Operator.InEquality, 1)]
-    [InlineData(Operator.LessThan, 4)]
-    [InlineData(Operator.LessThanOrEqual, 3)]
-    public void TestReverseComparison(Operator type, int number)
+    [Fact]
+    public void TestComparisonGreaterThan()
     {
         var filter = new FilterBuilder()
             .Configure<ComparisonEntity<int>, ComparisonFilter<byte?>>()
-                .FilterByProperty(e => e.Value, type, f => f.Value, null, f => true, null)
+                .ExcludeProperties(e => e.Value)
+                .Filter(f => e => e.Value > f.Value)
                 .Finish()
             .Build();
         var list = new List<int> { 1, 2, 3, 4, 5 }.Select(v => new ComparisonEntity<int>(v));
         var comparisonFilter = new ComparisonFilter<byte?>(2);
         var exp = filter.GetExpression<ComparisonEntity<int>, ComparisonFilter<byte?>>(comparisonFilter);
         var result = list.Where(exp.Compile()).ToList();
-        Assert.Equal(number, result.Count);
+        Assert.Equal(3, result.Count);
+    }
+
+    [Fact]
+    public void TestComparisonGreaterThanOrEqual()
+    {
+        var filter = new FilterBuilder()
+            .Configure<ComparisonEntity<int>, ComparisonFilter<byte?>>()
+                .ExcludeProperties(e => e.Value)
+                .Filter(f => e => e.Value >= f.Value)
+                .Finish()
+            .Build();
+        var list = new List<int> { 1, 2, 3, 4, 5 }.Select(v => new ComparisonEntity<int>(v));
+        var comparisonFilter = new ComparisonFilter<byte?>(2);
+        var exp = filter.GetExpression<ComparisonEntity<int>, ComparisonFilter<byte?>>(comparisonFilter);
+        var result = list.Where(exp.Compile()).ToList();
+        Assert.Equal(4, result.Count);
+    }
+
+    [Fact]
+    public void TestComparisonInEquality()
+    {
+        var filter = new FilterBuilder()
+            .Configure<ComparisonEntity<int>, ComparisonFilter<byte?>>()
+                .ExcludeProperties(e => e.Value)
+                .Filter(f => e => e.Value != f.Value)
+                .Finish()
+            .Build();
+        var list = new List<int> { 1, 2, 3, 4, 5 }.Select(v => new ComparisonEntity<int>(v));
+        var comparisonFilter = new ComparisonFilter<byte?>(2);
+        var exp = filter.GetExpression<ComparisonEntity<int>, ComparisonFilter<byte?>>(comparisonFilter);
+        var result = list.Where(exp.Compile()).ToList();
+        Assert.Equal(4, result.Count);
+    }
+
+    [Fact]
+    public void TestComparisonLessThan()
+    {
+        var filter = new FilterBuilder()
+            .Configure<ComparisonEntity<int>, ComparisonFilter<byte?>>()
+                .ExcludeProperties(e => e.Value)
+                .Filter(f => e => e.Value < f.Value)
+                .Finish()
+            .Build();
+        var list = new List<int> { 1, 2, 3, 4, 5 }.Select(v => new ComparisonEntity<int>(v));
+        var comparisonFilter = new ComparisonFilter<byte?>(2);
+        var exp = filter.GetExpression<ComparisonEntity<int>, ComparisonFilter<byte?>>(comparisonFilter);
+        var result = list.Where(exp.Compile()).ToList();
+        Assert.Single(result);
+    }
+
+    [Fact]
+    public void TestComparisonLessThanOrEqual()
+    {
+        var filter = new FilterBuilder()
+            .Configure<ComparisonEntity<int>, ComparisonFilter<byte?>>()
+                .ExcludeProperties(e => e.Value)
+                .Filter(f => e => e.Value <= f.Value)
+                .Finish()
+            .Build();
+        var list = new List<int> { 1, 2, 3, 4, 5 }.Select(v => new ComparisonEntity<int>(v));
+        var comparisonFilter = new ComparisonFilter<byte?>(2);
+        var exp = filter.GetExpression<ComparisonEntity<int>, ComparisonFilter<byte?>>(comparisonFilter);
+        var result = list.Where(exp.Compile()).ToList();
+        Assert.Equal(2, result.Count);
     }
 
     [Theory]
-    [InlineData(1, Operator.Equality, 1, true, false)]
-    [InlineData(1, Operator.Equality, 1, false, true)]
-    [InlineData(2, Operator.Equality, 1, true, true)]
-    [InlineData(2, Operator.Equality, 1, false, false)]
-    [InlineData(1, Operator.InEquality, 1, true, true)]
-    [InlineData(1, Operator.InEquality, 1, false, false)]
-    [InlineData(2, Operator.InEquality, 1, true, false)]
-    [InlineData(2, Operator.InEquality, 1, false, true)]
-    public void TestIntCompareToIntWithoutIncludeNull(int entityValue, Operator type, int filterValue, bool reverse, bool result)
+    [InlineData(1, 1, true)]
+    [InlineData(2, 1, false)]
+    [InlineData(1, null, false)]
+    public void TestIntCompareToNullableIntWithoutIncludeNull(int entityValue, int? filterValue, bool result)
     {
-        TestCompareToWithoutIncludeNull(entityValue, type, filterValue, reverse, result);
+        var filter = new FilterBuilder()
+            .Configure<ComparisonEntity<int>, ComparisonFilter<int?>>()
+                .ExcludeProperties(e => e.Value)
+                .Filter(f => e => f.Value == e.Value)
+                .Finish()
+            .Build();
+        var entity = new ComparisonEntity<int>(entityValue);
+        var comparisonFilter = new ComparisonFilter<int?>(filterValue);
+        var exp = filter.GetExpression<ComparisonEntity<int>, ComparisonFilter<int?>>(comparisonFilter);
+        Assert.Equal(result, exp.Compile()(entity));
     }
 
     [Theory]
-    [InlineData(1, Operator.Equality, 1, true, false)]
-    [InlineData(1, Operator.Equality, 1, false, true)]
-    [InlineData(2, Operator.Equality, 1, true, true)]
-    [InlineData(2, Operator.Equality, 1, false, false)]
-    [InlineData(1, Operator.Equality, null, true, true)]
-    [InlineData(1, Operator.Equality, null, false, false)]
-    [InlineData(1, Operator.InEquality, 1, true, true)]
-    [InlineData(1, Operator.InEquality, 1, false, false)]
-    [InlineData(2, Operator.InEquality, 1, true, false)]
-    [InlineData(2, Operator.InEquality, 1, false, true)]
-    [InlineData(1, Operator.InEquality, null, true, false)]
-    [InlineData(1, Operator.InEquality, null, false, true)]
-    public void TestIntCompareToNullableIntWithoutIncludeNull(int entityValue, Operator type, int? filterValue, bool reverse, bool result)
+    [InlineData(1, 1, true, true)]
+    [InlineData(1, 1, false, true)]
+    [InlineData(null, 1, true, true)]
+    [InlineData(null, 1, false, false)]
+    [InlineData(2, 1, true, false)]
+    [InlineData(2, 1, false, false)]
+    public void TestNullableIntCompareToIntWithIncludeNull(int? entityValue, int filterValue, bool includeNull, bool result)
     {
-        TestCompareToWithoutIncludeNull(entityValue, type, filterValue, reverse, result);
+        var filter = new FilterBuilder()
+            .Configure<ComparisonEntity<int?>, ComparisonFilter<int>>()
+                .ExcludeProperties(e => e.Value)
+                .Filter(f => e => includeNull ? !e.Value.HasValue || e.Value.Value == f.Value : e.Value.HasValue && e.Value == f.Value)
+                .Finish()
+            .Build();
+        var entity = new ComparisonEntity<int?>(entityValue);
+        var comparisonFilter = new ComparisonFilter<int>(filterValue);
+        var exp = filter.GetExpression<ComparisonEntity<int?>, ComparisonFilter<int>>(comparisonFilter);
+        Assert.Equal(result, exp.Compile()(entity));
     }
 
     [Theory]
-    [InlineData(1, Operator.Equality, 1, true, true, false)]
-    [InlineData(1, Operator.Equality, 1, true, false, true)]
-    [InlineData(1, Operator.Equality, 1, false, true, false)]
-    [InlineData(1, Operator.Equality, 1, false, false, true)]
-    [InlineData(null, Operator.Equality, 1, true, true, false)]
-    [InlineData(null, Operator.Equality, 1, true, false, true)]
-    [InlineData(null, Operator.Equality, 1, false, true, true)]
-    [InlineData(null, Operator.Equality, 1, false, false, false)]
-    [InlineData(2, Operator.Equality, 1, true, true, true)]
-    [InlineData(2, Operator.Equality, 1, true, false, false)]
-    [InlineData(2, Operator.Equality, 1, false, true, true)]
-    [InlineData(2, Operator.Equality, 1, false, false, false)]
-    [InlineData(1, Operator.InEquality, 1, true, true, true)]
-    [InlineData(1, Operator.InEquality, 1, true, false, false)]
-    [InlineData(1, Operator.InEquality, 1, false, true, true)]
-    [InlineData(1, Operator.InEquality, 1, false, false, false)]
-    [InlineData(null, Operator.InEquality, 1, true, true, false)]
-    [InlineData(null, Operator.InEquality, 1, true, false, true)]
-    [InlineData(null, Operator.InEquality, 1, false, true, true)]
-    [InlineData(null, Operator.InEquality, 1, false, false, false)]
-    [InlineData(2, Operator.InEquality, 1, true, true, false)]
-    [InlineData(2, Operator.InEquality, 1, true, false, true)]
-    [InlineData(2, Operator.InEquality, 1, false, true, false)]
-    [InlineData(2, Operator.InEquality, 1, false, false, true)]
-    public void TestNullableIntCompareToIntWithIncludeNull(int? entityValue, Operator type, int filterValue, bool includeNull, bool reverse, bool result)
+    [InlineData(1, 1, true)]
+    [InlineData(null, 1, false)]
+    [InlineData(2, 1, false)]
+    public void TestNullableIntCompareToIntWithoutIncludeNull(int? entityValue, int filterValue, bool result)
     {
-        TestCompareToWithIncludeNull(entityValue, type, filterValue, includeNull, reverse, result);
+        var filter = new FilterBuilder()
+            .Configure<ComparisonEntity<int?>, ComparisonFilter<int>>()
+                .ExcludeProperties(e => e.Value)
+                .Filter(f => e => e.Value == f.Value)
+                .Finish()
+            .Build();
+        var entity = new ComparisonEntity<int?>(entityValue);
+        var comparisonFilter = new ComparisonFilter<int>(filterValue);
+        var exp = filter.GetExpression<ComparisonEntity<int?>, ComparisonFilter<int>>(comparisonFilter);
+        Assert.Equal(result, exp.Compile()(entity));
     }
 
     [Theory]
-    [InlineData(1, Operator.Equality, 1, true, false)]
-    [InlineData(1, Operator.Equality, 1, false, true)]
-    [InlineData(null, Operator.Equality, 1, true, true)]
-    [InlineData(null, Operator.Equality, 1, false, false)]
-    [InlineData(2, Operator.Equality, 1, true, true)]
-    [InlineData(2, Operator.Equality, 1, false, false)]
-    [InlineData(1, Operator.InEquality, 1, true, true)]
-    [InlineData(1, Operator.InEquality, 1, false, false)]
-    [InlineData(null, Operator.InEquality, 1, true, false)]
-    [InlineData(null, Operator.InEquality, 1, false, true)]
-    [InlineData(2, Operator.InEquality, 1, true, false)]
-    [InlineData(2, Operator.InEquality, 1, false, true)]
-    public void TestNullableIntCompareToIntWithoutIncludeNull(int? entityValue, Operator type, int filterValue, bool reverse, bool result)
+    [InlineData(1, 1, true, true)]
+    [InlineData(1, 1, false, true)]
+    [InlineData(null, 1, true, true)]
+    [InlineData(null, 1, false, false)]
+    [InlineData(2, 1, true, false)]
+    [InlineData(2, 1, false, false)]
+    [InlineData(1, null, true, false)]
+    [InlineData(1, null, false, false)]
+    [InlineData(null, null, true, true)]
+    [InlineData(null, null, false, false)]
+    public void TestNullableIntCompareToNullableIntWithIncludeNull(int? entityValue, int? filterValue, bool includeNull, bool result)
     {
-        TestCompareToWithoutIncludeNull(entityValue, type, filterValue, reverse, result);
+        var filter = new FilterBuilder()
+            .Configure<ComparisonEntity<int?>, ComparisonFilter<int?>>()
+                .ExcludeProperties(e => e.Value)
+                .Filter(f => e => includeNull ? !e.Value.HasValue || e.Value == f.Value : e.Value.HasValue && e.Value == f.Value)
+                .Finish()
+            .Build();
+        var entity = new ComparisonEntity<int?>(entityValue);
+        var comparisonFilter = new ComparisonFilter<int?>(filterValue);
+        var exp = filter.GetExpression<ComparisonEntity<int?>, ComparisonFilter<int?>>(comparisonFilter);
+        Assert.Equal(result, exp.Compile()(entity));
     }
 
     [Theory]
-    [InlineData(1, Operator.Equality, 1, true, true, false)]
-    [InlineData(1, Operator.Equality, 1, true, false, true)]
-    [InlineData(1, Operator.Equality, 1, false, true, false)]
-    [InlineData(1, Operator.Equality, 1, false, false, true)]
-    [InlineData(null, Operator.Equality, 1, true, true, false)]
-    [InlineData(null, Operator.Equality, 1, true, false, true)]
-    [InlineData(null, Operator.Equality, 1, false, true, true)]
-    [InlineData(null, Operator.Equality, 1, false, false, false)]
-    [InlineData(2, Operator.Equality, 1, true, true, true)]
-    [InlineData(2, Operator.Equality, 1, true, false, false)]
-    [InlineData(2, Operator.Equality, 1, false, true, true)]
-    [InlineData(2, Operator.Equality, 1, false, false, false)]
-    [InlineData(1, Operator.Equality, null, true, true, true)]
-    [InlineData(1, Operator.Equality, null, true, false, false)]
-    [InlineData(1, Operator.Equality, null, false, true, true)]
-    [InlineData(1, Operator.Equality, null, false, false, false)]
-    [InlineData(null, Operator.Equality, null, true, true, false)]
-    [InlineData(null, Operator.Equality, null, true, false, true)]
-    [InlineData(null, Operator.Equality, null, false, true, true)]
-    [InlineData(null, Operator.Equality, null, false, false, false)]
-    [InlineData(1, Operator.InEquality, 1, true, true, true)]
-    [InlineData(1, Operator.InEquality, 1, true, false, false)]
-    [InlineData(1, Operator.InEquality, 1, false, true, true)]
-    [InlineData(1, Operator.InEquality, 1, false, false, false)]
-    [InlineData(null, Operator.InEquality, 1, true, true, false)]
-    [InlineData(null, Operator.InEquality, 1, true, false, true)]
-    [InlineData(null, Operator.InEquality, 1, false, true, true)]
-    [InlineData(null, Operator.InEquality, 1, false, false, false)]
-    [InlineData(2, Operator.InEquality, 1, true, true, false)]
-    [InlineData(2, Operator.InEquality, 1, true, false, true)]
-    [InlineData(2, Operator.InEquality, 1, false, true, false)]
-    [InlineData(2, Operator.InEquality, 1, false, false, true)]
-    [InlineData(1, Operator.InEquality, null, true, true, false)]
-    [InlineData(1, Operator.InEquality, null, true, false, true)]
-    [InlineData(1, Operator.InEquality, null, false, true, false)]
-    [InlineData(1, Operator.InEquality, null, false, false, true)]
-    [InlineData(null, Operator.InEquality, null, true, true, false)]
-    [InlineData(null, Operator.InEquality, null, true, false, true)]
-    [InlineData(null, Operator.InEquality, null, false, true, true)]
-    [InlineData(null, Operator.InEquality, null, false, false, false)]
-    public void TestNullableIntCompareToNullableIntWithIncludeNull(int? entityValue, Operator type, int? filterValue, bool includeNull, bool reverse, bool result)
+    [InlineData(1, 1, true)]
+    [InlineData(null, 1, false)]
+    [InlineData(2, 1, false)]
+    [InlineData(1, null, false)]
+    [InlineData(null, null, true)]
+    public void TestNullableIntCompareToNullableIntWithoutIncludeNull(int? entityValue, int? filterValue, bool result)
     {
-        TestCompareToWithIncludeNull(entityValue, type, filterValue, includeNull, reverse, result);
-    }
-
-    [Theory]
-    [InlineData(1, Operator.Equality, 1, true, false)]
-    [InlineData(1, Operator.Equality, 1, false, true)]
-    [InlineData(null, Operator.Equality, 1, true, true)]
-    [InlineData(null, Operator.Equality, 1, false, false)]
-    [InlineData(2, Operator.Equality, 1, true, true)]
-    [InlineData(2, Operator.Equality, 1, false, false)]
-    [InlineData(1, Operator.Equality, null, true, true)]
-    [InlineData(1, Operator.Equality, null, false, false)]
-    [InlineData(null, Operator.Equality, null, true, false)]
-    [InlineData(null, Operator.Equality, null, false, true)]
-    [InlineData(1, Operator.InEquality, 1, true, true)]
-    [InlineData(1, Operator.InEquality, 1, false, false)]
-    [InlineData(null, Operator.InEquality, 1, true, false)]
-    [InlineData(null, Operator.InEquality, 1, false, true)]
-    [InlineData(2, Operator.InEquality, 1, true, false)]
-    [InlineData(2, Operator.InEquality, 1, false, true)]
-    [InlineData(1, Operator.InEquality, null, true, false)]
-    [InlineData(1, Operator.InEquality, null, false, true)]
-    [InlineData(null, Operator.InEquality, null, true, true)]
-    [InlineData(null, Operator.InEquality, null, false, false)]
-    public void TestNullableIntCompareToNullableIntWithoutIncludeNull(int? entityValue, Operator type, int? filterValue, bool reverse, bool result)
-    {
-        TestCompareToWithoutIncludeNull(entityValue, type, filterValue, reverse, result);
+        var filter = new FilterBuilder()
+            .Configure<ComparisonEntity<int?>, ComparisonFilter<int?>>()
+                .ExcludeProperties(e => e.Value)
+                .Filter(f => e => e.Value == f.Value)
+                .Finish()
+            .Build();
+        var entity = new ComparisonEntity<int?>(entityValue);
+        var comparisonFilter = new ComparisonFilter<int?>(filterValue);
+        var exp = filter.GetExpression<ComparisonEntity<int?>, ComparisonFilter<int?>>(comparisonFilter);
+        Assert.Equal(result, exp.Compile()(entity));
     }
 
     private static TEntityProperty TestEqual<TEntityProperty, TFilterProperty>(List<TEntityProperty> entityValues, TFilterProperty filterValue)
@@ -447,31 +425,5 @@ public sealed class ComparisonTests
         var result = list.Where(exp.Compile()).ToList();
         Assert.Single(result);
         return result[0].Value;
-    }
-
-    private static void TestCompareToWithIncludeNull<TEntity, TFilter>(TEntity entityValue, Operator type, TFilter filterValue, bool includeNull, bool reverse, bool result)
-    {
-        var filter = new FilterBuilder()
-            .Configure<ComparisonEntity<TEntity>, ComparisonFilter<TFilter>>()
-                .FilterByProperty(e => e.Value, type, f => f.Value, f => includeNull, f => reverse, f => false)
-                .Finish()
-            .Build();
-        var entity = new ComparisonEntity<TEntity>(entityValue);
-        var comparisonFilter = new ComparisonFilter<TFilter>(filterValue);
-        var exp = filter.GetExpression<ComparisonEntity<TEntity>, ComparisonFilter<TFilter>>(comparisonFilter);
-        Assert.Equal(result, exp.Compile()(entity));
-    }
-
-    private static void TestCompareToWithoutIncludeNull<TEntity, TFilter>(TEntity entityValue, Operator type, TFilter filterValue, bool reverse, bool result)
-    {
-        var filter = new FilterBuilder()
-            .Configure<ComparisonEntity<TEntity>, ComparisonFilter<TFilter>>()
-                .FilterByProperty(e => e.Value, type, f => f.Value, null, f => reverse, f => false)
-                .Finish()
-            .Build();
-        var entity = new ComparisonEntity<TEntity>(entityValue);
-        var comparisonFilter = new ComparisonFilter<TFilter>(filterValue);
-        var exp = filter.GetExpression<ComparisonEntity<TEntity>, ComparisonFilter<TFilter>>(comparisonFilter);
-        Assert.Equal(result, exp.Compile()(entity));
     }
 }
