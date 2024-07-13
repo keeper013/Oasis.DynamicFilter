@@ -36,8 +36,8 @@ public class UnitTest1 : TestBase
     {
         var expressionMaker = new FilterBuilder()
             .Configure<Book, AuthorFilter>()
-                .FilterByStringProperty(b => b.Author.Name, StringOperator.Contains, f => f.AuthorName)
-                .FilterByProperty(b => b.PublishedYear - b.Author.BirthYear, Operator.LessThan, f => f.Age)
+                .Filter(filter => book => string.IsNullOrEmpty(filter.AuthorName) || book.Author.Name.Contains(filter.AuthorName))
+                .Filter(filter => book => !filter.Age.HasValue || book.PublishedYear - book.Author.BirthYear < filter.Age)
                 .Finish()
         .Build();
 
@@ -61,8 +61,8 @@ public class UnitTest1 : TestBase
     {
         var expressionMaker = new FilterBuilder()
             .Configure<Book, AuthorFilter>()
-                .FilterByStringProperty(b => b.Author.Name, StringOperator.Contains, f => f.AuthorName)
-                .FilterByProperty(b => b.PublishedYear - b.Author.BirthYear, Operator.LessThan, f => f.Age)
+                .Filter(filter => book => string.IsNullOrEmpty(filter.AuthorName) || book.Author.Name.Contains(filter.AuthorName))
+                .Filter(filter => book => !filter.Age.HasValue || book.PublishedYear - book.Author.BirthYear < filter.Age)
                 .Finish()
         .Build();
 
@@ -86,8 +86,8 @@ public class UnitTest1 : TestBase
     {
         var expressionMaker = new FilterBuilder()
             .Configure<Book, AuthorFilter>()
-                .FilterByStringProperty(b => b.Author.Name, StringOperator.Contains, f => f.AuthorName)
-                .FilterByProperty(b => b.PublishedYear - b.Author.BirthYear, Operator.LessThan, f => f.Age)
+                .Filter(filter => book => string.IsNullOrEmpty(filter.AuthorName) || book.Author.Name.Contains(filter.AuthorName))
+                .Filter(filter => book => !filter.Age.HasValue || book.PublishedYear - book.Author.BirthYear < filter.Age)
                 .Finish()
         .Build();
 
@@ -112,7 +112,7 @@ public class UnitTest1 : TestBase
     {
         var expressionMaker = new FilterBuilder()
             .Configure<Book, BookByYearRangeFilter>()
-                .FilterByRangedFilter(f => f.FromYear, RangeOperator.LessThanOrEqual, e => e.PublishedYear, RangeOperator.LessThanOrEqual, f => f.ToYear)
+                .Filter(filter => book => filter.FromYear <= book.PublishedYear && book.PublishedYear <= filter.ToYear)
                 .Finish()
         .Build();
 
@@ -130,18 +130,19 @@ public class UnitTest1 : TestBase
         });
     }
 
-    [Theory]
-    [InlineData(StringOperator.Contains, "5", "Test Book 5")]
-    [InlineData(StringOperator.StartsWith, "Book T", "Book Test 1")]
-    [InlineData(StringOperator.EndsWith, "2", "Book 2")]
-    [InlineData(StringOperator.In, "Book 1 or Book 2", "Book 2")]
-    public async Task FilterBookByPartialName(StringOperator op, string partialName, string name)
+    [Fact]
+    public async Task FilterBookByPartialNameContains()
     {
-        var expressionMaker = new FilterBuilder(op).Register<Book, BookByNameFilter>().Build();
+        var expressionMaker = new FilterBuilder()
+            .Configure<Book, BookByNameFilter>()
+                .ExcludeProperties(book => book.Name)
+                .Filter(filter => book => string.IsNullOrEmpty(filter.Name) || book.Name.Contains(filter.Name))
+            .Finish()
+        .Build();
 
         await InitializeData();
 
-        var filter = new BookByNameFilter { Name = partialName };
+        var filter = new BookByNameFilter { Name = "5" };
         var exp = expressionMaker.GetExpression<Book, BookByNameFilter>(filter);
 
         await ExecuteWithNewDatabaseContext(async databaseContext =>
@@ -150,7 +151,82 @@ public class UnitTest1 : TestBase
             //var str = query.ToQueryString();
             var result = await query.ToListAsync();
             Assert.Single(result);
-            Assert.Equal(name, result[0].Name);
+            Assert.Equal("Test Book 5", result[0].Name);
+        });
+    }
+
+    [Fact]
+    public async Task FilterBookByPartialNameStartsWith()
+    {
+        var expressionMaker = new FilterBuilder()
+            .Configure<Book, BookByNameFilter>()
+                .ExcludeProperties(book => book.Name)
+                .Filter(filter => book => string.IsNullOrEmpty(filter.Name) || book.Name.StartsWith(filter.Name))
+            .Finish()
+        .Build();
+
+        await InitializeData();
+
+        var filter = new BookByNameFilter { Name = "Book T" };
+        var exp = expressionMaker.GetExpression<Book, BookByNameFilter>(filter);
+
+        await ExecuteWithNewDatabaseContext(async databaseContext =>
+        {
+            var query = databaseContext.Set<Book>().Where(exp);
+            //var str = query.ToQueryString();
+            var result = await query.ToListAsync();
+            Assert.Single(result);
+            Assert.Equal("Book Test 1", result[0].Name);
+        });
+    }
+
+    [Fact]
+    public async Task FilterBookByPartialNameEndsWith()
+    {
+        var expressionMaker = new FilterBuilder()
+            .Configure<Book, BookByNameFilter>()
+                .ExcludeProperties(book => book.Name)
+                .Filter(filter => book => string.IsNullOrEmpty(filter.Name) || book.Name.EndsWith(filter.Name))
+            .Finish()
+        .Build();
+
+        await InitializeData();
+
+        var filter = new BookByNameFilter { Name = "2" };
+        var exp = expressionMaker.GetExpression<Book, BookByNameFilter>(filter);
+
+        await ExecuteWithNewDatabaseContext(async databaseContext =>
+        {
+            var query = databaseContext.Set<Book>().Where(exp);
+            //var str = query.ToQueryString();
+            var result = await query.ToListAsync();
+            Assert.Single(result);
+            Assert.Equal("Book 2", result[0].Name);
+        });
+    }
+
+    [Fact]
+    public async Task FilterBookByPartialNameIn()
+    {
+        var expressionMaker = new FilterBuilder()
+            .Configure<Book, BookByNameFilter>()
+                .ExcludeProperties(book => book.Name)
+                .Filter(filter => book => string.IsNullOrEmpty(filter.Name) || filter.Name.Contains(book.Name))
+            .Finish()
+        .Build();
+
+        await InitializeData();
+
+        var filter = new BookByNameFilter { Name = "Book 1 or Book 2" };
+        var exp = expressionMaker.GetExpression<Book, BookByNameFilter>(filter);
+
+        await ExecuteWithNewDatabaseContext(async databaseContext =>
+        {
+            var query = databaseContext.Set<Book>().Where(exp);
+            //var str = query.ToQueryString();
+            var result = await query.ToListAsync();
+            Assert.Single(result);
+            Assert.Equal("Book 2", result[0].Name);
         });
     }
 
