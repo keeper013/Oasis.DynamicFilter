@@ -39,11 +39,11 @@ var expressionMaker = new FilterBuilder().Register<Book, SearchForBookDto>().Bui
 await databaseContext.Set<Book>().Where(expressionMaker.GetExpression<Book, SearchForBookDto>(searchForBookDto)).ToListAsync();
 ```
 ## Basic Feature
-The library uses ILGenerator class provided by C# to dynamically generate the "If not null then apply the search" logic code in IL to save developers the effort. *FilterBuilder.Register<TEntity, TFilter>* method automatically tries to scan over all public instance properties of the TEntity and TFilter classes, find the property pairs with the same names, detect types of both entity and filter properties, and decide which operator it should use for the filtering. The default filtering operators applied between properties types of certain types are listed below.
+The library uses ILGenerator class provided by C# to dynamically generate the "If not null then apply the search" logic code in IL to save developers the effort. *FilterBuilder.Register<TEntity, TFilter>* method automatically tries to scan over all public instance properties of the TEntity and TFilter classes, find the property pairs with the same names, detect types of both entity and filter properties, and apply default operation it should use for the filtering. The default filtering operation applied between properties types of certain types are listed below.
 Entity Property Type | Filter Property Type | Default Operation
 --- | --- | ---
 C# primitive numeric | C# primitive numeric | Equal
-string | string | Equal/Contains
+string | string | Equal
 Decimal | Decimal | Equal
 DateTime | DateTime | Equal
 other value types (custom enum or struct if equal operator is defined) | same value type | Equal
@@ -57,108 +57,8 @@ When both etity and property types are string, the default operator is by defaul
 Note that for C# primitive numeric values comparison, the types don't need to be exactly the same, like comparison between an *int* and a *long* is allowed, also that between a *sbyte* and *ushort*. As long as C# allows the comparison, the library supportes it. But for custom defined enums structs and classes, comparison is only allowed to happen between instances of the same type, for structs and classes, the corresponding compairson operator must exist as well.
 In the above table, "In" logic represents simply the reverse of contains, that if the string or numeric value is in the collection or array. Developers can call register for multiple times to register filtering relationship between multiple class pairs, when finished call *FilterBuilder.Build* method to finish it get the *IFilter* instance that generates expressions.
 To get a function to filter IEnumerable instances, developers can call *IFilter.GetFunction<TEntity, TFilter>* instead of calling *IFilter.GetExpression<TEntity, TFilter>*, or they can simple call *Compile* method from the expression to get the function, they are essentially the same.
-## Extension Features
-To fit the library with more proper use cases, the library allows users to filter with common comparison filterings and *not* operation.
-### Filtery by Property
-*FilterBuilder* clas provides a *Configure<TFilter, TEntity>* method for customizing the filtering like below:
-```C#
-// the below code is equivalent to var expressionMaker = new FilterBuilder().Register<Book, SearchForBookDto>().Build();
-var expressionMaker = new FilterBuilder()
-    .Configure<Book, SearchForBookDto>()
-        .FilterByProperty(book => book.Name, Operator.Equality, dto => dto.Name, null, null, null)
-        .FilterByProperty(book => book.PublishedYear, Operator.Equality, dto => dto.PublishedYear, null, null, null)
-    .Finish()
-.Build()
-```
-Definition of *FilterByProperty* method is like the following:
-```C#
-public IFilterConfigurationBuilder<TEntity, TFilter> FilterByProperty<TEntityProperty, TFilterProperty>(
-    Expression<Func<TEntity, TEntityProperty>> entityPropertyExpression,
-    Operator type,
-    Expression<Func<TFilter, TFilterProperty>> filterPropertyExpression,
-    Func<TFilter, bool>? includeNull = null,
-    Func<TFilter, bool>? reverseIf = null,
-    Func<TFilter, bool>? ignoreIf = null)
-```
-The first 3 parameters of *FilterByProperty* methods forms a "entity property is equal/greater than/less than or equal filter property" pattern. Note that *Register* method by default only match properties with the same names, but *Configure* method allows developers to pair properties with different names. With *Configure* method called, the library will still try to match the rest properties with same names and generate relevant comparing logic, if they are not included by the *Configure* method.
-*FilterBy* enum representing the filtering type supports the following comparisons:
-Name | Meaning
---- | ---
-Equality | =
-InEquality | !=
-GreaterThan | >
-GreaterThanOrEqual | >=
-LessThan | <
-LessThenOrEqual | <=
-Contains | contains
-NotContains | not contains
-In | contained in
-NotIn | not contained in
-
-So if developers wants *SearchForBookDto.PublishedYear property to filter for books that aren't pubilshed in that year, they can simply replace the *FilterBy.Equality* with *FilterBy.InEquality* instead.
-The last 3 input parameters are 3 functions to further dynamically customize the filtering, they all take *TFilter* type as input parameter, so developers may add some addicitonal properties or methods in the type to help customizing the filtering. They have default values to be null.
-
-*includeNull* function decides if property entity is null, whether it is cosnidered "Positive" in the filtering. In this example, if we do the following for *Name* property (note that "null" becomes "f => true"):
-```C#
-.FilterByProperty(b => b.Name, FilterBy.Equality, dto => dto.Name, f => true, dto => false, null)
-```
-Then the filter will include any *Book* instance with null as its name. If this method returns true, it means if entity property is null, then it will be included in the filtering result; false meaning if entity property is null, it will not be included in the filtering result. And if the method is null, it means if the entity property is null, it will only be included in the filtering result if the null value satisfies the filtering type (equal, not equal, in not in, contains, not contains). Note that *includeNull* method is only meant for the TEntity property, not the TFilter property.
-
-*reverseIf* method decides whether to reverse the filtering result. If it returns true, the result of the whole filtering will be reverted, it takes a *TFilter* type as input parameter to allow developers dynamically decides whether to revert the filtering result with certain TFilter properties or methods. Note that result of *includeNull* method will be reverted by this method, too, if this method returns true (e.g. if entity property is null, and includeNull returns true, then by default the entity will be include in the filtering result, but if refertIf returns true, then entity will not be included. Hence result of *includeNull* is reverted by *revertIf*).
-
-*ignoreIf* method decides whether to ignore this property pair when filtering (meaning this property pair will not be used during the filtering). By default if filtering property is nullable or an interface/class, and value of this parameter is null, it will be automatically assigned a default function to ignore the property pair if filtering property is null, it's a shortcut designed to encourages developers to use null values to represent "If is null then ignore this property" pattern. Developers will have to overwrite this function if they don't want the default behavior.
-
-Note that for any entity/filter pair that is registered (with *IFilterBuilder.Register<TEntity, TFilter>* method) for filtering, the library will scan through all public instance properties of these 2 classes, find the pairs with the same name, and decide the proper default operator, **except** if the entity property is a direct property of the entity which has been configured to be in a pair by *IFilterBuilder.Configure<TEntity, TFilter>* method already. This is to prevent the case when developers wrongfully names some properties of entity and filter to be of the same name, while the entity name is actually meant for something else. Though this feature exists, it is recommended for developers not to name a filter class property to be the same with certain the entity class property, if it's not meant for filtering by that entity property, this may cause unexpected filtering results with the library.
-### Filter by String Property
-To support filtering by string property with more options, the library provides *FilterConfiguration.FilterByStringProperty* method. Definition of the method is like below:
-```C#
-public IFilterConfigurationBuilder<TEntity, TFilter> FilterByStringProperty(
-    Expression<Func<TEntity, string?>> entityPropertyExpression,
-    StringOperator type,
-    Expression<Func<TFilter, string?>> filterPropertyExpression,
-    Func<TFilter, bool>? includeNull = null,
-    Func<TFilter, bool>? reverseIf = null,
-    Func<TFilter, bool>? ignoreIf = null)
-```
-Options of *StringOperator* is listed below:
-Name | Meaning
---- | ---
-Equality | entity property string equals filter property string
-InEquality | entity property string does not equal filter property string
-Contains | entity property string contains filter property string
-NotContains | entity property string does not contain filter property string
-In | filter property contains entity property string
-NotIn | filter property does not contain entity property string
-StartsWith | entity property string starts with filter property string
-NotStartsWith | entity property string does not start with filter property string
-EndsWith | entity property string ends with filter property string
-NotEndsWith | entity property string does not end with filter property string
-
-For filtering a string type with a string type, the default operator is configurable by the parameter of *FilterBuilder* constrctor. If ignored, the default value is StringOperator.Equality, or else if set according to the input string operator. This parameter will help simply the registration code for certain systems if their most search cases need to filter entities with a partial of the property value. With *new FilterBuilder(true)*, developers won't have to specify *FilterByStringProperty(entity => entity.Value, StringOperator.Contains, filter.Value)* if there are really a lot of such cases.
-An input parameter of type StringOperator? is also available in method *IFilterBuilder.Register<TEntity, TFilter>* and *IFilterBuilder.Configure<TEntity, TFilter>* method, representing the default value of StringOperator when configuring filtering TEntity instances with a TFilter instance. If not specified or set to null, the default value will fall to the configuration on *FilterBuilder* constructor; if set to a not null value, this value will be used as the default StringOperator value which overwrites the *FilterBuilder* constrctor input parameter only for this filtering case.
-
-Note that case-insensitive option is not provided in this method, as it's not supported by Linq to SQL.
-### Filter by Range
-The library also provides a maybe-not-ofter-used feature to allow developers to filter by range. Consider the use case above, if developers want to filter books published between year 2000 and 2020, they can declare the filter class like below:
-```C#
-public class FilterBookByYearRangeDto
-{
-    public int From { get; set; }
-    public int To { get; set; }
-}
-```
-Then configure the filtering like below:
-```C#
-var expressionMaker = new FilterBuilder()
-    .Configure<Book, FilterBookByYearRangeDto>()
-        .FilterByRangedFilter(dto => dto.From, RangeOperator.LessThanOrEqual, book => book.PublishedYear, RangeOperator.LessThanOrEqual, dto => dto.To, null, null, null)
-    .Finish()
-.Build()
-```
-Note that *FilterByRange* enum only has two values: *LessThan* and *LessThanOrEqual*, so first 5 input parameters of *FilterByRangedFilter* method forms a "min < value < max" pattern. The 3 function parameters of *FilterByRangedFilter* is similar to those of *FilterByProperty* method.
-In case developers want to see if a value in TFilter is between min and max properties of a TEntity (which may be a rare case), the library also provides a method named *FilterByRangedFilter* for this purpose. The usage is similar to *FilterByRangedFilter*, only with comparison direction to be opposite.
-### Complicated Expression Support
-The library supports filtering with complicated expressions, like for the follwing example:
+## Custom Filtering Configuration
+To fit the library with more general use cases, the library allows users to filter with custom configurations. For a more complicated use case to filter books with a partial of author name and author age when the book is published:
 ```C#
 public sealed class Book
 {
@@ -187,15 +87,16 @@ To get all books from an author whose name contains string "John" and whose age 
 ```C#
 var expressionMaker = new FilterBuilder()
     .Configure<Book, AuthorFilter>()
-        .FilterByStringProperty(b => b.Author.Name, StringOperator.Contains, f => f.AuthorName)
-        .FilterByProperty(b => b.PublishedYear - b.Author.BirthYear, Operator.LessThan, f => f.Age)
+        .Filter(filter => book => string.IsNullOrEmpty(filter.AuthorName) || book.Author.Name.Contains(filter.AuthorName))
+        .Filter(filter => book => !filter.Age.HasValue || book.PublishedYear - book.Author.BirthYear < filter.Age)
         .Finish()
 .Build();
 
 var filter = new AuthorFilter { Age = 40, AuthorName = "John" };
 var exp = expressionMaker.GetExpression<Book, AuthorFilter>(filter);
 ```
-It is obvious that the expressions *b => b.Author.Name* and *b => b.PublishedYear - b.Author.BirthYear* are way more expressive than only accessing a direct property of the entity.
+Note that the custom filtering expressions uses or operation to implement the behavior that if filter.AuthorName is empty, any author name will be included, and if filter.Age is empty, any author age when book was published will be included.
+The filtering conditions in the 2 .Filter calls will be combined with "And" operator when filtering. Of course we can use a single .Filter call to implement the same behavior: .Filter(filter => book => (string.IsNullOrEmpty(filter.AuthorName) || book.Author.Name.Contains(filter.AuthorName)) && (!filter.Age.HasValue || book.PublishedYear - book.Author.BirthYear < filter.Age)).
 This feature allows developers to filter entities with more complicated expressions rather than only with existing property values, which adds a lot of flexibility for developers and makes the library way more powerful.
 Note that to make use of this feature when querying data in database, the expression passed in for entity property must be supported by Linq to SQL.
 ## Feedback
