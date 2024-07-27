@@ -87,16 +87,17 @@ To get all books from an author whose name contains string "John" and whose age 
 ```C#
 var expressionMaker = new FilterBuilder()
     .Configure<Book, AuthorFilter>()
-        .Filter(filter => book => string.IsNullOrEmpty(filter.AuthorName) || book.Author.Name.Contains(filter.AuthorName))
-        .Filter(filter => book => !filter.Age.HasValue || book.PublishedYear - book.Author.BirthYear < filter.Age)
+        .Filter(filter => book => book.Author.Name.Contains(filter.AuthorName), filter => !string.IsNullOrEmpty(filter.AuthorName))
+        .Filter(filter => book => book.PublishedYear - book.Author.BirthYear < filter.Age, filter => filter.Age.HasValue)
         .Finish()
 .Build();
 
 var filter = new AuthorFilter { Age = 40, AuthorName = "John" };
 var exp = expressionMaker.GetExpression<Book, AuthorFilter>(filter);
 ```
-Note that the custom filtering expressions uses or operation to implement the behavior that if filter.AuthorName is empty, any author name will be included, and if filter.Age is empty, any author age when book was published will be included.
-The filtering conditions in the 2 .Filter calls will be combined with "And" operator when filtering. Of course we can use a single .Filter call to implement the same behavior:
+For .Filter method, the first parameter is the method to apply filter to entity, in this case the how to use input filter to include/exclude books; the second parameter is a function to decide whether to apply this filter. Take the sample code above, the first .Filter call suggests, that if AuthorName of filter is not an empty string, selected books' author names must contain the value of AuthorName of the filter or else author name of book is not used for filtering; the second .Filter call suggests that if Age of filter has value, selected book must be published before the author became the age, or else books' publish year or author birth year will not be used for fitering the books.
+The second parameter of .Filter will be null if not passed, which means the filtering condition will be applied regardless of what values the filter has.
+The filtering conditions in the 2 .Filter calls will be combined with "AndAlso" operator when filtering. Of course we can use a single .Filter call to implement the same behavior, just in that case we'll have to make some adjustment to move the "whether to apply the filter" parameter content to the filter method parameter, because flexibility of whether to apply each filtering method is no longer a possibility with the combination:
 ```C#
 var expressionMaker = new FilterBuilder()
     .Configure<Book, AuthorFilter>()
@@ -132,7 +133,7 @@ If we want to use the filter to find books whose name contains the value of filt
 var expressionMaker = new FilterBuilder()
     .Configure<Book, BookByNameFilter>()
         .ExcludeProperties(book => book.Name)
-        .Filter(filter => book => string.IsNullOrEmpty(filter.Name) || book.Name.Contains(filter.Name))
+        .Filter(filter => book => book.Name.Contains(filter.Name), filter => !string.IsNullOrEmpty(filter.Name))
     .Finish()
 .Build();
 ```
