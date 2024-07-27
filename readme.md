@@ -87,7 +87,7 @@ To get all books from an author whose name contains string "John" and whose age 
 ```C#
 var expressionMaker = new FilterBuilder()
     .Configure<Book, AuthorFilter>()
-        .Filter(filter => book => book.Author.Name.Contains(filter.AuthorName), filter => !string.IsNullOrEmpty(filter.AuthorName))
+        .Filter(filter => book => book.Author.Name.Contains(filter.AuthorName!), filter => !string.IsNullOrEmpty(filter.AuthorName))
         .Filter(filter => book => book.PublishedYear - book.Author.BirthYear < filter.Age, filter => filter.Age.HasValue)
         .Finish()
 .Build();
@@ -133,7 +133,7 @@ If we want to use the filter to find books whose name contains the value of filt
 var expressionMaker = new FilterBuilder()
     .Configure<Book, BookByNameFilter>()
         .ExcludeProperties(book => book.Name)
-        .Filter(filter => book => book.Name.Contains(filter.Name), filter => !string.IsNullOrEmpty(filter.Name))
+        .Filter(filter => book => book.Name.Contains(filter.Name!), filter => !string.IsNullOrEmpty(filter.Name))
     .Finish()
 .Build();
 ```
