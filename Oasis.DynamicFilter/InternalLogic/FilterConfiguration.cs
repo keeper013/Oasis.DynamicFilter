@@ -14,7 +14,7 @@ internal sealed class FilterConfiguration<TEntity, TFilter> : IFilterConfigurati
     private readonly FilterTypeBuilder<TEntity, TFilter> _filterTypeBuilder;
     private readonly HashSet<string> _configuredEntityProperties = new ();
 
-    private readonly List<Func<TFilter, Expression<Func<TEntity, bool>>>> _filterMethods = new ();
+    private readonly List<(Func<TFilter, Expression<Func<TEntity, bool>>>, Func<TFilter, bool>?)> _filterMethods = new ();
 
     public FilterConfiguration(FilterBuilder builder, FilterTypeBuilder<TEntity, TFilter> filterTypeBuilder)
     {
@@ -38,9 +38,9 @@ internal sealed class FilterConfiguration<TEntity, TFilter> : IFilterConfigurati
         return this;
     }
 
-    public IFilterConfigurationBuilder<TEntity, TFilter> Filter(Func<TFilter, Expression<Func<TEntity, bool>>> filterMethod)
+    public IFilterConfigurationBuilder<TEntity, TFilter> Filter(Func<TFilter, Expression<Func<TEntity, bool>>> filterMethod, Func<TFilter, bool>? applyFilter)
     {
-        _filterMethods.Add(filterMethod);
+        _filterMethods.Add((filterMethod, applyFilter));
         return this;
     }
 
@@ -60,7 +60,7 @@ internal sealed class FilterConfiguration<TEntity, TFilter> : IFilterConfigurati
         }
         else if (_filterMethods.Count > 0)
         {
-            _filterMethods.Insert(0, (dele0 as Func<TFilter, Expression<Func<TEntity, bool>>>)!);
+            _filterMethods.Insert(0, ((dele0 as Func<TFilter, Expression<Func<TEntity, bool>>>)!, null));
             _builder.Add(typeof(TEntity), typeof(TFilter), CombineFunctions(_filterMethods));
         }
         else
@@ -98,17 +98,20 @@ internal sealed class FilterConfiguration<TEntity, TFilter> : IFilterConfigurati
         return (memberExpression.Member as PropertyInfo)?.Name;
     }
 
-    private static Func<TFilter, Expression<Func<TEntity, bool>>> CombineFunctions(IList<Func<TFilter, Expression<Func<TEntity, bool>>>> list)
+    private static Func<TFilter, Expression<Func<TEntity, bool>>> CombineFunctions(IList<(Func<TFilter, Expression<Func<TEntity, bool>>>, Func<TFilter, bool>?)> list)
     {
         return (filter) =>
         {
-            Expression<Func<TEntity, bool>> exp = list[0](filter);
-            for (var i = 1; i < list.Count; i++)
+            Expression<Func<TEntity, bool>>? exp = null;
+            foreach (var item in list)
             {
-                exp = AndAlso(exp, list[i](filter));
+                if (item.Item2 == null || item.Item2(filter))
+                {
+                    exp = exp == null ? item.Item1(filter) : AndAlso(exp, item.Item1(filter));
+                }
             }
 
-            return exp;
+            return exp ?? ((TEntity e) => true);
         };
     }
 

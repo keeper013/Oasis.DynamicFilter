@@ -9,7 +9,7 @@ public interface IFilterConfigurationBuilder<TEntity, TFilter>
 {
     IFilterConfigurationBuilder<TEntity, TFilter> ExcludeProperties<TEntityProperty>(params Expression<Func<TEntity, TEntityProperty>>[] entityPropertyExpressions);
 
-    IFilterConfigurationBuilder<TEntity, TFilter> Filter(Func<TFilter, Expression<Func<TEntity, bool>>> filterMethod);
+    IFilterConfigurationBuilder<TEntity, TFilter> Filter(Func<TFilter, Expression<Func<TEntity, bool>>> filterMethod, Func<TFilter, bool>? applyFilter = null);
 
     IFilterBuilder Finish();
 }

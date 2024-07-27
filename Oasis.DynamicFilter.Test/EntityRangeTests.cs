@@ -51,13 +51,13 @@ public sealed class EntityRangeTests
     [InlineData(2, 1L, 3, true)]
     [InlineData(2, null, 3, false)]
     [InlineData(2, 1L, null, false)]
-    [InlineData(null, 1L, 3, false)]
+    [InlineData(null, 1L, 3, true)]
     public void TestWithoutIncludeNull(int? value, long? min, int? max, bool result)
     {
         var expressionMaker = new FilterBuilder()
             .Configure<EntityRangeEntity<long?, int?>, EntityRangeFilter<int?>>()
-                .Filter(f => e => e.Min < f.Value)
-                .Filter(f => e => f.Value < e.Max)
+                .Filter(f => e => e.Min < f.Value, f => f.Value.HasValue)
+                .Filter(f => e => f.Value < e.Max, f => f.Value.HasValue)
                 .Finish()
             .Build();
         var entity = new EntityRangeEntity<long?, int?>(min, max);

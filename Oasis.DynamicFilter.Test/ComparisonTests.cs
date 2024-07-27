@@ -317,13 +317,13 @@ public sealed class ComparisonTests
     [Theory]
     [InlineData(1, 1, true)]
     [InlineData(2, 1, false)]
-    [InlineData(1, null, false)]
+    [InlineData(1, null, true)]
     public void TestIntCompareToNullableIntWithoutIncludeNull(int entityValue, int? filterValue, bool result)
     {
         var filter = new FilterBuilder()
             .Configure<ComparisonEntity<int>, ComparisonFilter<int?>>()
                 .ExcludeProperties(e => e.Value)
-                .Filter(f => e => f.Value == e.Value)
+                .Filter(f => e => f.Value == e.Value, f => f.Value.HasValue)
                 .Finish()
             .Build();
         var entity = new ComparisonEntity<int>(entityValue);
@@ -378,16 +378,16 @@ public sealed class ComparisonTests
     [InlineData(null, 1, false, false)]
     [InlineData(2, 1, true, false)]
     [InlineData(2, 1, false, false)]
-    [InlineData(1, null, true, false)]
-    [InlineData(1, null, false, false)]
+    [InlineData(1, null, true, true)]
+    [InlineData(1, null, false, true)]
     [InlineData(null, null, true, true)]
-    [InlineData(null, null, false, false)]
+    [InlineData(null, null, false, true)]
     public void TestNullableIntCompareToNullableIntWithIncludeNull(int? entityValue, int? filterValue, bool includeNull, bool result)
     {
         var filter = new FilterBuilder()
             .Configure<ComparisonEntity<int?>, ComparisonFilter<int?>>()
                 .ExcludeProperties(e => e.Value)
-                .Filter(f => e => includeNull ? !e.Value.HasValue || e.Value == f.Value : e.Value.HasValue && e.Value == f.Value)
+                .Filter(f => e => includeNull ? !e.Value.HasValue || e.Value == f.Value : e.Value.HasValue && e.Value == f.Value, f => f.Value.HasValue)
                 .Finish()
             .Build();
         var entity = new ComparisonEntity<int?>(entityValue);

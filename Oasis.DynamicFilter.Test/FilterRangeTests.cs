@@ -37,15 +37,18 @@ public sealed class FilterRangeTests
     [Theory]
     [InlineData(3, 1L, 2, false)]
     [InlineData(2, 1L, 3, true)]
-    [InlineData(2, null, 3, false)]
-    [InlineData(2, 1L, null, false)]
+    [InlineData(2, null, 3, true)]
+    [InlineData(2, 1L, null, true)]
+    [InlineData(2, 4L, null, false)]
+    [InlineData(2, null, 4, true)]
     [InlineData(null, 1L, 3, false)]
-    [InlineData(2, null, null, false)]
+    [InlineData(2, null, null, true)]
     public void TestWithoutIncludeNull(int? value, long? min, int? max, bool result)
     {
         var expressionMaker = new FilterBuilder()
             .Configure<FilterRangeEntity<int?>, FilterRangeFilter<long?, int?>>()
-                .Filter(f => e => f.Min < e.Value && e.Value < f.Max)
+                .Filter(f => e => f.Min < e.Value, f => f.Min.HasValue)
+                .Filter(f => e => e.Value < f.Max, f => f.Max.HasValue)
                 .Finish()
             .Build();
         var entity = new FilterRangeEntity<int?>(value);
