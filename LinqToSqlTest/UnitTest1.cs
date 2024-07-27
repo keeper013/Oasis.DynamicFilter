@@ -36,7 +36,7 @@ public class UnitTest1 : TestBase
     {
         var expressionMaker = new FilterBuilder()
             .Configure<Book, AuthorFilter>()
-                .Filter(filter => book => string.IsNullOrEmpty(filter.AuthorName) || book.Author.Name.Contains(filter.AuthorName))
+                .Filter(filter => book => book.Author.Name.Contains(filter.AuthorName!), filter => !string.IsNullOrEmpty(filter.AuthorName))
                 .Filter(filter => book => !filter.Age.HasValue || book.PublishedYear - book.Author.BirthYear < filter.Age)
                 .Finish()
         .Build();
@@ -61,8 +61,8 @@ public class UnitTest1 : TestBase
     {
         var expressionMaker = new FilterBuilder()
             .Configure<Book, AuthorFilter>()
-                .Filter(filter => book => string.IsNullOrEmpty(filter.AuthorName) || book.Author.Name.Contains(filter.AuthorName))
-                .Filter(filter => book => !filter.Age.HasValue || book.PublishedYear - book.Author.BirthYear < filter.Age)
+                .Filter(filter => book => book.Author.Name.Contains(filter.AuthorName!), filter => !string.IsNullOrEmpty(filter.AuthorName))
+                .Filter(filter => book => book.PublishedYear - book.Author.BirthYear < filter.Age, filter => filter.Age.HasValue)
                 .Finish()
         .Build();
 
@@ -86,8 +86,8 @@ public class UnitTest1 : TestBase
     {
         var expressionMaker = new FilterBuilder()
             .Configure<Book, AuthorFilter>()
-                .Filter(filter => book => string.IsNullOrEmpty(filter.AuthorName) || book.Author.Name.Contains(filter.AuthorName))
-                .Filter(filter => book => !filter.Age.HasValue || book.PublishedYear - book.Author.BirthYear < filter.Age)
+                .Filter(filter => book => book.Author.Name.Contains(filter.AuthorName!), filter => !string.IsNullOrEmpty(filter.AuthorName))
+                .Filter(filter => book => book.PublishedYear - book.Author.BirthYear < filter.Age, filter => filter.Age.HasValue)
                 .Finish()
         .Build();
 
@@ -136,7 +136,7 @@ public class UnitTest1 : TestBase
         var expressionMaker = new FilterBuilder()
             .Configure<Book, BookByNameFilter>()
                 .ExcludeProperties(book => book.Name)
-                .Filter(filter => book => string.IsNullOrEmpty(filter.Name) || book.Name.Contains(filter.Name))
+                .Filter(filter => book => book.Name.Contains(filter.Name!), filter => !string.IsNullOrEmpty(filter.Name))
             .Finish()
         .Build();
 
@@ -161,7 +161,7 @@ public class UnitTest1 : TestBase
         var expressionMaker = new FilterBuilder()
             .Configure<Book, BookByNameFilter>()
                 .ExcludeProperties(book => book.Name)
-                .Filter(filter => book => string.IsNullOrEmpty(filter.Name) || book.Name.StartsWith(filter.Name))
+                .Filter(filter => book => book.Name.StartsWith(filter.Name!), filter => !string.IsNullOrEmpty(filter.Name))
             .Finish()
         .Build();
 
@@ -186,7 +186,7 @@ public class UnitTest1 : TestBase
         var expressionMaker = new FilterBuilder()
             .Configure<Book, BookByNameFilter>()
                 .ExcludeProperties(book => book.Name)
-                .Filter(filter => book => string.IsNullOrEmpty(filter.Name) || book.Name.EndsWith(filter.Name))
+                .Filter(filter => book => book.Name.EndsWith(filter.Name!), filter => !string.IsNullOrEmpty(filter.Name))
             .Finish()
         .Build();
 
@@ -211,7 +211,7 @@ public class UnitTest1 : TestBase
         var expressionMaker = new FilterBuilder()
             .Configure<Book, BookByNameFilter>()
                 .ExcludeProperties(book => book.Name)
-                .Filter(filter => book => string.IsNullOrEmpty(filter.Name) || filter.Name.Contains(book.Name))
+                .Filter(filter => book => filter.Name!.Contains(book.Name), filter => !string.IsNullOrEmpty(filter.Name))
             .Finish()
         .Build();
 
