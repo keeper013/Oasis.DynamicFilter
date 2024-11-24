@@ -57,7 +57,7 @@ internal static class Utilities
 
     internal static bool HasEqualityOperator(this Type type) => type.GetMethod(EqualityOperatorMethodName, PublicStatic) != null;
 
-    internal static void Add<TKey1, TKey2, TValue>(this Dictionary<TKey1, Dictionary<TKey2, TValue>> dict, TKey1 key1, TKey2 key2, TValue value)
+    internal static void Add<TKey1, TKey2, TValue>(this IDictionary<TKey1, IDictionary<TKey2, TValue>> dict, TKey1 key1, TKey2 key2, TValue value)
     {
         if (!dict.TryGetValue(key1, out var innerDict))
         {
@@ -68,11 +68,25 @@ internal static class Utilities
         innerDict.Add(key2, value);
     }
 
-    internal static bool Contains<TKey1, TKey2, TValue>(this Dictionary<TKey1, Dictionary<TKey2, TValue>> dict, TKey1 key1, TKey2 key2) => dict.TryGetValue(key1, out var innerDict) && innerDict.ContainsKey(key2);
+    internal static bool Remove<TKey1, TKey2, TValue>(this IDictionary<TKey1, IDictionary<TKey2, TValue>> dict, TKey1 key1, TKey2 key2)
+    {
+        var result = dict.TryGetValue(key1, out var innerDict) && innerDict.Remove(key2, out _);
+        if (result)
+        {
+            if (innerDict.Count == 0)
+            {
+                dict.Remove(key1);
+            }
+        }
+
+        return result;
+    }
+
+    internal static bool Contains<TKey1, TKey2, TValue>(this IDictionary<TKey1, IDictionary<TKey2, TValue>> dict, TKey1 key1, TKey2 key2) => dict.TryGetValue(key1, out var innerDict) && innerDict.ContainsKey(key2);
 
     internal static bool Contains<TKey1, TKey2>(this IReadOnlyDictionary<TKey1, ISet<TKey2>> dict, TKey1 key1, TKey2 key2) => dict.TryGetValue(key1, out var innserSet) && innserSet.Contains(key2);
 
-    internal static TValue? Find<TKey1, TKey2, TValue>(this IReadOnlyDictionary<TKey1, IReadOnlyDictionary<TKey2, TValue>> dict, TKey1 key1, TKey2 key2)
+    internal static TValue? Find<TKey1, TKey2, TValue>(this IDictionary<TKey1, IDictionary<TKey2, TValue>> dict, TKey1 key1, TKey2 key2)
         where TKey1 : notnull
         where TKey2 : notnull
     {

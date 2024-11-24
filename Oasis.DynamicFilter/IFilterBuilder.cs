@@ -20,9 +20,9 @@ public interface IFilterBuilder
         where TEntity : class
         where TFilter : class;
 
-    IFilterConfigurationBuilder<TEntity, TFilter> Configure<TEntity, TFilter>()
+    IFilterConfigurationBuilder<TEntity, TFilter> Configure<TEntity, TFilter>(bool? isLazy = null)
         where TEntity : class
         where TFilter : class;
 
-    IFilter Build();
+    IFilter Build(bool autoRegisterIfNot = false);
 }

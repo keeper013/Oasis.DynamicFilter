@@ -6,7 +6,14 @@ using System.Linq.Expressions;
 using System.Reflection;
 using System;
 
-internal sealed class FilterConfiguration<TEntity, TFilter> : IFilterConfigurationBuilder<TEntity, TFilter>
+internal interface ICanConvertToDelegate
+{
+    bool IsLazy { get; }
+
+    Delegate ToDelegate();
+}
+
+internal sealed class FilterConfiguration<TEntity, TFilter> : IFilterConfigurationBuilder<TEntity, TFilter>, ICanConvertToDelegate
     where TEntity : class
     where TFilter : class
 {
@@ -16,11 +23,14 @@ internal sealed class FilterConfiguration<TEntity, TFilter> : IFilterConfigurati
 
     private readonly List<(Func<TFilter, Expression<Func<TEntity, bool>>>, Func<TFilter, bool>?)> _filterMethods = new ();
 
-    public FilterConfiguration(FilterBuilder builder, FilterTypeBuilder<TEntity, TFilter> filterTypeBuilder)
+    public FilterConfiguration(FilterBuilder builder, FilterTypeBuilder<TEntity, TFilter> filterTypeBuilder, bool isLazy)
     {
         _builder = builder;
         _filterTypeBuilder = filterTypeBuilder;
+        IsLazy = isLazy;
     }
+
+    public bool IsLazy { get; private set; }
 
     public IFilterConfigurationBuilder<TEntity, TFilter> ExcludeProperties<TEntityProperty>(params Expression<Func<TEntity, TEntityProperty>>[] entityPropertyExpressions)
     {
@@ -44,7 +54,7 @@ internal sealed class FilterConfiguration<TEntity, TFilter> : IFilterConfigurati
         return this;
     }
 
-    public IFilterBuilder Finish()
+    public Delegate ToDelegate()
     {
         var dele0 = BuildTypeAndFunction();
         if (dele0 == null)
@@ -55,19 +65,23 @@ internal sealed class FilterConfiguration<TEntity, TFilter> : IFilterConfigurati
             }
             else
             {
-                _builder.Add(typeof(TEntity), typeof(TFilter), CombineFunctions(_filterMethods));
+                return CombineFunctions(_filterMethods);
             }
         }
         else if (_filterMethods.Count > 0)
         {
             _filterMethods.Insert(0, ((dele0 as Func<TFilter, Expression<Func<TEntity, bool>>>)!, null));
-            _builder.Add(typeof(TEntity), typeof(TFilter), CombineFunctions(_filterMethods));
+            return CombineFunctions(_filterMethods);
         }
         else
         {
-            _builder.Add(typeof(TEntity), typeof(TFilter), dele0);
+            return dele0;
         }
+    }
 
+    public IFilterBuilder Finish()
+    {
+        _builder.Add(typeof(TEntity), typeof(TFilter), this);
         return _builder;
     }
 
