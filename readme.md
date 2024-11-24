@@ -33,13 +33,13 @@ if (searchForBookDto.PublishedYear != null)
 
 await queryable.ToListAsync();
 ```
-It's easy to see in the use case that for each searching property, the logic is the same: if the property value is not null, apply it to the queryable. This is quite tedious if there are a lot of such search fields to fill in for, or there are a lot of such searching features to implement. The library helps to implement the same searching logic and simply the code to be as following:
+It's easy to see in the use case that for each searching property, the logic is the same: if the property value is not null, apply it to the queryable. This is quite tedious if there are a lot of such search fields to fill in for, or there are a lot of such searching features to implement. **the library** helps to implement the same searching logic and simply the code to be as following:
 ```C#
 var expressionMaker = new FilterBuilder().Register<Book, SearchForBookDto>().Build();
 await databaseContext.Set<Book>().Where(expressionMaker.GetExpression<Book, SearchForBookDto>(searchForBookDto)).ToListAsync();
 ```
 ## Basic Feature
-The library uses ILGenerator class provided by C# to dynamically generate the "If not null then apply the search" logic code in IL to save developers the effort. *FilterBuilder.Register<TEntity, TFilter>* method automatically tries to scan over all public instance properties of the TEntity and TFilter classes, find the property pairs with the same names, detect types of both entity and filter properties, and apply default operation it should use for the filtering. The default filtering operation applied between properties types of certain types are listed below.
+**The library** uses ILGenerator class provided by C# to dynamically generate the "If not null then apply the search" logic code in IL to save developers the effort. *FilterBuilder.Register<TEntity, TFilter>* method automatically tries to scan over all public instance properties of the TEntity and TFilter classes, find the property pairs with the same names, detect types of both entity and filter properties, and apply default operation it should use for the filtering. The default filtering operation applied between properties types of certain types are listed below.
 Entity Property Type | Filter Property Type | Default Operation
 --- | --- | ---
 C# primitive numeric | C# primitive numeric | Equal
@@ -52,13 +52,13 @@ T[] where T is string or value type | same string or value type | Contains
 some string or value type | ICollection<T> where T is the same string or value type | In
 some string or value type | T[] where T is the same string or value type | In
 
-Note that if the property types are not suitable for any operator, the property pair will be silently ignored by the library when filtering.
+Note that if the property types are not suitable for any operator, the property pair will be silently ignored by **the library** when filtering.
 When both etity and property types are string, the default operator is by default *Equal*, but configurable. This will be elaborated in the later sections.
-Note that for C# primitive numeric values comparison, the types don't need to be exactly the same, like comparison between an *int* and a *long* is allowed, also that between a *sbyte* and *ushort*. As long as C# allows the comparison, the library supportes it. But for custom defined enums structs and classes, comparison is only allowed to happen between instances of the same type, for structs and classes, the corresponding compairson operator must exist as well.
+Note that for C# primitive numeric values comparison, the types don't need to be exactly the same, like comparison between an *int* and a *long* is allowed, also that between a *sbyte* and *ushort*. As long as C# allows the comparison, **the library** supportes it. But for custom defined enums structs and classes, comparison is only allowed to happen between instances of the same type, for structs and classes, the corresponding compairson operator must exist as well.
 In the above table, "In" logic represents simply the reverse of contains, that if the string or numeric value is in the collection or array. Developers can call register for multiple times to register filtering relationship between multiple class pairs, when finished call *FilterBuilder.Build* method to finish it get the *IFilter* instance that generates expressions.
 To get a function to filter IEnumerable instances, developers can call *IFilter.GetFunction<TEntity, TFilter>* instead of calling *IFilter.GetExpression<TEntity, TFilter>*, or they can simple call *Compile* method from the expression to get the function, they are essentially the same.
 ## Custom Filtering Configuration
-To fit the library with more general use cases, the library allows users to filter with custom configurations. For a more complicated use case to filter books with a partial of author name and author age when the book is published:
+To fit **the library** with more general use cases, **the library** allows users to filter with custom configurations. For a more complicated use case to filter books with a partial of author name and author age when the book is published:
 ```C#
 public sealed class Book
 {
@@ -105,7 +105,7 @@ var expressionMaker = new FilterBuilder()
         .Finish()
 .Build();
 ```
-This feature allows developers to filter entities with more complicated expressions rather than only with existing property values, which adds a lot of flexibility for developers and makes the library way more powerful.
+This feature allows developers to filter entities with more complicated expressions rather than only with existing property values, which adds a lot of flexibility for developers and makes **the library** way more powerful.
 Note that to make use of this feature when querying data in database, the expression passed in for entity property must be supported by Linq to SQL.
 ## Confliction Between Automatically Generated Filtering and Custom Filtering
 When building a filtering rule between a filter and entity, with .Configure method, **the library** will still try to find scan over both classes, and try to generate filtering code for properties of same names and compatible types. If the same property is used in custom configuration and shouldn't be used for automatic filtering, .ExcludeProperties method should be called to stop **the library** from automatically generating filtering code for that property. Like the case:
@@ -137,7 +137,32 @@ var expressionMaker = new FilterBuilder()
     .Finish()
 .Build();
 ```
-Note that without the statement ".ExcludeProperties(book => book.Name)", the library will automatically generate the condition that book name should equal to book filter name, so the final condition becomes "book names equals to book filter name, and book name contains book filter name", which will only work when book filter name equals to book name. It certainly is not what it meant to be.
+Note that without the statement ".ExcludeProperties(book => book.Name)", **the library** will automatically generate the condition that book name should equal to book filter name, so the final condition becomes "book names equals to book filter name, and book name contains book filter name", which will only work when book filter name equals to book name. It certainly is not what it meant to be.
 ".ExcludeProperties" accepts an array of expressions to allow excluding multiple poperties for automatic filtering condition generation in one call.
+## Lazy Configuration
+As mentioned earlier, this library dynamically generates code for filtering. In case users want to only generate the the code logic if filtering really happened between an entity type and a fitler type, **the library** provides lazy configuration feature for that.
+### Default Filtering
+IFilterBuilder.Build method has a boolean input parameter: autoRegisterIfNot. This input parameter value will be false if not provided. If the value is set to true, **the library** will automatically do default regsitration between an entity class and a filter class, when user tries filtering the entity class instance with a filter class instance, if **the library** finds out that IFilterBuiler.Register or IFilterBuilder.Configure methods where never called for the classes. To simplify the statement with the example below, for the Book and SearchForBookDto example in introduction section, the following code also works, with lazy style:
+```C#
+// here input parameter by default is false, when set to true, we don't need to call Register method for filtering Book instances with a SearchForBookDto instance.
+var expressionMaker = new FilterBuilder().Build(true);
+await databaseContext.Set<Book>().Where(expressionMaker.GetExpression<Book, SearchForBookDto>(searchForBookDto)).ToListAsync();
+```
+When expressionMaker.GetExpression method is called, **the library** finds out that registration between Book and SearchForBookDto was never registered, it will automatically do the registration, so it works like .Register<Book, SearchForBookDto> method was called on the FilterBuilder instance.
+### Custom Filtering
+For custom filtering, Configure method has an input parameter of bool? to specify whether the registration should be lazy or not. True for being lazy, false for not, null for following default value of the FilterBuilder instance. Constructor of FilterBuilder class has an input parameter of bool type to specify whether custom filtering should be lazy or not, defaulted to false. Comparing with sample code in custom filtering configuration section, the following code should work the same with lazy style:
+```C#
+// here the input parameter by default is false, so it will work the same if it's not passed at all
+// if the value is true, method Configure in the next line won't need the input parameter, the default value of null will make the lazy decision fall back to this parameter.
+var expressionMaker = new FilterBuilder(false)
+    // here pass true for the custom configuration to be lazy
+    .Configure<Book, AuthorFilter>(true)
+        .Filter(filter => book => book.Author.Name.Contains(filter.AuthorName!), filter => !string.IsNullOrEmpty(filter.AuthorName))
+        .Filter(filter => book => book.PublishedYear - book.Author.BirthYear < filter.Age, filter => filter.Age.HasValue)
+        .Finish()
+.Build();
+```
+### Heads Up for Lazy
+Note that to make **the library** thread safe, this lazy feature will require locking and unlocking on its internal data structures when getting functions and expressions. So although the lazy feature helps to save some time in initialization of IFilter instances, it may affect its performance under multi-threading environment. For heavyly multi-threaded programs that requires **the library**, the trade off should be carefully taken into consideration.
 ## Feedback
-There there be any questions or suggestions regarding the library, please send an email to keeper013@gmail.com for inquiry. When submitting bugs, it's preferred to submit a C# code file with a unit test to easily reproduce the bug.
+There there be any questions or suggestions regarding **the library**, please send an email to keeper013@gmail.com for inquiry. When submitting bugs, it's preferred to submit a C# code file with a unit test to easily reproduce the bug.
